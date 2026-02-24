@@ -1,3 +1,6 @@
+pub mod notion;
+pub mod zulip;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -7,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct StructuredRecord {
     /// Target table name (e.g. "notion_pages", "zulip_messages").
     pub table: String,
-    /// Column name → JSON value pairs.
+    /// Column name -> JSON value pairs.
     pub fields: serde_json::Map<String, serde_json::Value>,
 }
 

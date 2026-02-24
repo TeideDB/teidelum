@@ -1361,101 +1361,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "teidelum-catalog"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "teidelum-connector-core"
+name = "teidelum"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "teidelum-connector-kdb"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "teidelum-connector-core",
- "tokio",
-]
-
-[[package]]
-name = "teidelum-search"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
+ "rmcp",
  "serde",
  "serde_json",
  "tantivy",
- "teidelum-sync-core",
-]
-
-[[package]]
-name = "teidelum-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "teidelum-catalog",
- "teidelum-connector-core",
- "teidelum-connector-kdb",
- "teidelum-search",
- "teidelum-sync-core",
- "teidelum-sync-notion",
- "teidelum-sync-zulip",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "teidelum-sync-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "teidelum-sync-notion"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "teidelum-sync-core",
- "tokio",
-]
-
-[[package]]
-name = "teidelum-sync-zulip"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "teidelum-sync-core",
- "tokio",
 ]
 
 [[package]]

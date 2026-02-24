@@ -1,22 +1,16 @@
-[workspace]
-resolver = "2"
-members = [
-    "crates/server",
-    "crates/search",
-    "crates/catalog",
-    "crates/connector-core",
-    "crates/connector-kdb",
-    "crates/sync-core",
-    "crates/sync-notion",
-    "crates/sync-zulip",
-]
-
-[workspace.package]
+[package]
+name = "teidelum"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+description = "Compact local-first MCP server that syncs work tools into a single searchable index"
+repository = "https://github.com/TeideDB/teidelum"
 
-[workspace.dependencies]
+[[bin]]
+name = "teidelum"
+path = "src/main.rs"
+
+[dependencies]
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -26,14 +20,4 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
 rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
-schemars = "1"
 tantivy = "0.22"
-
-# internal crates
-teidelum-search = { path = "crates/search" }
-teidelum-catalog = { path = "crates/catalog" }
-teidelum-connector-core = { path = "crates/connector-core" }
-teidelum-connector-kdb = { path = "crates/connector-kdb" }
-teidelum-sync-core = { path = "crates/sync-core" }
-teidelum-sync-notion = { path = "crates/sync-notion" }
-teidelum-sync-zulip = { path = "crates/sync-zulip" }

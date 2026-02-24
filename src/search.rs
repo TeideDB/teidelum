@@ -1,6 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+use crate::sync::SearchDocument;
+
 /// A single search result with source attribution and relevance score.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
@@ -33,10 +35,7 @@ impl SearchEngine {
     }
 
     /// Index a batch of documents.
-    pub fn index(
-        &self,
-        _documents: &[teidelum_sync_core::SearchDocument],
-    ) -> Result<usize> {
+    pub fn index(&self, _documents: &[SearchDocument]) -> Result<usize> {
         // TODO: add documents to tantivy index, commit
         Ok(0)
     }

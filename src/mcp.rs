@@ -10,9 +10,8 @@ use rmcp::{
 };
 use tokio::sync::Mutex;
 
-use teidelum_catalog::Catalog;
-use teidelum_search::{SearchEngine, SearchQuery};
-
+use crate::catalog::Catalog;
+use crate::search::{SearchEngine, SearchQuery};
 use crate::router::QueryRouter;
 
 /// Tool parameter types — derive JsonSchema for automatic MCP schema generation.

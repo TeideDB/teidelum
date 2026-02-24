@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use teidelum_sync_core::{SyncOutput, SyncSource};
+
+use super::{SyncOutput, SyncSource};
 
 pub struct NotionSync {
     // TODO: API token, workspace config

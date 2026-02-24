@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use teidelum_connector_core::{ColumnSchema, Connector, QueryResult};
+
+use super::{ColumnSchema, Connector, QueryResult};
 
 pub struct KdbConnector {
     // TODO: connection config (host, port)

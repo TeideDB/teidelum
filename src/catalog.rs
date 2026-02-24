@@ -97,7 +97,7 @@ impl Catalog {
         };
 
         let rels: Vec<_> = match source_filter {
-            Some(_src) => self
+            Some(_) => self
                 .relationships
                 .iter()
                 .filter(|r| {

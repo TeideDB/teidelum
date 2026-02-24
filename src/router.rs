@@ -1,6 +1,7 @@
 use anyhow::Result;
-use teidelum_catalog::Catalog;
-use teidelum_connector_core::{Connector, QueryResult};
+
+use crate::catalog::Catalog;
+use crate::connector::{Connector, QueryResult};
 
 /// The query router checks the metadata catalog to determine
 /// how to serve each SQL query — local tables go to libteide,

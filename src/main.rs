@@ -2,13 +2,17 @@ use anyhow::Result;
 use rmcp::{ServiceExt, transport::stdio};
 use tracing_subscriber::EnvFilter;
 
+mod catalog;
+mod connector;
 mod mcp;
 mod router;
+mod search;
+mod sync;
 
+use catalog::Catalog;
 use mcp::Teidelum;
 use router::QueryRouter;
-use teidelum_catalog::Catalog;
-use teidelum_search::SearchEngine;
+use search::SearchEngine;
 
 #[tokio::main]
 async fn main() -> Result<()> {
