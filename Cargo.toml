@@ -10,6 +10,10 @@ repository = "https://github.com/TeideDB/teidelum"
 name = "teidelum"
 path = "src/main.rs"
 
+[lib]
+name = "teidelum"
+path = "src/lib.rs"
+
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
@@ -23,3 +27,6 @@ rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
 tantivy = "0.22"
 teide = { path = "../teide-rs" }
 rand = "0.8"
+
+[dev-dependencies]
+tempfile = "3"

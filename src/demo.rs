@@ -427,3 +427,107 @@ fn save_sym(sym_path: &Path) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_demo_data() {
+        let tmp = tempfile::tempdir().unwrap();
+        let data_dir = tmp.path();
+
+        generate(data_dir).unwrap();
+
+        // --- Documents ---
+        let docs_dir = data_dir.join("docs");
+        assert!(docs_dir.exists(), "docs directory should exist");
+
+        let md_files: Vec<_> = fs::read_dir(&docs_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map_or(false, |ext| ext == "md"))
+            .collect();
+        assert_eq!(md_files.len(), 8, "should generate 8 markdown documents");
+
+        // Verify a known document has expected content
+        let rfc = fs::read_to_string(docs_dir.join("auth-redesign-rfc.md")).unwrap();
+        assert!(rfc.contains("Authentication Redesign RFC"));
+        assert!(rfc.contains("JWT"));
+
+        // --- Splayed tables ---
+        let tables_dir = data_dir.join("tables");
+        assert!(tables_dir.exists(), "tables directory should exist");
+
+        // Sym file must exist for cross-session column name resolution
+        assert!(tables_dir.join("sym").exists(), "sym file should exist");
+
+        // Each table directory must have a .d schema file
+        for table_name in &["team_members", "project_tasks", "incidents"] {
+            let table_dir = tables_dir.join(table_name);
+            assert!(table_dir.exists(), "{table_name} directory should exist");
+            assert!(
+                table_dir.join(".d").exists(),
+                "{table_name}/.d schema file should exist"
+            );
+        }
+
+        // team_members: 5 columns
+        let tm_dir = tables_dir.join("team_members");
+        for col in &["id", "name", "role", "department", "start_date"] {
+            assert!(tm_dir.join(col).exists(), "team_members/{col} should exist");
+        }
+
+        // project_tasks: 7 columns
+        let pt_dir = tables_dir.join("project_tasks");
+        for col in &["id", "title", "assignee", "status", "priority", "project", "created_at"] {
+            assert!(pt_dir.join(col).exists(), "project_tasks/{col} should exist");
+        }
+
+        // incidents: 7 columns
+        let inc_dir = tables_dir.join("incidents");
+        for col in &["id", "title", "severity", "reporter", "resolved", "duration_min", "created_at"] {
+            assert!(inc_dir.join(col).exists(), "incidents/{col} should exist");
+        }
+    }
+
+    #[test]
+    fn test_splayed_tables_loadable() {
+        let tmp = tempfile::tempdir().unwrap();
+        let data_dir = tmp.path();
+
+        generate(data_dir).unwrap();
+
+        // Load tables in a fresh session to verify sym file works across sessions
+        let tables_dir = data_dir.join("tables");
+        let sym_path = tables_dir.join("sym");
+        let mut session = teide::Session::new().unwrap();
+
+        for table_name in &["team_members", "project_tasks", "incidents"] {
+            let table_dir = tables_dir.join(table_name);
+            let sql = format!(
+                "CREATE TABLE {table_name} AS SELECT * FROM read_splayed('{}', '{}')",
+                table_dir.display(),
+                sym_path.display(),
+            );
+            session.execute(&sql).unwrap();
+
+            let (nrows, ncols) = session
+                .table_info(table_name)
+                .expect(&format!("{table_name} should be registered"));
+            assert!(nrows > 0, "{table_name} should have rows");
+            assert!(ncols > 0, "{table_name} should have columns");
+        }
+
+        // Query to verify data integrity
+        let result = session.execute("SELECT name, role FROM team_members LIMIT 1").unwrap();
+        if let teide::ExecResult::Query(q) = result {
+            assert_eq!(q.columns.len(), 2);
+            assert_eq!(q.columns[0], "name");
+            assert_eq!(q.columns[1], "role");
+            assert_eq!(q.table.nrows(), 1);
+        } else {
+            panic!("expected query result");
+        }
+    }
+}

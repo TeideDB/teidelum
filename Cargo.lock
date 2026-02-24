@@ -1401,6 +1401,7 @@ dependencies = [
  "serde_json",
  "tantivy",
  "teide",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

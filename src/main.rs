@@ -4,18 +4,10 @@ use anyhow::Result;
 use rmcp::{ServiceExt, transport::stdio};
 use tracing_subscriber::EnvFilter;
 
-mod catalog;
-mod connector;
-mod demo;
-mod mcp;
-mod router;
-mod search;
-mod sync;
-
-use catalog::{Catalog, ColumnInfo, StorageType, TableEntry};
-use mcp::Teidelum;
-use router::QueryRouter;
-use search::SearchEngine;
+use teidelum::catalog::{Catalog, ColumnInfo, StorageType, TableEntry};
+use teidelum::mcp::Teidelum;
+use teidelum::router::QueryRouter;
+use teidelum::search::SearchEngine;
 
 fn data_dir() -> PathBuf {
     std::env::var("TEIDELUM_DATA")
@@ -39,7 +31,7 @@ async fn main() -> Result<()> {
     // Generate demo data if not present
     if !data.join("tables").exists() || !data.join("docs").exists() {
         tracing::info!("generating demo data...");
-        demo::generate(&data)?;
+        teidelum::demo::generate(&data)?;
     }
 
     // Initialize search engine and index documents
