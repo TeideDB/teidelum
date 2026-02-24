@@ -1,0 +1,12 @@
+{
+    "mcpServers": {
+      "teidelum": {
+        "command": "cargo",
+        "args": ["run", "--manifest-path", "/home/hetoku/data/work/teidedb/teidelum/Cargo.toml"],
+        "env": {
+          "TEIDELUM_DATA": "/home/hetoku/data/work/teidedb/teidelum/data"
+        }
+      }
+    }
+  }
+
