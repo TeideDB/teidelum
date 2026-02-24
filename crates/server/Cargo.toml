@@ -1,0 +1,31 @@
+[package]
+name = "teidelum-server"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "teidelum"
+path = "src/main.rs"
+
+[dependencies]
+teidelum-search.workspace = true
+teidelum-catalog.workspace = true
+teidelum-connector-core.workspace = true
+teidelum-sync-core.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# feature-gated sources
+teidelum-connector-kdb = { workspace = true, optional = true }
+teidelum-sync-notion = { workspace = true, optional = true }
+teidelum-sync-zulip = { workspace = true, optional = true }
+
+[features]
+default = []
+kdb = ["dep:teidelum-connector-kdb"]
+notion = ["dep:teidelum-sync-notion"]
+zulip = ["dep:teidelum-sync-zulip"]
