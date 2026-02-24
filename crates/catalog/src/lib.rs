@@ -41,6 +41,7 @@ pub struct Relationship {
 ///
 /// The query router uses the catalog to decide whether to dispatch
 /// a query to libteide (local) or a connector (remote).
+#[derive(Clone)]
 pub struct Catalog {
     tables: Vec<TableEntry>,
     relationships: Vec<Relationship>,
