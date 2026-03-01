@@ -137,7 +137,21 @@ impl TeidelumApi {
         );
         self.query_router.query_sync(&create_sql)?;
 
-        // Register in catalog before inserting rows so the table is always visible
+        // Insert rows in batches of 1000
+        if !rows.is_empty() {
+            for chunk in rows.chunks(1000) {
+                let values: Vec<String> = chunk.iter().map(|row| row_to_sql_values(row)).collect();
+                let col_names: Vec<&str> = columns.iter().map(|c| c.name.as_str()).collect();
+                let insert_sql = format!(
+                    "INSERT INTO {name} ({cols}) VALUES {vals}",
+                    cols = col_names.join(", "),
+                    vals = values.join(", "),
+                );
+                self.query_router.query_sync(&insert_sql)?;
+            }
+        }
+
+        // Register in catalog after successful INSERT so metadata is always accurate
         let catalog_columns: Vec<ColumnInfo> = columns
             .iter()
             .map(|c| ColumnInfo {
@@ -155,20 +169,6 @@ impl TeidelumApi {
                 columns: catalog_columns,
                 row_count: Some(rows.len() as u64),
             });
-        }
-
-        // Insert rows in batches of 1000
-        if !rows.is_empty() {
-            for chunk in rows.chunks(1000) {
-                let values: Vec<String> = chunk.iter().map(|row| row_to_sql_values(row)).collect();
-                let col_names: Vec<&str> = columns.iter().map(|c| c.name.as_str()).collect();
-                let insert_sql = format!(
-                    "INSERT INTO {name} ({cols}) VALUES {vals}",
-                    cols = col_names.join(", "),
-                    vals = values.join(", "),
-                );
-                self.query_router.query_sync(&insert_sql)?;
-            }
         }
 
         Ok(())
@@ -210,7 +210,25 @@ impl TeidelumApi {
     }
 
     /// Register multiple relationships in bulk, rebuilding the graph engine once.
+    ///
+    /// Validates all relationships before mutating the catalog, so a validation
+    /// failure in any relationship leaves the catalog unchanged.
     pub fn register_relationships(&self, rels: Vec<Relationship>) -> Result<()> {
+        // Validate all identifiers upfront to avoid partial catalog mutation
+        for rel in &rels {
+            for (label, val) in [
+                ("from_table", &rel.from_table),
+                ("from_col", &rel.from_col),
+                ("to_table", &rel.to_table),
+                ("to_col", &rel.to_col),
+                ("relation", &rel.relation),
+            ] {
+                if !is_valid_identifier(val) {
+                    bail!("invalid identifier in relationship {label}: '{val}'");
+                }
+            }
+        }
+
         let mut catalog = self.catalog.write().unwrap();
         for rel in rels {
             catalog.register_relationship(rel)?;
@@ -329,12 +347,6 @@ impl TeidelumApi {
                 }
             }
         }
-
-        // Rebuild graph engine after loading tables
-        let catalog = self.catalog.read().unwrap();
-        let graph = GraphEngine::build_from_catalog(&catalog);
-        drop(catalog);
-        *self.graph_engine.write().unwrap() = graph;
 
         Ok(())
     }
