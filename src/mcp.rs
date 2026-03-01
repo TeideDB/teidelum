@@ -234,6 +234,8 @@ impl Teidelum {
                     to_key_col,
                     to_key,
                     params.depth,
+                    &params.direction,
+                    params.rel_types.as_deref(),
                     &self.query_router,
                 )
             }

@@ -117,26 +117,21 @@ impl GraphEngine {
 
                     for (id_col, nval) in &neighbor_values {
                         let key = (neighbor_table.clone(), nval.clone());
-                        let node_exists = match visited.entry(key) {
-                            std::collections::hash_map::Entry::Occupied(_) => true,
-                            std::collections::hash_map::Entry::Vacant(e) => {
-                                if let Ok(props) =
-                                    self.fetch_node_properties(neighbor_table, id_col, nval, router)
-                                {
-                                    e.insert(props);
-                                    next_frontier.push((
-                                        neighbor_table.clone(),
-                                        id_col.clone(),
-                                        nval.clone(),
-                                    ));
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-                        };
+                        if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(key) {
+                            // Fetch properties; use null on failure so the node
+                            // is still recorded and traversal continues through it.
+                            let props = self
+                                .fetch_node_properties(neighbor_table, id_col, nval, router)
+                                .unwrap_or(serde_json::Value::Null);
+                            e.insert(props);
+                            next_frontier.push((
+                                neighbor_table.clone(),
+                                id_col.clone(),
+                                nval.clone(),
+                            ));
+                        }
 
-                        if node_exists {
+                        {
                             if is_forward {
                                 edges.push(Edge {
                                     from_table: tbl.clone(),
@@ -193,6 +188,8 @@ impl GraphEngine {
         to_key_col: &str,
         to_key: &str,
         max_depth: usize,
+        direction: &str,
+        rel_types: Option<&[String]>,
         router: &QueryRouter,
     ) -> Result<serde_json::Value> {
         if !is_valid_identifier(from_table) {
@@ -234,8 +231,8 @@ impl GraphEngine {
         for _d in 0..max_depth {
             let mut next_frontier = Vec::new();
 
-            for (tbl, kcol, kval) in &frontier {
-                let rels = self.find_relationships(tbl, "both", None);
+            'frontier: for (tbl, kcol, kval) in &frontier {
+                let rels = self.find_relationships(tbl, direction, rel_types);
 
                 for rel in &rels {
                     let (neighbor_table, neighbor_col, source_col, is_forward) =
@@ -276,6 +273,7 @@ impl GraphEngine {
                                 if let Some(expected) = target_row.get(id_col) {
                                     if expected == nval {
                                         found_key = Some(key);
+                                        break 'frontier;
                                     }
                                 }
                             }
