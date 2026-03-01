@@ -763,75 +763,11 @@ mod tests {
 
     // ---- Validation tests ----
 
-    fn setup_demo_router() -> (QueryRouter, tempfile::TempDir) {
-        let tmp = tempfile::tempdir().unwrap();
-        crate::demo::generate(tmp.path()).unwrap();
-
-        let router = QueryRouter::new().unwrap();
-        let tables_dir = tmp.path().join("tables");
-        let sym_path = tables_dir.join("sym");
-
-        for table_name in &["team_members", "project_tasks", "incidents"] {
-            let table_dir = tables_dir.join(table_name);
-            router
-                .load_splayed(table_name, &table_dir, Some(&sym_path))
-                .unwrap();
-        }
-        (router, tmp)
-    }
-
-    fn demo_table_columns() -> HashMap<String, Vec<String>> {
-        let mut cols = HashMap::new();
-        cols.insert(
-            "team_members".to_string(),
-            vec!["id", "name", "role", "department", "start_date"]
-                .into_iter()
-                .map(String::from)
-                .collect(),
-        );
-        cols.insert(
-            "project_tasks".to_string(),
-            vec![
-                "id",
-                "title",
-                "assignee",
-                "status",
-                "priority",
-                "project",
-                "created_at",
-            ]
-            .into_iter()
-            .map(String::from)
-            .collect(),
-        );
-        cols.insert(
-            "incidents".to_string(),
-            vec![
-                "id",
-                "title",
-                "severity",
-                "reporter",
-                "resolved",
-                "duration_min",
-                "created_at",
-            ]
-            .into_iter()
-            .map(String::from)
-            .collect(),
-        );
-        cols
-    }
-
-    fn demo_engine() -> GraphEngine {
-        GraphEngine::from_relationships_with_columns(test_relationships(), demo_table_columns())
-            .unwrap()
-    }
-
     #[test]
     fn test_neighbors_invalid_table() {
-        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
-        let (router, _tmp) = setup_demo_router();
-        let result = engine.neighbors("bad table", "name", "Alice", 2, "both", None, &router);
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let result = api.neighbors("bad table", "name", "Alice", 2, "both", None);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -841,9 +777,9 @@ mod tests {
 
     #[test]
     fn test_neighbors_invalid_column() {
-        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
-        let (router, _tmp) = setup_demo_router();
-        let result = engine.neighbors("team_members", "bad col", "Alice", 2, "both", None, &router);
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let result = api.neighbors("team_members", "bad col", "Alice", 2, "both", None);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -853,17 +789,9 @@ mod tests {
 
     #[test]
     fn test_neighbors_invalid_direction() {
-        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
-        let (router, _tmp) = setup_demo_router();
-        let result = engine.neighbors(
-            "team_members",
-            "name",
-            "Alice",
-            2,
-            "backwards",
-            None,
-            &router,
-        );
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let result = api.neighbors("team_members", "name", "Alice", 2, "backwards", None);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -873,9 +801,9 @@ mod tests {
 
     #[test]
     fn test_path_invalid_direction() {
-        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
-        let (router, _tmp) = setup_demo_router();
-        let result = engine.path(
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let result = api.path(
             "team_members",
             "name",
             "Alice Chen",
@@ -885,7 +813,6 @@ mod tests {
             5,
             "backwards",
             None,
-            &router,
         );
         assert!(result.is_err());
         assert!(result
@@ -894,12 +821,35 @@ mod tests {
             .contains("invalid direction"));
     }
 
-    // ---- Integration tests with demo data ----
+    // ---- Integration tests with demo data via TeidelumApi ----
+
+    fn demo_api(data_dir: &std::path::Path) -> crate::api::TeidelumApi {
+        crate::demo::generate(data_dir).unwrap();
+        let api = crate::api::TeidelumApi::open(data_dir).unwrap();
+        api.register_relationships(vec![
+            Relationship {
+                from_table: "project_tasks".to_string(),
+                from_col: "assignee".to_string(),
+                to_table: "team_members".to_string(),
+                to_col: "name".to_string(),
+                relation: "assigned_to".to_string(),
+            },
+            Relationship {
+                from_table: "incidents".to_string(),
+                from_col: "reporter".to_string(),
+                to_table: "team_members".to_string(),
+                to_col: "name".to_string(),
+                relation: "reported_by".to_string(),
+            },
+        ])
+        .unwrap();
+        api
+    }
 
     /// Find a team member name that has at least one assigned task in the demo data.
-    fn find_member_with_tasks(router: &QueryRouter) -> String {
-        let result = router
-            .query_sync("SELECT assignee FROM project_tasks LIMIT 1")
+    fn find_member_with_tasks(api: &crate::api::TeidelumApi) -> String {
+        let result = api
+            .query("SELECT assignee FROM project_tasks LIMIT 1")
             .unwrap();
         assert!(
             !result.rows.is_empty(),
@@ -913,11 +863,11 @@ mod tests {
 
     #[test]
     fn test_neighbors_depth_1() {
-        let engine = demo_engine();
-        let (router, _tmp) = setup_demo_router();
-        let member = find_member_with_tasks(&router);
-        let result = engine
-            .neighbors("team_members", "name", &member, 1, "both", None, &router)
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let member = find_member_with_tasks(&api);
+        let result = api
+            .neighbors("team_members", "name", &member, 1, "both", None)
             .unwrap();
 
         let nodes = result["nodes"].as_array().unwrap();
@@ -934,11 +884,11 @@ mod tests {
 
     #[test]
     fn test_neighbors_no_duplicate_edges() {
-        let engine = demo_engine();
-        let (router, _tmp) = setup_demo_router();
-        let member = find_member_with_tasks(&router);
-        let result = engine
-            .neighbors("team_members", "name", &member, 2, "both", None, &router)
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let member = find_member_with_tasks(&api);
+        let result = api
+            .neighbors("team_members", "name", &member, 2, "both", None)
             .unwrap();
 
         let edges = result["edges"].as_array().unwrap();
@@ -962,16 +912,15 @@ mod tests {
 
     #[test]
     fn test_neighbors_nonexistent_start() {
-        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
-        let (router, _tmp) = setup_demo_router();
-        let result = engine.neighbors(
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let result = api.neighbors(
             "team_members",
             "name",
             "Nonexistent Person",
             1,
             "both",
             None,
-            &router,
         );
         assert!(result.is_err());
         assert!(result
@@ -982,22 +931,22 @@ mod tests {
 
     #[test]
     fn test_neighbors_depth_clamped_to_max() {
-        let engine = demo_engine();
-        let (router, _tmp) = setup_demo_router();
-        let member = find_member_with_tasks(&router);
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let member = find_member_with_tasks(&api);
         // depth=100 should be clamped to MAX_DEPTH (10) without error
-        let result = engine.neighbors("team_members", "name", &member, 100, "both", None, &router);
+        let result = api.neighbors("team_members", "name", &member, 100, "both", None);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_path_found() {
-        let engine = demo_engine();
-        let (router, _tmp) = setup_demo_router();
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
 
         // Pick any task and its assignee — guaranteed to exist since demo generates 20 tasks
-        let result = router
-            .query_sync("SELECT title, assignee FROM project_tasks LIMIT 1")
+        let result = api
+            .query("SELECT title, assignee FROM project_tasks LIMIT 1")
             .unwrap();
         assert!(
             !result.rows.is_empty(),
@@ -1013,7 +962,7 @@ mod tests {
         };
 
         // Path from task to its assignee via assigned_to FK
-        let result = engine
+        let result = api
             .path(
                 "project_tasks",
                 "title",
@@ -1024,7 +973,6 @@ mod tests {
                 5,
                 "both",
                 None,
-                &router,
             )
             .unwrap();
 
@@ -1036,10 +984,10 @@ mod tests {
 
     #[test]
     fn test_path_target_not_found() {
-        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
-        let (router, _tmp) = setup_demo_router();
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
         // Search for a path to a nonexistent target - should error at pre-resolve
-        let result = engine.path(
+        let result = api.path(
             "team_members",
             "name",
             "Alice Chen",
@@ -1049,7 +997,6 @@ mod tests {
             5,
             "both",
             None,
-            &router,
         );
         assert!(result.is_err());
         assert!(result
@@ -1060,9 +1007,9 @@ mod tests {
 
     #[test]
     fn test_path_source_not_found() {
-        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
-        let (router, _tmp) = setup_demo_router();
-        let result = engine.path(
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let result = api.path(
             "team_members",
             "name",
             "Nonexistent Person",
@@ -1072,7 +1019,6 @@ mod tests {
             5,
             "both",
             None,
-            &router,
         );
         assert!(result.is_err());
         assert!(result
@@ -1085,12 +1031,12 @@ mod tests {
     fn test_path_no_route() {
         // Test the BFS "no path found" code path (found: false)
         // Use depth=0 so BFS never expands, guaranteeing no path
-        let engine = demo_engine();
-        let (router, _tmp) = setup_demo_router();
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
 
         // Pick any task and its assignee
-        let result = router
-            .query_sync("SELECT title, assignee FROM project_tasks LIMIT 1")
+        let result = api
+            .query("SELECT title, assignee FROM project_tasks LIMIT 1")
             .unwrap();
         assert!(
             !result.rows.is_empty(),
@@ -1105,7 +1051,7 @@ mod tests {
             other => panic!("expected string assignee, got {other:?}"),
         };
 
-        let result = engine
+        let result = api
             .path(
                 "team_members",
                 "name",
@@ -1116,7 +1062,6 @@ mod tests {
                 0, // depth=0: BFS won't expand, so no path
                 "both",
                 None,
-                &router,
             )
             .unwrap();
 
@@ -1127,10 +1072,10 @@ mod tests {
     #[test]
     fn test_path_self() {
         // Path from a node to itself should return a trivial 0-hop path
-        let engine = demo_engine();
-        let (router, _tmp) = setup_demo_router();
-        let member = find_member_with_tasks(&router);
-        let result = engine
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
+        let member = find_member_with_tasks(&api);
+        let result = api
             .path(
                 "team_members",
                 "name",
@@ -1141,7 +1086,6 @@ mod tests {
                 5,
                 "both",
                 None,
-                &router,
             )
             .unwrap();
 
@@ -1158,11 +1102,11 @@ mod tests {
     fn test_reverse_traversal_no_node_collapse() {
         // Regression: reverse traversal from team_members to project_tasks must
         // produce distinct nodes for each task, not collapse them by FK value.
-        let engine = demo_engine();
-        let (router, _tmp) = setup_demo_router();
+        let tmp = tempfile::tempdir().unwrap();
+        let api = demo_api(tmp.path());
 
         // Find any team member with 2+ tasks (avoids dependence on random assignment)
-        let count_result = router.query_sync(
+        let count_result = api.query(
             "SELECT assignee FROM project_tasks GROUP BY assignee HAVING count(*) >= 2 LIMIT 1",
         );
 
@@ -1194,8 +1138,8 @@ mod tests {
             ];
             for name in &members {
                 let escaped = escape_sql_value(name);
-                let res = router
-                    .query_sync(&format!(
+                let res = api
+                    .query(&format!(
                         "SELECT id FROM project_tasks WHERE assignee = '{escaped}'"
                     ))
                     .unwrap();
@@ -1210,15 +1154,15 @@ mod tests {
         });
 
         let escaped = escape_sql_value(&member_name);
-        let task_result = router
-            .query_sync(&format!(
+        let task_result = api
+            .query(&format!(
                 "SELECT id FROM project_tasks WHERE assignee = '{escaped}'"
             ))
             .unwrap();
         let expected_task_count = task_result.rows.len();
         assert!(expected_task_count >= 2);
 
-        let result = engine
+        let result = api
             .neighbors(
                 "team_members",
                 "name",
@@ -1226,7 +1170,6 @@ mod tests {
                 1,
                 "both",
                 Some(&["assigned_to".to_string()]),
-                &router,
             )
             .unwrap();
 

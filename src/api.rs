@@ -213,6 +213,13 @@ impl TeidelumApi {
         self.search_engine.index_documents(&tuples)
     }
 
+    /// Register a pre-built table entry in the catalog (e.g. for remote connectors).
+    pub fn register_table(&self, entry: TableEntry) {
+        let mut catalog = self.catalog.write().unwrap();
+        catalog.register_table(entry);
+        self.rebuild_graph_locked(&catalog);
+    }
+
     /// Execute a SQL query.
     pub fn query(&self, sql: &str) -> Result<QueryResult> {
         self.query_router.query_sync(sql)
@@ -257,6 +264,16 @@ impl TeidelumApi {
         }
         self.rebuild_graph_locked(&catalog);
         Ok(())
+    }
+
+    /// Access the search engine (for sync and MCP delegation).
+    pub fn search_engine(&self) -> &Arc<SearchEngine> {
+        &self.search_engine
+    }
+
+    /// Access the query router (for sync and MCP delegation).
+    pub fn query_router(&self) -> &Arc<QueryRouter> {
+        &self.query_router
     }
 
     /// Produce a JSON description of the catalog.
@@ -330,7 +347,8 @@ impl TeidelumApi {
             None
         };
 
-        let mut loaded_any = false;
+        // Collect table info first (outside catalog lock), then register all at once.
+        let mut table_entries = Vec::new();
 
         for entry in std::fs::read_dir(tables_dir)? {
             let entry = entry?;
@@ -357,24 +375,24 @@ impl TeidelumApi {
                         })
                         .collect::<Vec<_>>();
 
-                    let mut catalog = self.catalog.write().unwrap();
-                    catalog.register_table(TableEntry {
-                        name: name.clone(),
-                        source: "demo".to_string(),
-                        storage: StorageType::Local,
-                        columns,
-                        row_count: Some(nrows as u64),
-                    });
-
-                    tracing::info!("registered table: {name} ({nrows} rows)");
-                    loaded_any = true;
+                    table_entries.push((name, columns, nrows));
                 }
             }
         }
 
-        // Rebuild graph so table_columns stays in sync with catalog
-        if loaded_any {
-            let catalog = self.catalog.read().unwrap();
+        // Register all tables under a single write lock and rebuild graph once.
+        if !table_entries.is_empty() {
+            let mut catalog = self.catalog.write().unwrap();
+            for (name, columns, nrows) in table_entries {
+                catalog.register_table(TableEntry {
+                    name: name.clone(),
+                    source: "demo".to_string(),
+                    storage: StorageType::Local,
+                    columns,
+                    row_count: Some(nrows as u64),
+                });
+                tracing::info!("registered table: {name} ({nrows} rows)");
+            }
             self.rebuild_graph_locked(&catalog);
         }
 
