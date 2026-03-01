@@ -89,6 +89,15 @@ impl TeidelumApi {
         })
     }
 
+    /// Build a new GraphEngine from the catalog and install it, while the
+    /// caller already holds a catalog lock (write or read).  Keeping the
+    /// catalog lock held across snapshot + install prevents a concurrent
+    /// writer from interleaving and leaving graph_engine stale.
+    fn rebuild_graph_locked(&self, catalog: &Catalog) {
+        let graph = GraphEngine::build_from_catalog(catalog);
+        *self.graph_engine.write().unwrap() = graph;
+    }
+
     /// Open an existing data directory, loading splayed tables and indexing markdown docs.
     pub fn open(data_dir: &Path) -> Result<Self> {
         let api = Self::new(data_dir)?;
@@ -165,6 +174,9 @@ impl TeidelumApi {
                 columns: catalog_columns,
                 row_count: Some(rows.len() as u64),
             });
+            // Rebuild graph while still holding catalog lock to prevent
+            // concurrent writers from installing a stale snapshot.
+            self.rebuild_graph_locked(&catalog);
         }
 
         Ok(())
@@ -215,8 +227,7 @@ impl TeidelumApi {
     pub fn register_relationship(&self, rel: Relationship) -> Result<()> {
         let mut catalog = self.catalog.write().unwrap();
         catalog.register_relationship(rel)?;
-        let graph = GraphEngine::build_from_catalog(&catalog);
-        *self.graph_engine.write().unwrap() = graph;
+        self.rebuild_graph_locked(&catalog);
         Ok(())
     }
 
@@ -244,8 +255,7 @@ impl TeidelumApi {
         for rel in rels {
             catalog.register_relationship(rel)?;
         }
-        let graph = GraphEngine::build_from_catalog(&catalog);
-        *self.graph_engine.write().unwrap() = graph;
+        self.rebuild_graph_locked(&catalog);
         Ok(())
     }
 
@@ -320,6 +330,8 @@ impl TeidelumApi {
             None
         };
 
+        let mut loaded_any = false;
+
         for entry in std::fs::read_dir(tables_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -355,8 +367,15 @@ impl TeidelumApi {
                     });
 
                     tracing::info!("registered table: {name} ({nrows} rows)");
+                    loaded_any = true;
                 }
             }
+        }
+
+        // Rebuild graph so table_columns stays in sync with catalog
+        if loaded_any {
+            let catalog = self.catalog.read().unwrap();
+            self.rebuild_graph_locked(&catalog);
         }
 
         Ok(())
@@ -740,16 +759,21 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let api = test_api(tmp.path());
 
-        // Find a task assigned to Alice Chen
+        // Pick any task and its assignee — guaranteed to exist since demo generates 20 tasks
         let result = api
-            .query("SELECT title FROM project_tasks WHERE assignee = 'Alice Chen' LIMIT 1")
+            .query("SELECT title, assignee FROM project_tasks LIMIT 1")
             .unwrap();
-        if result.rows.is_empty() {
-            return; // Alice has no tasks in this random seed
-        }
+        assert!(
+            !result.rows.is_empty(),
+            "demo data should have at least one task"
+        );
         let task_title = match &result.rows[0][0] {
             Value::String(s) => s.clone(),
-            _ => return,
+            other => panic!("expected string title, got {other:?}"),
+        };
+        let assignee = match &result.rows[0][1] {
+            Value::String(s) => s.clone(),
+            other => panic!("expected string assignee, got {other:?}"),
         };
 
         let result = api
@@ -759,7 +783,7 @@ mod tests {
                 &task_title,
                 "team_members",
                 "name",
-                "Alice Chen",
+                &assignee,
                 5,
                 "both",
                 None,
@@ -770,6 +794,96 @@ mod tests {
         let path = result["path"].as_array().unwrap();
         assert!(path.len() >= 2, "path should have at least 2 nodes");
         assert_eq!(result["hops"], 1);
+    }
+
+    #[test]
+    fn test_graph_updates_when_tables_added_after_relationships() {
+        // Regression: if relationships are registered before tables exist,
+        // the graph's table_columns must still be populated when tables are
+        // created later, so reverse traversal picks correct identity columns.
+        let tmp = tempfile::tempdir().unwrap();
+        let api = TeidelumApi::new(tmp.path()).unwrap();
+
+        // Register relationship BEFORE tables exist
+        api.register_relationship(Relationship {
+            from_table: "tasks".to_string(),
+            from_col: "owner".to_string(),
+            to_table: "people".to_string(),
+            to_col: "name".to_string(),
+            relation: "owned_by".to_string(),
+        })
+        .unwrap();
+
+        // Now create the tables
+        let people_cols = vec![
+            ColumnSchema {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            },
+            ColumnSchema {
+                name: "name".to_string(),
+                dtype: "string".to_string(),
+            },
+        ];
+        api.create_table(
+            "people",
+            "test",
+            &people_cols,
+            &[
+                vec![Value::Int(1), Value::String("Alice".to_string())],
+                vec![Value::Int(2), Value::String("Bob".to_string())],
+            ],
+        )
+        .unwrap();
+
+        let task_cols = vec![
+            ColumnSchema {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            },
+            ColumnSchema {
+                name: "title".to_string(),
+                dtype: "string".to_string(),
+            },
+            ColumnSchema {
+                name: "owner".to_string(),
+                dtype: "string".to_string(),
+            },
+        ];
+        api.create_table(
+            "tasks",
+            "test",
+            &task_cols,
+            &[
+                vec![
+                    Value::Int(1),
+                    Value::String("Task A".to_string()),
+                    Value::String("Alice".to_string()),
+                ],
+                vec![
+                    Value::Int(2),
+                    Value::String("Task B".to_string()),
+                    Value::String("Alice".to_string()),
+                ],
+            ],
+        )
+        .unwrap();
+
+        // Reverse traversal from Alice should find both tasks as distinct nodes
+        let result = api
+            .neighbors("people", "name", "Alice", 1, "both", None)
+            .unwrap();
+
+        let nodes = result["nodes"].as_array().unwrap();
+        let task_nodes: Vec<_> = nodes.iter().filter(|n| n["table"] == "tasks").collect();
+
+        assert_eq!(
+            task_nodes.len(),
+            2,
+            "reverse traversal should find 2 distinct task nodes, got {}: {:?}",
+            task_nodes.len(),
+            task_nodes,
+        );
     }
 
     #[test]

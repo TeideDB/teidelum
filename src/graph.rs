@@ -16,6 +16,24 @@ fn escape_sql_value(s: &str) -> String {
     s.replace('\'', "''")
 }
 
+/// Validate all identifier fields in a list of relationships.
+fn validate_relationships(relationships: &[Relationship]) -> Result<()> {
+    for rel in relationships {
+        for (label, val) in [
+            ("from_table", &rel.from_table),
+            ("from_col", &rel.from_col),
+            ("to_table", &rel.to_table),
+            ("to_col", &rel.to_col),
+            ("relation", &rel.relation),
+        ] {
+            if !is_valid_identifier(val) {
+                bail!("invalid identifier in relationship {label}: '{val}'");
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Describes one edge in a graph traversal result.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Edge {
@@ -560,22 +578,40 @@ impl GraphEngine {
     }
 
     /// Build a GraphEngine directly from a list of relationships.
-    pub fn from_relationships(relationships: Vec<Relationship>) -> Self {
-        GraphEngine {
+    ///
+    /// All relationship fields are validated as safe SQL identifiers to prevent
+    /// injection when queries are built during traversal.
+    pub fn from_relationships(relationships: Vec<Relationship>) -> Result<Self> {
+        validate_relationships(&relationships)?;
+        Ok(GraphEngine {
             relationships,
             table_columns: HashMap::new(),
-        }
+        })
     }
 
     /// Build a GraphEngine from relationships and table column metadata.
+    ///
+    /// All relationship fields and column names are validated as safe SQL
+    /// identifiers to prevent injection when queries are built during traversal.
     pub fn from_relationships_with_columns(
         relationships: Vec<Relationship>,
         table_columns: HashMap<String, Vec<String>>,
-    ) -> Self {
-        GraphEngine {
+    ) -> Result<Self> {
+        validate_relationships(&relationships)?;
+        for (table, cols) in &table_columns {
+            if !is_valid_identifier(table) {
+                bail!("invalid table name in table_columns: '{table}'");
+            }
+            for col in cols {
+                if !is_valid_identifier(col) {
+                    bail!("invalid column name in table_columns: '{col}'");
+                }
+            }
+        }
+        Ok(GraphEngine {
             relationships,
             table_columns,
-        }
+        })
     }
 
     /// Fetch all properties of a node as JSON.
@@ -689,7 +725,7 @@ mod tests {
 
     #[test]
     fn test_find_relationships_forward() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let rels = engine.find_relationships("project_tasks", "forward", None);
         assert_eq!(rels.len(), 1);
         assert_eq!(rels[0].relation, "assigned_to");
@@ -697,21 +733,21 @@ mod tests {
 
     #[test]
     fn test_find_relationships_reverse() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let rels = engine.find_relationships("team_members", "reverse", None);
         assert_eq!(rels.len(), 2);
     }
 
     #[test]
     fn test_find_relationships_both() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let rels = engine.find_relationships("team_members", "both", None);
         assert_eq!(rels.len(), 2);
     }
 
     #[test]
     fn test_find_relationships_with_type_filter() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let types = vec!["assigned_to".to_string()];
         let rels = engine.find_relationships("team_members", "both", Some(&types));
         assert_eq!(rels.len(), 1);
@@ -720,7 +756,7 @@ mod tests {
 
     #[test]
     fn test_find_relationships_no_match() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let rels = engine.find_relationships("nonexistent_table", "forward", None);
         assert!(rels.is_empty());
     }
@@ -788,11 +824,12 @@ mod tests {
 
     fn demo_engine() -> GraphEngine {
         GraphEngine::from_relationships_with_columns(test_relationships(), demo_table_columns())
+            .unwrap()
     }
 
     #[test]
     fn test_neighbors_invalid_table() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let (router, _tmp) = setup_demo_router();
         let result = engine.neighbors("bad table", "name", "Alice", 2, "both", None, &router);
         assert!(result.is_err());
@@ -804,7 +841,7 @@ mod tests {
 
     #[test]
     fn test_neighbors_invalid_column() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let (router, _tmp) = setup_demo_router();
         let result = engine.neighbors("team_members", "bad col", "Alice", 2, "both", None, &router);
         assert!(result.is_err());
@@ -816,7 +853,7 @@ mod tests {
 
     #[test]
     fn test_neighbors_invalid_direction() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let (router, _tmp) = setup_demo_router();
         let result = engine.neighbors(
             "team_members",
@@ -836,7 +873,7 @@ mod tests {
 
     #[test]
     fn test_path_invalid_direction() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let (router, _tmp) = setup_demo_router();
         let result = engine.path(
             "team_members",
@@ -859,48 +896,49 @@ mod tests {
 
     // ---- Integration tests with demo data ----
 
+    /// Find a team member name that has at least one assigned task in the demo data.
+    fn find_member_with_tasks(router: &QueryRouter) -> String {
+        let result = router
+            .query_sync("SELECT assignee FROM project_tasks LIMIT 1")
+            .unwrap();
+        assert!(
+            !result.rows.is_empty(),
+            "demo data should have at least one task"
+        );
+        match &result.rows[0][0] {
+            Value::String(s) => s.clone(),
+            other => panic!("expected string assignee, got {other:?}"),
+        }
+    }
+
     #[test]
     fn test_neighbors_depth_1() {
         let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
+        let member = find_member_with_tasks(&router);
         let result = engine
-            .neighbors(
-                "team_members",
-                "name",
-                "Alice Chen",
-                1,
-                "both",
-                None,
-                &router,
-            )
+            .neighbors("team_members", "name", &member, 1, "both", None, &router)
             .unwrap();
 
         let nodes = result["nodes"].as_array().unwrap();
         let edges = result["edges"].as_array().unwrap();
 
         // Must include at least the starting node + some neighbors
-        assert!(nodes.len() >= 2, "should find neighbors for Alice Chen");
+        assert!(nodes.len() >= 2, "should find neighbors for {member}");
         assert!(!edges.is_empty(), "should have edges");
 
         // Starting node should be present
-        let has_alice = nodes.iter().any(|n| n["key"] == "Alice Chen");
-        assert!(has_alice, "starting node should be in results");
+        let has_start = nodes.iter().any(|n| n["key"] == member);
+        assert!(has_start, "starting node should be in results");
     }
 
     #[test]
     fn test_neighbors_no_duplicate_edges() {
         let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
+        let member = find_member_with_tasks(&router);
         let result = engine
-            .neighbors(
-                "team_members",
-                "name",
-                "Alice Chen",
-                2,
-                "both",
-                None,
-                &router,
-            )
+            .neighbors("team_members", "name", &member, 2, "both", None, &router)
             .unwrap();
 
         let edges = result["edges"].as_array().unwrap();
@@ -924,7 +962,7 @@ mod tests {
 
     #[test]
     fn test_neighbors_nonexistent_start() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let (router, _tmp) = setup_demo_router();
         let result = engine.neighbors(
             "team_members",
@@ -946,16 +984,9 @@ mod tests {
     fn test_neighbors_depth_clamped_to_max() {
         let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
+        let member = find_member_with_tasks(&router);
         // depth=100 should be clamped to MAX_DEPTH (10) without error
-        let result = engine.neighbors(
-            "team_members",
-            "name",
-            "Alice Chen",
-            100,
-            "both",
-            None,
-            &router,
-        );
+        let result = engine.neighbors("team_members", "name", &member, 100, "both", None, &router);
         assert!(result.is_ok());
     }
 
@@ -964,20 +995,24 @@ mod tests {
         let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
 
-        // Find a task assigned to Alice Chen via SQL to get a valid path target
+        // Pick any task and its assignee — guaranteed to exist since demo generates 20 tasks
         let result = router
-            .query_sync("SELECT title FROM project_tasks WHERE assignee = 'Alice Chen' LIMIT 1")
+            .query_sync("SELECT title, assignee FROM project_tasks LIMIT 1")
             .unwrap();
-        if result.rows.is_empty() {
-            // Alice has no tasks in this random seed - skip
-            return;
-        }
+        assert!(
+            !result.rows.is_empty(),
+            "demo data should have at least one task"
+        );
         let task_title = match &result.rows[0][0] {
             Value::String(s) => s.clone(),
-            _ => return,
+            other => panic!("expected string title, got {other:?}"),
+        };
+        let assignee = match &result.rows[0][1] {
+            Value::String(s) => s.clone(),
+            other => panic!("expected string assignee, got {other:?}"),
         };
 
-        // Path from task to Alice via assignee FK
+        // Path from task to its assignee via assigned_to FK
         let result = engine
             .path(
                 "project_tasks",
@@ -985,7 +1020,7 @@ mod tests {
                 &task_title,
                 "team_members",
                 "name",
-                "Alice Chen",
+                &assignee,
                 5,
                 "both",
                 None,
@@ -1001,7 +1036,7 @@ mod tests {
 
     #[test]
     fn test_path_target_not_found() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let (router, _tmp) = setup_demo_router();
         // Search for a path to a nonexistent target - should error at pre-resolve
         let result = engine.path(
@@ -1025,7 +1060,7 @@ mod tests {
 
     #[test]
     fn test_path_source_not_found() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = GraphEngine::from_relationships(test_relationships()).unwrap();
         let (router, _tmp) = setup_demo_router();
         let result = engine.path(
             "team_members",
@@ -1053,23 +1088,28 @@ mod tests {
         let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
 
-        // Find a task assigned to Alice to use as target
+        // Pick any task and its assignee
         let result = router
-            .query_sync("SELECT title FROM project_tasks WHERE assignee = 'Alice Chen' LIMIT 1")
+            .query_sync("SELECT title, assignee FROM project_tasks LIMIT 1")
             .unwrap();
-        if result.rows.is_empty() {
-            return;
-        }
+        assert!(
+            !result.rows.is_empty(),
+            "demo data should have at least one task"
+        );
         let task_title = match &result.rows[0][0] {
             Value::String(s) => s.clone(),
-            _ => return,
+            other => panic!("expected string title, got {other:?}"),
+        };
+        let assignee = match &result.rows[0][1] {
+            Value::String(s) => s.clone(),
+            other => panic!("expected string assignee, got {other:?}"),
         };
 
         let result = engine
             .path(
                 "team_members",
                 "name",
-                "Alice Chen",
+                &assignee,
                 "project_tasks",
                 "title",
                 &task_title,
@@ -1089,14 +1129,15 @@ mod tests {
         // Path from a node to itself should return a trivial 0-hop path
         let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
+        let member = find_member_with_tasks(&router);
         let result = engine
             .path(
                 "team_members",
                 "name",
-                "Alice Chen",
+                &member,
                 "team_members",
                 "name",
-                "Alice Chen",
+                &member,
                 5,
                 "both",
                 None,
@@ -1110,7 +1151,7 @@ mod tests {
         assert_eq!(result["hops"], 0);
         assert_eq!(path[0]["table"], "team_members");
         assert_eq!(path[0]["key_col"], "name");
-        assert_eq!(path[0]["key"], "Alice Chen");
+        assert_eq!(path[0]["key"].as_str().unwrap(), member);
     }
 
     #[test]
