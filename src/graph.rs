@@ -79,9 +79,12 @@ impl GraphEngine {
         )];
 
         // Fetch and store the starting node
-        if let Ok(props) = self.fetch_node_properties(table, key_col, key_value, router) {
-            visited.insert((table.to_string(), key_value.to_string()), props);
-        }
+        let props = self
+            .fetch_node_properties(table, key_col, key_value, router)
+            .map_err(|_| {
+                anyhow::anyhow!("starting node not found: {table}.{key_col}={key_value}")
+            })?;
+        visited.insert((table.to_string(), key_value.to_string()), props);
 
         for _d in 0..depth {
             let mut next_frontier = Vec::new();
@@ -110,37 +113,43 @@ impl GraphEngine {
                     )?;
 
                     for (id_col, nval) in &neighbor_values {
-                        // Add edge
-                        if is_forward {
-                            edges.push(Edge {
-                                from_table: tbl.clone(),
-                                from_key: kval.clone(),
-                                to_table: neighbor_table.clone(),
-                                to_key: nval.clone(),
-                                relation: rel.relation.clone(),
-                            });
-                        } else {
-                            edges.push(Edge {
-                                from_table: neighbor_table.clone(),
-                                from_key: nval.clone(),
-                                to_table: tbl.clone(),
-                                to_key: kval.clone(),
-                                relation: rel.relation.clone(),
-                            });
-                        }
-
-                        // Visit neighbor if not already seen
                         let key = (neighbor_table.clone(), nval.clone());
-                        if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(key) {
-                            if let Ok(props) =
-                                self.fetch_node_properties(neighbor_table, id_col, nval, router)
-                            {
-                                e.insert(props);
-                                next_frontier.push((
-                                    neighbor_table.clone(),
-                                    id_col.clone(),
-                                    nval.clone(),
-                                ));
+                        let node_exists = match visited.entry(key) {
+                            std::collections::hash_map::Entry::Occupied(_) => true,
+                            std::collections::hash_map::Entry::Vacant(e) => {
+                                if let Ok(props) =
+                                    self.fetch_node_properties(neighbor_table, id_col, nval, router)
+                                {
+                                    e.insert(props);
+                                    next_frontier.push((
+                                        neighbor_table.clone(),
+                                        id_col.clone(),
+                                        nval.clone(),
+                                    ));
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+                        };
+
+                        if node_exists {
+                            if is_forward {
+                                edges.push(Edge {
+                                    from_table: tbl.clone(),
+                                    from_key: kval.clone(),
+                                    to_table: neighbor_table.clone(),
+                                    to_key: nval.clone(),
+                                    relation: rel.relation.clone(),
+                                });
+                            } else {
+                                edges.push(Edge {
+                                    from_table: neighbor_table.clone(),
+                                    from_key: nval.clone(),
+                                    to_table: tbl.clone(),
+                                    to_key: kval.clone(),
+                                    relation: rel.relation.clone(),
+                                });
                             }
                         }
                     }
