@@ -7,6 +7,9 @@ use crate::catalog::{Catalog, Relationship};
 use crate::connector::Value;
 use crate::router::QueryRouter;
 
+/// Maximum BFS traversal depth to prevent unbounded query storms.
+const MAX_DEPTH: usize = 10;
+
 /// Escape a string value for use in SQL single-quoted literals.
 /// Replaces `'` with `''` to prevent SQL injection.
 fn escape_sql_value(s: &str) -> String {
@@ -66,6 +69,7 @@ impl GraphEngine {
         if !is_valid_identifier(key_col) {
             bail!("invalid column name: {key_col}");
         }
+        let depth = depth.min(MAX_DEPTH);
         let mut visited: HashMap<(String, String), serde_json::Value> = HashMap::new();
         let mut edges: Vec<Edge> = Vec::new();
         let mut frontier: Vec<(String, String, String)> = vec![(
@@ -188,6 +192,7 @@ impl GraphEngine {
         if !is_valid_identifier(to_table) {
             bail!("invalid table name: {to_table}");
         }
+        let max_depth = max_depth.min(MAX_DEPTH);
         // BFS from source to destination
         let mut visited: HashMap<(String, String), PathParent> = HashMap::new();
         visited.insert((from_table.to_string(), from_key.to_string()), None);
@@ -344,9 +349,14 @@ impl GraphEngine {
             let id_col = neighbor_col.to_string();
             let mut neighbors = Vec::new();
             for row in &result.rows {
-                if let Some(Value::String(fk_val)) = row.first() {
-                    // The FK value IS the key in the neighbor table
-                    neighbors.push((id_col.clone(), fk_val.clone()));
+                match row.first() {
+                    Some(Value::String(fk_val)) => {
+                        neighbors.push((id_col.clone(), fk_val.clone()));
+                    }
+                    Some(Value::Int(i)) => {
+                        neighbors.push((id_col.clone(), i.to_string()));
+                    }
+                    _ => {}
                 }
             }
             Ok(neighbors)
