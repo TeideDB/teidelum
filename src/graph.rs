@@ -7,6 +7,12 @@ use crate::catalog::{Catalog, Relationship};
 use crate::connector::Value;
 use crate::router::QueryRouter;
 
+/// Escape a string value for use in SQL single-quoted literals.
+/// Replaces `'` with `''` to prevent SQL injection.
+fn escape_sql_value(s: &str) -> String {
+    s.replace('\'', "''")
+}
+
 /// Describes one edge in a graph traversal result.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Edge {
@@ -17,23 +23,13 @@ pub struct Edge {
     pub relation: String,
 }
 
-/// A node with its properties in a subgraph result.
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct Node {
-    pub table: String,
-    pub key: String,
-    pub properties: serde_json::Value,
-}
-
 /// Parent info for BFS path reconstruction: ((parent_table, parent_key), relation_name).
 type PathParent = Option<((String, String), String)>;
 
-/// Graph engine that manages CSR relationships and performs graph traversals.
+/// SQL-based graph traversal engine over catalog FK relationships.
 ///
-/// Uses the teide C engine's CSR/graph ops under the hood, but exposes a
-/// higher-level API suitable for the MCP tool. For the demo data, we use
-/// SQL-based traversal (the FK relationships in the catalog) rather than
-/// requiring the full CSR pipeline, since the demo tables are small.
+/// Performs BFS traversal using SQL queries at each hop, resolving
+/// neighbors via FK relationships registered in the catalog.
 pub struct GraphEngine {
     /// Catalog snapshot for relationship lookups.
     relationships: Vec<Relationship>,
@@ -48,6 +44,7 @@ impl GraphEngine {
     }
 
     /// Find neighbors of a node up to `depth` hops.
+    #[allow(clippy::too_many_arguments)]
     pub fn neighbors(
         &self,
         table: &str,
@@ -120,7 +117,7 @@ impl GraphEngine {
                         // Visit neighbor if not already seen
                         let key = (neighbor_table.clone(), nval.clone());
                         if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(key) {
-                            let id_col = self.infer_key_col(neighbor_table, neighbor_col);
+                            let id_col = neighbor_col.to_string();
                             if let Ok(props) =
                                 self.fetch_node_properties(neighbor_table, &id_col, nval, router)
                             {
@@ -156,6 +153,7 @@ impl GraphEngine {
     }
 
     /// Find shortest path between two nodes.
+    #[allow(clippy::too_many_arguments)]
     pub fn path(
         &self,
         from_table: &str,
@@ -212,7 +210,7 @@ impl GraphEngine {
                                 key.clone(),
                                 Some(((tbl.clone(), kval.clone()), rel.relation.clone())),
                             );
-                            let id_col = self.infer_key_col(neighbor_table, neighbor_col);
+                            let id_col = neighbor_col.to_string();
                             next_frontier.push((neighbor_table.clone(), id_col, nval.clone()));
 
                             if key == target {
@@ -263,23 +261,6 @@ impl GraphEngine {
         }))
     }
 
-    /// Get a subgraph centered on a node.
-    pub fn subgraph(
-        &self,
-        table: &str,
-        key_col: &str,
-        key_value: &str,
-        depth: usize,
-        direction: &str,
-        rel_types: Option<&[String]>,
-        router: &QueryRouter,
-    ) -> Result<serde_json::Value> {
-        // Subgraph is the same as neighbors — returns all reachable nodes and edges
-        self.neighbors(
-            table, key_col, key_value, depth, direction, rel_types, router,
-        )
-    }
-
     // ---- Internal helpers ----
 
     /// Find relationships involving a table, filtered by direction and type.
@@ -313,6 +294,7 @@ impl GraphEngine {
     ///
     /// If `!is_forward` (reverse): we look in `neighbor_table` for rows whose
     /// `neighbor_col` (FK) value matches our `key_value`.
+    #[allow(clippy::too_many_arguments)]
     fn resolve_neighbors(
         &self,
         source_table: &str,
@@ -324,10 +306,12 @@ impl GraphEngine {
         is_forward: bool,
         router: &QueryRouter,
     ) -> Result<Vec<String>> {
+        let escaped_key = escape_sql_value(key_value);
         if is_forward {
             // Forward: get FK value from source, then find matching rows in neighbor
-            let sql =
-                format!("SELECT {source_col} FROM {source_table} WHERE {key_col} = '{key_value}'");
+            let sql = format!(
+                "SELECT {source_col} FROM {source_table} WHERE {key_col} = '{escaped_key}'"
+            );
             let result = router.query_sync(&sql)?;
             let mut neighbors = Vec::new();
             for row in &result.rows {
@@ -340,22 +324,10 @@ impl GraphEngine {
         } else {
             // Reverse: find rows in neighbor_table where neighbor_col (FK) = key_value
             let sql = format!(
-                "SELECT {neighbor_col} FROM {neighbor_table} WHERE {neighbor_col} = '{key_value}'"
+                "SELECT {neighbor_col} FROM {neighbor_table} WHERE {neighbor_col} = '{escaped_key}'"
             );
             let result = router.query_sync(&sql)?;
-
-            if result.rows.is_empty() {
-                return Ok(vec![]);
-            }
-
-            // We need a distinguishing key for the neighbor rows. Use a heuristic:
-            // get the identity col for the neighbor table
-            let id_col = self.infer_key_col(neighbor_table, neighbor_col);
-            let sql2 = format!(
-                "SELECT {id_col} FROM {neighbor_table} WHERE {neighbor_col} = '{key_value}'"
-            );
-            let result2 = router.query_sync(&sql2)?;
-            Ok(result2
+            Ok(result
                 .rows
                 .into_iter()
                 .filter_map(|row| match row.into_iter().next() {
@@ -367,15 +339,6 @@ impl GraphEngine {
         }
     }
 
-    /// Infer the key column for a table. If the relationship points to a
-    /// specific column, use that. Otherwise default to "name" (demo convention).
-    fn infer_key_col(&self, _table: &str, rel_col: &str) -> String {
-        // For the demo data, the FK relationships point to "name" columns
-        // in the target table. The key column for identification is the
-        // same column the FK points to.
-        rel_col.to_string()
-    }
-
     /// Fetch all properties of a node as JSON.
     fn fetch_node_properties(
         &self,
@@ -384,7 +347,8 @@ impl GraphEngine {
         key_value: &str,
         router: &QueryRouter,
     ) -> Result<serde_json::Value> {
-        let sql = format!("SELECT * FROM {table} WHERE {key_col} = '{key_value}'");
+        let escaped_key = escape_sql_value(key_value);
+        let sql = format!("SELECT * FROM {table} WHERE {key_col} = '{escaped_key}'");
         let result = router.query_sync(&sql)?;
 
         if result.rows.is_empty() {

@@ -81,14 +81,6 @@ impl Catalog {
         self.tables.iter().filter(|t| t.source == source).collect()
     }
 
-    /// Get all relationships involving a given table.
-    pub fn relationships_for(&self, table: &str) -> Vec<&Relationship> {
-        self.relationships
-            .iter()
-            .filter(|r| r.from_table == table || r.to_table == table)
-            .collect()
-    }
-
     /// Produce a JSON description of the catalog for the `describe` MCP tool.
     pub fn describe(&self, source_filter: Option<&str>) -> Result<serde_json::Value> {
         let tables: Vec<_> = match source_filter {

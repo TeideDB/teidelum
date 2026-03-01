@@ -26,10 +26,11 @@ Single crate, modules under `src/`:
 | Module | Role |
 |--------|------|
 | `main.rs` | Entrypoint: initializes components, serves MCP over stdio |
-| `mcp.rs` | MCP tool definitions (search, sql, describe, sync) via `rmcp` |
+| `mcp.rs` | MCP tool definitions (search, sql, describe, graph, sync) via `rmcp` |
 | `router.rs` | Query router: dispatches SQL to libteide (local) or connectors (remote) |
 | `search.rs` | tantivy wrapper: `SearchEngine` (BM25, fuzzy) |
 | `catalog.rs` | Metadata catalog: schemas, FK relationships, local vs remote tracking |
+| `graph.rs` | SQL-based graph traversal engine: BFS over catalog FK relationships |
 | `connector/mod.rs` | `Connector` trait for live external queries |
 | `connector/kdb.rs` | kdb+ live query adapter |
 | `sync/mod.rs` | `SyncSource` trait + types (`SyncOutput`, `SearchDocument`) |
@@ -46,4 +47,4 @@ Single crate, modules under `src/`:
 
 ### MCP Tools
 
-Four tools exposed to AI agents: `search` (full-text), `sql` (analytical queries), `describe` (schema/catalog), `sync` (trigger data pull). Defined in `mcp.rs`.
+Five tools exposed to AI agents: `search` (full-text), `sql` (analytical queries), `describe` (schema/catalog), `graph` (relationship traversal), `sync` (trigger data pull). Defined in `mcp.rs`.

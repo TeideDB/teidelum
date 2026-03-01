@@ -112,22 +112,6 @@ impl QueryRouter {
     pub async fn query(&self, sql: &str) -> Result<QueryResult> {
         self.query_sync(sql)
     }
-
-    /// Extract a column's values as optional strings, for use by GraphEngine.
-    pub fn query_column_values(&self, table: &str, col: &str) -> Result<Vec<Option<String>>> {
-        let result = self.query_sync(&format!("SELECT {col} FROM {table}"))?;
-        Ok(result
-            .rows
-            .into_iter()
-            .map(|row| match row.into_iter().next() {
-                Some(Value::String(s)) => Some(s),
-                Some(Value::Int(i)) => Some(i.to_string()),
-                Some(Value::Float(f)) => Some(f.to_string()),
-                Some(Value::Bool(b)) => Some(b.to_string()),
-                _ => None,
-            })
-            .collect())
-    }
 }
 
 fn col_type_name(type_tag: i8) -> &'static str {

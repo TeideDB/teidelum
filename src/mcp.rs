@@ -237,7 +237,7 @@ impl Teidelum {
                     &self.query_router,
                 )
             }
-            "subgraph" => self.graph_engine.subgraph(
+            "subgraph" => self.graph_engine.neighbors(
                 &params.table,
                 &params.key_col,
                 &params.key,
