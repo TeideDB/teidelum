@@ -249,7 +249,13 @@ impl Teidelum {
 
         let result = result.map_err(|e| {
             let msg = e.to_string();
-            if msg.starts_with("invalid ") {
+            // Map known user-facing errors to invalid_params. These are
+            // specific prefixes produced by GraphEngine for bad input.
+            let is_user_error = msg.starts_with("invalid ")
+                || msg.starts_with("starting node not found")
+                || msg.starts_with("source node not found")
+                || msg.starts_with("target node not found");
+            if is_user_error {
                 McpError::invalid_params(msg, None)
             } else {
                 McpError::internal_error(format!("graph operation failed: {msg}"), None)

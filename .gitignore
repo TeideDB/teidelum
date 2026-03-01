@@ -1,2 +1,5 @@
 /target
 .claude/
+
+# ralphex progress logs
+.ralphex/progress/

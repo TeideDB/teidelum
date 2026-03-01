@@ -32,14 +32,16 @@ fn is_valid_identifier(s: &str) -> bool {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Edge {
     pub from_table: String,
+    pub from_key_col: String,
     pub from_key: String,
     pub to_table: String,
+    pub to_key_col: String,
     pub to_key: String,
     pub relation: String,
 }
 
-/// Parent info for BFS path reconstruction: ((parent_table, parent_key), relation_name).
-type PathParent = Option<((String, String), String)>;
+/// Parent info for BFS path reconstruction: ((parent_table, parent_key_col, parent_key), relation_name).
+type PathParent = Option<((String, String, String), String)>;
 
 /// All column values for a target row, used for flexible target matching in path().
 type TargetRow = HashMap<String, String>;
@@ -51,13 +53,26 @@ type TargetRow = HashMap<String, String>;
 pub struct GraphEngine {
     /// Catalog snapshot for relationship lookups.
     relationships: Vec<Relationship>,
+    /// Column names per table for identity column resolution.
+    table_columns: HashMap<String, Vec<String>>,
 }
 
 impl GraphEngine {
     /// Build a GraphEngine from the catalog's registered relationships.
     pub fn build_from_catalog(catalog: &Catalog) -> Self {
+        let table_columns: HashMap<String, Vec<String>> = catalog
+            .tables()
+            .iter()
+            .map(|t| {
+                (
+                    t.name.clone(),
+                    t.columns.iter().map(|c| c.name.clone()).collect(),
+                )
+            })
+            .collect();
         GraphEngine {
             relationships: catalog.relationships().to_vec(),
+            table_columns,
         }
     }
 
@@ -83,9 +98,10 @@ impl GraphEngine {
             bail!("invalid direction: '{direction}'. Use 'forward', 'reverse', or 'both'");
         }
         let depth = depth.min(MAX_DEPTH);
-        let mut visited: HashMap<(String, String), serde_json::Value> = HashMap::new();
+        let mut visited: HashMap<(String, String, String), serde_json::Value> = HashMap::new();
         let mut edges: Vec<Edge> = Vec::new();
-        let mut seen_edges: HashSet<(String, String, String, String, String)> = HashSet::new();
+        let mut seen_edges: HashSet<(String, String, String, String, String, String, String)> =
+            HashSet::new();
         let mut frontier: Vec<(String, String, String)> = vec![(
             table.to_string(),
             key_col.to_string(),
@@ -98,7 +114,14 @@ impl GraphEngine {
             .map_err(|_| {
                 anyhow::anyhow!("starting node not found: {table}.{key_col}={key_value}")
             })?;
-        visited.insert((table.to_string(), key_value.to_string()), props);
+        visited.insert(
+            (
+                table.to_string(),
+                key_col.to_string(),
+                key_value.to_string(),
+            ),
+            props,
+        );
 
         for _d in 0..depth {
             let mut next_frontier = Vec::new();
@@ -127,30 +150,36 @@ impl GraphEngine {
                     )?;
 
                     for (id_col, nval) in &neighbor_values {
-                        let key = (neighbor_table.clone(), nval.clone());
+                        let key = (neighbor_table.clone(), id_col.clone(), nval.clone());
 
-                        // Record edges unconditionally (dedup by edge identity)
+                        // Record edges unconditionally (dedup by full edge identity)
                         let edge = if is_forward {
                             Edge {
                                 from_table: tbl.clone(),
+                                from_key_col: kcol.clone(),
                                 from_key: kval.clone(),
                                 to_table: neighbor_table.clone(),
+                                to_key_col: id_col.clone(),
                                 to_key: nval.clone(),
                                 relation: rel.relation.clone(),
                             }
                         } else {
                             Edge {
                                 from_table: neighbor_table.clone(),
+                                from_key_col: id_col.clone(),
                                 from_key: nval.clone(),
                                 to_table: tbl.clone(),
+                                to_key_col: kcol.clone(),
                                 to_key: kval.clone(),
                                 relation: rel.relation.clone(),
                             }
                         };
                         let edge_key = (
                             edge.from_table.clone(),
+                            edge.from_key_col.clone(),
                             edge.from_key.clone(),
                             edge.to_table.clone(),
+                            edge.to_key_col.clone(),
                             edge.to_key.clone(),
                             edge.relation.clone(),
                         );
@@ -182,9 +211,10 @@ impl GraphEngine {
 
         let nodes: Vec<serde_json::Value> = visited
             .into_iter()
-            .map(|((tbl, key), props)| {
+            .map(|((tbl, kcol, key), props)| {
                 json!({
                     "table": tbl,
+                    "key_col": kcol,
                     "key": key,
                     "properties": props,
                 })
@@ -251,7 +281,7 @@ impl GraphEngine {
                 if expected == from_key {
                     return Ok(json!({
                         "found": true,
-                        "path": [{"table": from_table, "key": from_key}],
+                        "path": [{"table": from_table, "key_col": from_key_col, "key": from_key}],
                         "hops": 0,
                     }));
                 }
@@ -259,8 +289,15 @@ impl GraphEngine {
         }
 
         // BFS from source to destination
-        let mut visited: HashMap<(String, String), PathParent> = HashMap::new();
-        visited.insert((from_table.to_string(), from_key.to_string()), None);
+        let mut visited: HashMap<(String, String, String), PathParent> = HashMap::new();
+        visited.insert(
+            (
+                from_table.to_string(),
+                from_key_col.to_string(),
+                from_key.to_string(),
+            ),
+            None,
+        );
 
         let mut frontier: Vec<(String, String, String)> = vec![(
             from_table.to_string(),
@@ -268,7 +305,7 @@ impl GraphEngine {
             from_key.to_string(),
         )];
 
-        let mut found_key: Option<(String, String)> = None;
+        let mut found_key: Option<(String, String, String)> = None;
 
         for _d in 0..max_depth {
             let mut next_frontier = Vec::new();
@@ -296,11 +333,14 @@ impl GraphEngine {
                     )?;
 
                     for (id_col, nval) in &neighbor_values {
-                        let key = (neighbor_table.clone(), nval.clone());
+                        let key = (neighbor_table.clone(), id_col.clone(), nval.clone());
                         if !visited.contains_key(&key) {
                             visited.insert(
                                 key.clone(),
-                                Some(((tbl.clone(), kval.clone()), rel.relation.clone())),
+                                Some((
+                                    (tbl.clone(), kcol.clone(), kval.clone()),
+                                    rel.relation.clone(),
+                                )),
                             );
                             next_frontier.push((
                                 neighbor_table.clone(),
@@ -345,7 +385,8 @@ impl GraphEngine {
         while let Some(Some((parent, relation))) = visited.get(&current) {
             path.push(json!({
                 "table": current.0,
-                "key": current.1,
+                "key_col": current.1,
+                "key": current.2,
                 "via_relation": relation,
             }));
             current = parent.clone();
@@ -353,7 +394,8 @@ impl GraphEngine {
         // Add source node
         path.push(json!({
             "table": current.0,
-            "key": current.1,
+            "key_col": current.1,
+            "key": current.2,
         }));
         path.reverse();
 
@@ -433,38 +475,68 @@ impl GraphEngine {
             }
             Ok(neighbors)
         } else {
-            // Reverse: find rows in neighbor_table where neighbor_col (FK) = key_value
-            // Select all columns so we can pick an identity column for each row
-            let sql =
-                format!("SELECT * FROM {neighbor_table} WHERE {neighbor_col} = '{escaped_key}'");
+            // Reverse: find rows in neighbor_table where neighbor_col (FK) = key_value.
+            // We need a unique identity column for each matched row.
+            //
+            // Strategy: check if any relationship references this table as a target
+            // (to_table). The to_col of such a relationship is expected to be unique
+            // (it's an FK target), so it's a reliable identity. Fall back to first
+            // non-FK column if no such relationship exists.
+            let id_col_name = self.find_identity_column(neighbor_table, neighbor_col);
+
+            if !is_valid_identifier(&id_col_name) {
+                bail!("invalid identity column name: {id_col_name}");
+            }
+
+            let sql = format!(
+                "SELECT {id_col_name}, {neighbor_col} FROM {neighbor_table} WHERE {neighbor_col} = '{escaped_key}'"
+            );
             let result = router.query_sync(&sql)?;
-            // Find the first non-FK column to use as the identity column
-            let fk_idx = result.columns.iter().position(|c| c.name == neighbor_col);
-            let id_idx = result
-                .columns
-                .iter()
-                .position(|c| c.name != neighbor_col)
-                .unwrap_or(0);
-            let id_col = result
-                .columns
-                .get(id_idx)
-                .map(|c| c.name.clone())
-                .unwrap_or_else(|| neighbor_col.to_string());
-            // If the only column is the FK column, fall back to it
-            let pick_idx = if fk_idx == Some(id_idx) { 0 } else { id_idx };
+
             Ok(result
                 .rows
                 .into_iter()
                 .filter_map(|row| {
-                    let val = row.get(pick_idx)?;
+                    let val = row.first()?;
                     match val {
-                        Value::String(s) => Some((id_col.clone(), s.clone())),
-                        Value::Int(i) => Some((id_col.clone(), i.to_string())),
+                        Value::String(s) => Some((id_col_name.clone(), s.clone())),
+                        Value::Int(i) => Some((id_col_name.clone(), i.to_string())),
                         _ => None,
                     }
                 })
                 .collect())
         }
+    }
+
+    /// Find the best identity column for a table during reverse traversal.
+    ///
+    /// Prefers columns that are FK targets (to_col in a relationship pointing
+    /// to this table), since FK targets are expected to be unique. Falls back
+    /// to an "id" column from the table schema, then to the first non-FK
+    /// column. Using the FK column itself as identity would collapse multiple
+    /// rows sharing the same FK value into a single node.
+    fn find_identity_column(&self, table: &str, fk_col: &str) -> String {
+        // 1. Check if this table is a FK target in any relationship — the to_col
+        //    is expected to be unique (it's what other tables reference).
+        for rel in &self.relationships {
+            if rel.to_table == table && rel.to_col != fk_col {
+                return rel.to_col.clone();
+            }
+        }
+
+        // 2. Check table schema for an "id" column (common primary key).
+        if let Some(cols) = self.table_columns.get(table) {
+            if cols.iter().any(|c| c == "id") && fk_col != "id" {
+                return "id".to_string();
+            }
+            // 3. Fall back to first column that isn't the FK column.
+            if let Some(col) = cols.iter().find(|c| c.as_str() != fk_col) {
+                return col.clone();
+            }
+        }
+
+        // Last resort: use the FK column (may collapse rows, but no better option).
+        fk_col.to_string()
     }
 
     /// Fetch all column values of a target row for flexible BFS target matching.
@@ -502,7 +574,22 @@ impl GraphEngine {
     /// Build a GraphEngine directly from a list of relationships (for testing).
     #[cfg(test)]
     fn from_relationships(relationships: Vec<Relationship>) -> Self {
-        GraphEngine { relationships }
+        GraphEngine {
+            relationships,
+            table_columns: HashMap::new(),
+        }
+    }
+
+    /// Build a GraphEngine from relationships and table column metadata (for testing).
+    #[cfg(test)]
+    fn from_relationships_with_columns(
+        relationships: Vec<Relationship>,
+        table_columns: HashMap<String, Vec<String>>,
+    ) -> Self {
+        GraphEngine {
+            relationships,
+            table_columns,
+        }
     }
 
     /// Fetch all properties of a node as JSON.
@@ -671,6 +758,52 @@ mod tests {
         (router, tmp)
     }
 
+    fn demo_table_columns() -> HashMap<String, Vec<String>> {
+        let mut cols = HashMap::new();
+        cols.insert(
+            "team_members".to_string(),
+            vec!["id", "name", "role", "department", "start_date"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        cols.insert(
+            "project_tasks".to_string(),
+            vec![
+                "id",
+                "title",
+                "assignee",
+                "status",
+                "priority",
+                "project",
+                "created_at",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        );
+        cols.insert(
+            "incidents".to_string(),
+            vec![
+                "id",
+                "title",
+                "severity",
+                "reporter",
+                "resolved",
+                "duration_min",
+                "created_at",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        );
+        cols
+    }
+
+    fn demo_engine() -> GraphEngine {
+        GraphEngine::from_relationships_with_columns(test_relationships(), demo_table_columns())
+    }
+
     #[test]
     fn test_neighbors_invalid_table() {
         let engine = GraphEngine::from_relationships(test_relationships());
@@ -742,7 +875,7 @@ mod tests {
 
     #[test]
     fn test_neighbors_depth_1() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
         let result = engine
             .neighbors(
@@ -770,7 +903,7 @@ mod tests {
 
     #[test]
     fn test_neighbors_no_duplicate_edges() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
         let result = engine
             .neighbors(
@@ -786,14 +919,16 @@ mod tests {
 
         let edges = result["edges"].as_array().unwrap();
 
-        // Check for duplicate edges: same (from_table, from_key, to_table, to_key, relation)
+        // Check for duplicate edges: same (from_table, from_key_col, from_key, to_table, to_key_col, to_key, relation)
         let mut seen = std::collections::HashSet::new();
         for edge in edges {
             let key = format!(
-                "{}:{}->{}:{}:{}",
+                "{}.{}={}->{}:{}={}:{}",
                 edge["from_table"],
+                edge["from_key_col"],
                 edge["from_key"],
                 edge["to_table"],
+                edge["to_key_col"],
                 edge["to_key"],
                 edge["relation"]
             );
@@ -823,7 +958,7 @@ mod tests {
 
     #[test]
     fn test_neighbors_depth_clamped_to_max() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
         // depth=100 should be clamped to MAX_DEPTH (10) without error
         let result = engine.neighbors(
@@ -840,7 +975,7 @@ mod tests {
 
     #[test]
     fn test_path_found() {
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
 
         // Find a task assigned to Alice Chen via SQL to get a valid path target
@@ -929,7 +1064,7 @@ mod tests {
     fn test_path_no_route() {
         // Test the BFS "no path found" code path (found: false)
         // Use depth=0 so BFS never expands, guaranteeing no path
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
 
         // Find a task assigned to Alice to use as target
@@ -966,7 +1101,7 @@ mod tests {
     #[test]
     fn test_path_self() {
         // Path from a node to itself should return a trivial 0-hop path
-        let engine = GraphEngine::from_relationships(test_relationships());
+        let engine = demo_engine();
         let (router, _tmp) = setup_demo_router();
         let result = engine
             .path(
@@ -988,7 +1123,100 @@ mod tests {
         assert_eq!(path.len(), 1);
         assert_eq!(result["hops"], 0);
         assert_eq!(path[0]["table"], "team_members");
+        assert_eq!(path[0]["key_col"], "name");
         assert_eq!(path[0]["key"], "Alice Chen");
+    }
+
+    #[test]
+    fn test_reverse_traversal_no_node_collapse() {
+        // Regression: reverse traversal from team_members to project_tasks must
+        // produce distinct nodes for each task, not collapse them by FK value.
+        let engine = demo_engine();
+        let (router, _tmp) = setup_demo_router();
+
+        // Find any team member with 2+ tasks (avoids dependence on random assignment)
+        let count_result = router.query_sync(
+            "SELECT assignee FROM project_tasks GROUP BY assignee HAVING count(*) >= 2 LIMIT 1",
+        );
+
+        // If the SQL engine doesn't support GROUP BY/HAVING, fall back to scanning all members
+        let member_name = if let Ok(ref res) = count_result {
+            if let Some(row) = res.rows.first() {
+                match &row[0] {
+                    Value::String(s) => Some(s.clone()),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Fallback: try each known member until we find one with 2+ tasks
+        let member_name = member_name.unwrap_or_else(|| {
+            let members = [
+                "Alice Chen",
+                "Bob Martinez",
+                "Carol Wu",
+                "Dave Johnson",
+                "Eve Park",
+                "Frank Liu",
+                "Grace Kim",
+                "Hank Wilson",
+            ];
+            for name in &members {
+                let escaped = escape_sql_value(name);
+                let res = router
+                    .query_sync(&format!(
+                        "SELECT id FROM project_tasks WHERE assignee = '{escaped}'"
+                    ))
+                    .unwrap();
+                if res.rows.len() >= 2 {
+                    return name.to_string();
+                }
+            }
+            panic!(
+                "no team member has 2+ tasks — demo RNG produced degenerate data; \
+                 with 20 tasks and 8 assignees this should be extremely rare"
+            );
+        });
+
+        let escaped = escape_sql_value(&member_name);
+        let task_result = router
+            .query_sync(&format!(
+                "SELECT id FROM project_tasks WHERE assignee = '{escaped}'"
+            ))
+            .unwrap();
+        let expected_task_count = task_result.rows.len();
+        assert!(expected_task_count >= 2);
+
+        let result = engine
+            .neighbors(
+                "team_members",
+                "name",
+                &member_name,
+                1,
+                "both",
+                Some(&["assigned_to".to_string()]),
+                &router,
+            )
+            .unwrap();
+
+        let nodes = result["nodes"].as_array().unwrap();
+        let task_nodes: Vec<_> = nodes
+            .iter()
+            .filter(|n| n["table"] == "project_tasks")
+            .collect();
+
+        assert_eq!(
+            task_nodes.len(),
+            expected_task_count,
+            "each task should be a distinct node, got {} but expected {} for member {}",
+            task_nodes.len(),
+            expected_task_count,
+            member_name,
+        );
     }
 
     #[test]

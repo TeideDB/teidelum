@@ -103,12 +103,11 @@ pub struct GraphEngine {
 impl GraphEngine {
     pub fn build_from_catalog(catalog: &Catalog) -> Self;
     pub fn neighbors(table, key_col, key_value, depth, direction, rel_types, router) -> Result<Value>;
-    pub fn path(from_table, from_key_col, from_key, to_table, to_key_col, to_key, max_depth, router) -> Result<Value>;
-    pub fn subgraph(table, key_col, key_value, depth, direction, rel_types, router) -> Result<Value>;
+    pub fn path(from_table, from_key_col, from_key, to_table, to_key_col, to_key, max_depth, direction, rel_types, router) -> Result<Value>;
 }
 ```
 
-Design: BFS traversal using SQL queries against FK relationships. For each hop, resolves neighbors via `SELECT ... WHERE fk_col = 'value'`. Supports forward, reverse, and bidirectional traversal with relationship type filtering.
+Design: BFS traversal using SQL queries against FK relationships. For each hop, resolves neighbors via `SELECT ... WHERE fk_col = 'value'`. Supports forward, reverse, and bidirectional traversal with relationship type filtering. `neighbors` returns the full subgraph (nodes + edges) within the given depth, serving the role originally planned for a separate `subgraph` operation.
 
 Internal helpers:
 
@@ -136,7 +135,7 @@ pub struct GraphParams {
     pub table: String,              // starting node table
     pub key: String,                // node identifier value
     pub key_col: String,            // key column (default: "name")
-    pub operation: String,          // "neighbors" | "path" | "subgraph"
+    pub operation: String,          // "neighbors" | "path"
     pub depth: usize,               // max hops (default: 2)
     pub direction: String,          // "forward" | "reverse" | "both"
     pub rel_types: Option<Vec<String>>,
@@ -146,7 +145,7 @@ pub struct GraphParams {
 }
 ```
 
-Add `graph_engine: Arc<GraphEngine>` to `Teidelum`, `#[tool] async fn graph()` dispatching to neighbors/path/subgraph. Update `get_info()` instructions.
+Add `graph_engine: Arc<GraphEngine>` to `Teidelum`, `#[tool] async fn graph()` dispatching to neighbors/path. Update `get_info()` instructions.
 
 ### Step 6: Wire up in main.rs
 
@@ -180,7 +179,7 @@ cargo fmt --check             # both crates
 Manual MCP test:
 
 - `graph(table="team_members", key="Alice Chen", operation="neighbors")` → tasks + incidents
-- `graph(table="project_tasks", key="Implement JWT token rotation", key_col="title", operation="subgraph")` → task → assignee → related
+- `graph(table="project_tasks", key="Implement JWT token rotation", key_col="title", operation="neighbors", depth=2)` → task → assignee → related
 
 ### Results
 
