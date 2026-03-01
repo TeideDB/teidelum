@@ -247,8 +247,14 @@ impl Teidelum {
             }
         };
 
-        let result = result
-            .map_err(|e| McpError::internal_error(format!("graph operation failed: {e}"), None))?;
+        let result = result.map_err(|e| {
+            let msg = e.to_string();
+            if msg.starts_with("invalid ") {
+                McpError::invalid_params(msg, None)
+            } else {
+                McpError::internal_error(format!("graph operation failed: {msg}"), None)
+            }
+        })?;
 
         let json = serde_json::to_string_pretty(&result)
             .map_err(|e| McpError::internal_error(format!("serialization failed: {e}"), None))?;

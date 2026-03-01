@@ -22,7 +22,7 @@ fn is_valid_identifier(s: &str) -> bool {
     let mut chars = s.chars();
     match chars.next() {
         Some(c) if c.is_ascii_alphabetic() || c == '_' => {
-            chars.all(|c| c.is_alphanumeric() || c == '_')
+            chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
         }
         _ => false,
     }

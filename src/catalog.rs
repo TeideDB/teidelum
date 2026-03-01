@@ -70,7 +70,7 @@ impl Catalog {
         ] {
             let valid = match val.chars().next() {
                 Some(c) if c.is_ascii_alphabetic() || c == '_' => {
-                    val.chars().all(|c| c.is_alphanumeric() || c == '_')
+                    val.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
                 }
                 _ => false,
             };
