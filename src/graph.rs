@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
 use serde_json::json;
@@ -78,6 +78,7 @@ impl GraphEngine {
         let depth = depth.min(MAX_DEPTH);
         let mut visited: HashMap<(String, String), serde_json::Value> = HashMap::new();
         let mut edges: Vec<Edge> = Vec::new();
+        let mut seen_edges: HashSet<(String, String, String, String, String)> = HashSet::new();
         let mut frontier: Vec<(String, String, String)> = vec![(
             table.to_string(),
             key_col.to_string(),
@@ -120,9 +121,38 @@ impl GraphEngine {
 
                     for (id_col, nval) in &neighbor_values {
                         let key = (neighbor_table.clone(), nval.clone());
+
+                        // Record edges unconditionally (dedup by edge identity)
+                        let edge = if is_forward {
+                            Edge {
+                                from_table: tbl.clone(),
+                                from_key: kval.clone(),
+                                to_table: neighbor_table.clone(),
+                                to_key: nval.clone(),
+                                relation: rel.relation.clone(),
+                            }
+                        } else {
+                            Edge {
+                                from_table: neighbor_table.clone(),
+                                from_key: nval.clone(),
+                                to_table: tbl.clone(),
+                                to_key: kval.clone(),
+                                relation: rel.relation.clone(),
+                            }
+                        };
+                        let edge_key = (
+                            edge.from_table.clone(),
+                            edge.from_key.clone(),
+                            edge.to_table.clone(),
+                            edge.to_key.clone(),
+                            edge.relation.clone(),
+                        );
+                        if seen_edges.insert(edge_key) {
+                            edges.push(edge);
+                        }
+
+                        // Only add newly-discovered nodes to the frontier
                         if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(key) {
-                            // Fetch properties; use null on failure so the node
-                            // is still recorded and traversal continues through it.
                             let props = self
                                 .fetch_node_properties(neighbor_table, id_col, nval, router)
                                 .unwrap_or(serde_json::Value::Null);
@@ -132,24 +162,6 @@ impl GraphEngine {
                                 id_col.clone(),
                                 nval.clone(),
                             ));
-
-                            if is_forward {
-                                edges.push(Edge {
-                                    from_table: tbl.clone(),
-                                    from_key: kval.clone(),
-                                    to_table: neighbor_table.clone(),
-                                    to_key: nval.clone(),
-                                    relation: rel.relation.clone(),
-                                });
-                            } else {
-                                edges.push(Edge {
-                                    from_table: neighbor_table.clone(),
-                                    from_key: nval.clone(),
-                                    to_table: tbl.clone(),
-                                    to_key: kval.clone(),
-                                    relation: rel.relation.clone(),
-                                });
-                            }
                         }
                     }
                 }
