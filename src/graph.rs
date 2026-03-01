@@ -34,6 +34,9 @@ pub struct Edge {
 /// Parent info for BFS path reconstruction: ((parent_table, parent_key), relation_name).
 type PathParent = Option<((String, String), String)>;
 
+/// All column values for a target row, used for flexible target matching in path().
+type TargetRow = HashMap<String, String>;
+
 /// SQL-based graph traversal engine over catalog FK relationships.
 ///
 /// Performs BFS traversal using SQL queries at each hop, resolving
@@ -187,7 +190,7 @@ impl GraphEngine {
         from_key_col: &str,
         from_key: &str,
         to_table: &str,
-        _to_key_col: &str,
+        to_key_col: &str,
         to_key: &str,
         max_depth: usize,
         router: &QueryRouter,
@@ -201,7 +204,21 @@ impl GraphEngine {
         if !is_valid_identifier(to_table) {
             bail!("invalid table name: {to_table}");
         }
+        if !is_valid_identifier(to_key_col) {
+            bail!("invalid column name: {to_key_col}");
+        }
         let max_depth = max_depth.min(MAX_DEPTH);
+
+        // Pre-resolve the target row: BFS discovers nodes using an identity
+        // column from resolve_neighbors (which may differ from to_key_col).
+        // Fetch all column values of the target row so we can match against
+        // whichever column BFS uses as identity for nodes in to_table.
+        let target_row = self
+            .fetch_target_row(to_table, to_key_col, to_key, router)
+            .map_err(|_| {
+                anyhow::anyhow!("target node not found: {to_table}.{to_key_col}={to_key}")
+            })?;
+
         // BFS from source to destination
         let mut visited: HashMap<(String, String), PathParent> = HashMap::new();
         visited.insert((from_table.to_string(), from_key.to_string()), None);
@@ -212,8 +229,7 @@ impl GraphEngine {
             from_key.to_string(),
         )];
 
-        let target = (to_table.to_string(), to_key.to_string());
-        let mut found = false;
+        let mut found_key: Option<(String, String)> = None;
 
         for _d in 0..max_depth {
             let mut next_frontier = Vec::new();
@@ -253,28 +269,35 @@ impl GraphEngine {
                                 nval.clone(),
                             ));
 
-                            if key == target {
-                                found = true;
+                            // Match target: check if this node is in the target
+                            // table and its id_col value matches what the target
+                            // row has for that column.
+                            if *neighbor_table == to_table {
+                                if let Some(expected) = target_row.get(id_col) {
+                                    if expected == nval {
+                                        found_key = Some(key);
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            if found || next_frontier.is_empty() {
+            if found_key.is_some() || next_frontier.is_empty() {
                 break;
             }
             frontier = next_frontier;
         }
 
-        if !found {
+        let Some(target) = found_key else {
             return Ok(json!({
                 "found": false,
                 "message": format!(
                     "no path from {from_table}.{from_key} to {to_table}.{to_key} within {max_depth} hops"
                 ),
             }));
-        }
+        };
 
         // Reconstruct path
         let mut path = Vec::new();
@@ -402,6 +425,38 @@ impl GraphEngine {
                 })
                 .collect())
         }
+    }
+
+    /// Fetch all column values of a target row for flexible BFS target matching.
+    /// Returns a map of column_name -> string_value for the first matching row.
+    fn fetch_target_row(
+        &self,
+        table: &str,
+        key_col: &str,
+        key_value: &str,
+        router: &QueryRouter,
+    ) -> Result<TargetRow> {
+        let escaped_key = escape_sql_value(key_value);
+        let sql = format!("SELECT * FROM {table} WHERE {key_col} = '{escaped_key}'");
+        let result = router.query_sync(&sql)?;
+
+        if result.rows.is_empty() {
+            bail!("target row not found: {table}.{key_col}={key_value}");
+        }
+
+        let row = &result.rows[0];
+        let mut target = HashMap::new();
+        for (i, col) in result.columns.iter().enumerate() {
+            let val = match &row[i] {
+                Value::String(s) => s.clone(),
+                Value::Int(i) => i.to_string(),
+                Value::Float(f) => f.to_string(),
+                Value::Bool(b) => b.to_string(),
+                Value::Null => continue,
+            };
+            target.insert(col.name.clone(), val);
+        }
+        Ok(target)
     }
 
     /// Fetch all properties of a node as JSON.
