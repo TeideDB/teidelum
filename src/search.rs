@@ -3,10 +3,10 @@ use std::path::Path;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tantivy::collector::TopDocs;
+use tantivy::directory::MmapDirectory;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
 use tantivy::snippet::SnippetGenerator;
-use tantivy::directory::MmapDirectory;
 use tantivy::{doc, Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument};
 
 /// A single search result with source attribution and relevance score.
@@ -32,7 +32,7 @@ pub struct SearchQuery {
 pub struct SearchEngine {
     index: Index,
     reader: IndexReader,
-    schema: Schema,
+    _schema: Schema,
     f_id: Field,
     f_source: Field,
     f_title: Field,
@@ -61,7 +61,7 @@ impl SearchEngine {
         Ok(Self {
             index,
             reader,
-            schema,
+            _schema: schema,
             f_id,
             f_source,
             f_title,
@@ -105,14 +105,12 @@ impl SearchEngine {
     pub fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
 
-        let query_parser =
-            QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
+        let query_parser = QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
         let parsed = query_parser.parse_query(&query.text)?;
 
         let top_docs = searcher.search(&parsed, &TopDocs::with_limit(query.limit))?;
 
-        let snippet_gen =
-            SnippetGenerator::create(&searcher, &*parsed, self.f_body)?;
+        let snippet_gen = SnippetGenerator::create(&searcher, &*parsed, self.f_body)?;
 
         let mut results = Vec::new();
         for (score, doc_addr) in top_docs {

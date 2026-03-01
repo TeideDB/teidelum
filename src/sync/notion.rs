@@ -3,13 +3,14 @@ use async_trait::async_trait;
 
 use super::{SyncOutput, SyncSource};
 
+#[derive(Default)]
 pub struct NotionSync {
     // TODO: API token, workspace config
 }
 
 impl NotionSync {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 }
 

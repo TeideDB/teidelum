@@ -101,7 +101,9 @@ impl Catalog {
                 .relationships
                 .iter()
                 .filter(|r| {
-                    tables.iter().any(|t| t.name == r.from_table || t.name == r.to_table)
+                    tables
+                        .iter()
+                        .any(|t| t.name == r.from_table || t.name == r.to_table)
                 })
                 .collect(),
             None => self.relationships.iter().collect(),

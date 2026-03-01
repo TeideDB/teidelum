@@ -3,13 +3,14 @@ use async_trait::async_trait;
 
 use super::{ColumnSchema, Connector, QueryResult};
 
+#[derive(Default)]
 pub struct KdbConnector {
     // TODO: connection config (host, port)
 }
 
 impl KdbConnector {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 }
 

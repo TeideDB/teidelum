@@ -22,7 +22,11 @@ pub fn generate(data_dir: &Path) -> Result<()> {
 
 fn generate_documents(dir: &Path) -> Result<()> {
     let docs = vec![
-        ("auth-redesign-rfc.md", "Authentication Redesign RFC", "notion", r#"# Authentication Redesign RFC
+        (
+            "auth-redesign-rfc.md",
+            "Authentication Redesign RFC",
+            "notion",
+            r#"# Authentication Redesign RFC
 
 ## Summary
 We need to migrate from session-based auth to JWT tokens. The current system doesn't scale
@@ -50,8 +54,13 @@ well with our microservices architecture and causes issues with cross-service au
 - Should we use asymmetric or symmetric signing?
 - How do we handle token revocation?
 - What's the fallback if the auth service is down?
-"#),
-        ("deployment-runbook-v3.md", "Deployment Runbook v3", "notion", r#"# Deployment Runbook v3
+"#,
+        ),
+        (
+            "deployment-runbook-v3.md",
+            "Deployment Runbook v3",
+            "notion",
+            r#"# Deployment Runbook v3
 
 ## Pre-deployment Checklist
 - [ ] All tests passing on CI
@@ -80,8 +89,13 @@ If error rate exceeds 1% or p99 latency exceeds 500ms:
 - Added blue-green deployment support
 - Integrated with PagerDuty for automatic alerts
 - Added database migration dry-run step
-"#),
-        ("rate-limiting-design.md", "Rate Limiting Design", "notion", r#"# Rate Limiting Design
+"#,
+        ),
+        (
+            "rate-limiting-design.md",
+            "Rate Limiting Design",
+            "notion",
+            r#"# Rate Limiting Design
 
 ## Overview
 Implement distributed rate limiting across all API endpoints to prevent abuse
@@ -107,8 +121,13 @@ We'll use a sliding window rate limiter with Redis as the backing store.
 - What happens during Redis failover? Default to allowing requests.
 - How do we handle distributed clock skew? Use Redis server time.
 - WebSocket connections: rate limit on message frequency, not connection count.
-"#),
-        ("q3-okrs.md", "Q3 2026 OKRs", "notion", r#"# Q3 2026 OKRs
+"#,
+        ),
+        (
+            "q3-okrs.md",
+            "Q3 2026 OKRs",
+            "notion",
+            r#"# Q3 2026 OKRs
 
 ## Objective 1: Improve Platform Reliability
 - KR1: Reduce p99 latency from 450ms to 200ms
@@ -129,8 +148,13 @@ We'll use a sliding window rate limiter with Redis as the backing store.
 - Platform team: O1 (80%), O3 (20%)
 - Data team: O2 (100%)
 - Product engineering: O3 (60%), feature work (40%)
-"#),
-        ("incident-2026-02-15.md", "Incident Report: Database Failover", "zulip", r#"# Incident Report: Database Failover (2026-02-15)
+"#,
+        ),
+        (
+            "incident-2026-02-15.md",
+            "Incident Report: Database Failover",
+            "zulip",
+            r#"# Incident Report: Database Failover (2026-02-15)
 
 ## Timeline
 - 14:23 UTC: Primary database CPU spikes to 100%
@@ -153,8 +177,13 @@ The connection pool in auth service was configured with max_idle=5 (too low).
 - [x] Add query timeout of 30s for analytics queries
 - [ ] Implement query isolation (separate read replicas for analytics)
 - [ ] Add connection pool monitoring to dashboards
-"#),
-        ("api-v2-migration-guide.md", "API v2 Migration Guide", "notion", r#"# API v2 Migration Guide
+"#,
+        ),
+        (
+            "api-v2-migration-guide.md",
+            "API v2 Migration Guide",
+            "notion",
+            r#"# API v2 Migration Guide
 
 ## Breaking Changes
 
@@ -189,8 +218,13 @@ The connection pool in auth service was configured with max_idle=5 (too low).
 3. Update error handling for new format
 4. Replace deprecated endpoints
 5. Test with v2 sandbox environment
-"#),
-        ("zulip-standup-2026-02-20.md", "Engineering Standup 2026-02-20", "zulip", r#"# Engineering Standup — February 20, 2026
+"#,
+        ),
+        (
+            "zulip-standup-2026-02-20.md",
+            "Engineering Standup 2026-02-20",
+            "zulip",
+            r#"# Engineering Standup — February 20, 2026
 
 ## Alice (Backend)
 - Yesterday: Finished JWT token rotation implementation
@@ -216,8 +250,13 @@ The connection pool in auth service was configured with max_idle=5 (too low).
 - Deployment freeze next week for Q3 planning
 - New on-call rotation starts Monday
 - Carol needs Kafka access — Dave to set up by EOD
-"#),
-        ("onboarding-checklist.md", "New Engineer Onboarding", "notion", r#"# New Engineer Onboarding Checklist
+"#,
+        ),
+        (
+            "onboarding-checklist.md",
+            "New Engineer Onboarding",
+            "notion",
+            r#"# New Engineer Onboarding Checklist
 
 ## Day 1
 - [ ] Laptop setup (IT ticket auto-created)
@@ -244,7 +283,8 @@ The connection pool in auth service was configured with max_idle=5 (too low).
 - API reference: /docs/api
 - Runbooks: /docs/runbooks
 - Team directory: /people
-"#),
+"#,
+        ),
     ];
 
     for (filename, _title, _source, content) in &docs {
@@ -313,12 +353,30 @@ id,name,role,department,start_date
     Ok(())
 }
 
-fn generate_project_tasks(session: &mut teide::Session, rng: &mut impl Rng, dir: &Path) -> Result<()> {
-    let assignees = ["Alice Chen", "Bob Martinez", "Carol Wu", "Dave Johnson", "Eve Park",
-                     "Frank Liu", "Grace Kim", "Hank Wilson"];
+fn generate_project_tasks(
+    session: &mut teide::Session,
+    rng: &mut impl Rng,
+    dir: &Path,
+) -> Result<()> {
+    let assignees = [
+        "Alice Chen",
+        "Bob Martinez",
+        "Carol Wu",
+        "Dave Johnson",
+        "Eve Park",
+        "Frank Liu",
+        "Grace Kim",
+        "Hank Wilson",
+    ];
     let statuses = ["todo", "in_progress", "review", "done"];
     let priorities = ["low", "medium", "high", "critical"];
-    let projects = ["auth-redesign", "api-v2", "analytics-pipeline", "ci-speedup", "rate-limiting"];
+    let projects = [
+        "auth-redesign",
+        "api-v2",
+        "analytics-pipeline",
+        "ci-speedup",
+        "rate-limiting",
+    ];
     let task_titles = [
         "Implement JWT token rotation",
         "Add cursor-based pagination",
@@ -343,8 +401,7 @@ fn generate_project_tasks(session: &mut teide::Session, rng: &mut impl Rng, dir:
     ];
 
     let mut csv = String::from("id,title,assignee,status,priority,project,created_at\n");
-    for i in 0..20 {
-        let title = task_titles[i];
+    for (i, title) in task_titles.iter().enumerate() {
         let assignee = assignees.choose(rng).unwrap();
         let status = statuses.choose(rng).unwrap();
         let priority = priorities.choose(rng).unwrap();
@@ -353,7 +410,14 @@ fn generate_project_tasks(session: &mut teide::Session, rng: &mut impl Rng, dir:
         let month = rng.gen_range(1..=2);
         csv.push_str(&format!(
             "{},{},{},{},{},{},2026-{:02}-{:02}\n",
-            i + 1, title, assignee, status, priority, project, month, day
+            i + 1,
+            title,
+            assignee,
+            status,
+            priority,
+            project,
+            month,
+            day
         ));
     }
 
@@ -367,7 +431,13 @@ fn generate_project_tasks(session: &mut teide::Session, rng: &mut impl Rng, dir:
 
 fn generate_incidents(session: &mut teide::Session, rng: &mut impl Rng, dir: &Path) -> Result<()> {
     let severities = ["sev1", "sev2", "sev3", "sev3", "sev3", "sev2"];
-    let reporters = ["Alice Chen", "Dave Johnson", "Frank Liu", "Eve Park", "Iris Patel"];
+    let reporters = [
+        "Alice Chen",
+        "Dave Johnson",
+        "Frank Liu",
+        "Eve Park",
+        "Iris Patel",
+    ];
     let titles = [
         "Database failover during peak traffic",
         "Auth service connection pool exhaustion",
@@ -380,8 +450,7 @@ fn generate_incidents(session: &mut teide::Session, rng: &mut impl Rng, dir: &Pa
     ];
 
     let mut csv = String::from("id,title,severity,reporter,resolved,duration_min,created_at\n");
-    for i in 0..8 {
-        let title = titles[i];
+    for (i, title) in titles.iter().enumerate() {
         let severity = severities.choose(rng).unwrap();
         let reporter = reporters.choose(rng).unwrap();
         let resolved: bool = rng.gen_bool(0.75);
@@ -390,7 +459,14 @@ fn generate_incidents(session: &mut teide::Session, rng: &mut impl Rng, dir: &Pa
         let month = rng.gen_range(1..=2);
         csv.push_str(&format!(
             "{},{},{},{},{},{},2026-{:02}-{:02}\n",
-            i + 1, title, severity, reporter, resolved, duration, month, day
+            i + 1,
+            title,
+            severity,
+            reporter,
+            resolved,
+            duration,
+            month,
+            day
         ));
     }
 
@@ -405,9 +481,8 @@ fn generate_incidents(session: &mut teide::Session, rng: &mut impl Rng, dir: &Pa
 fn save_splayed(table: &teide::Table, dir: &Path) -> Result<()> {
     let c_dir = CString::new(dir.to_str().unwrap())?;
 
-    let err = unsafe {
-        teide::ffi::td_splay_save(table.as_raw(), c_dir.as_ptr(), std::ptr::null())
-    };
+    let err =
+        unsafe { teide::ffi::td_splay_save(table.as_raw(), c_dir.as_ptr(), std::ptr::null()) };
 
     if err != teide::ffi::td_err_t::TD_OK {
         anyhow::bail!("td_splay_save failed with error code {err:?}");
@@ -480,13 +555,32 @@ mod tests {
 
         // project_tasks: 7 columns
         let pt_dir = tables_dir.join("project_tasks");
-        for col in &["id", "title", "assignee", "status", "priority", "project", "created_at"] {
-            assert!(pt_dir.join(col).exists(), "project_tasks/{col} should exist");
+        for col in &[
+            "id",
+            "title",
+            "assignee",
+            "status",
+            "priority",
+            "project",
+            "created_at",
+        ] {
+            assert!(
+                pt_dir.join(col).exists(),
+                "project_tasks/{col} should exist"
+            );
         }
 
         // incidents: 7 columns
         let inc_dir = tables_dir.join("incidents");
-        for col in &["id", "title", "severity", "reporter", "resolved", "duration_min", "created_at"] {
+        for col in &[
+            "id",
+            "title",
+            "severity",
+            "reporter",
+            "resolved",
+            "duration_min",
+            "created_at",
+        ] {
             assert!(inc_dir.join(col).exists(), "incidents/{col} should exist");
         }
     }
@@ -520,7 +614,9 @@ mod tests {
         }
 
         // Query to verify data integrity
-        let result = session.execute("SELECT name, role FROM team_members LIMIT 1").unwrap();
+        let result = session
+            .execute("SELECT name, role FROM team_members LIMIT 1")
+            .unwrap();
         if let teide::ExecResult::Query(q) = result {
             assert_eq!(q.columns.len(), 2);
             assert_eq!(q.columns[0], "name");

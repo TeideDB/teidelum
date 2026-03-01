@@ -32,11 +32,14 @@ impl QueryRouter {
         let sql = match sym_path {
             Some(p) => format!(
                 "CREATE TABLE {} AS SELECT * FROM read_splayed('{}', '{}')",
-                name, dir.display(), p.display(),
+                name,
+                dir.display(),
+                p.display(),
             ),
             None => format!(
                 "CREATE TABLE {} AS SELECT * FROM read_splayed('{}')",
-                name, dir.display(),
+                name,
+                dir.display(),
             ),
         };
         session.execute(&sql)?;
@@ -47,7 +50,11 @@ impl QueryRouter {
     /// List registered table names.
     pub fn table_names(&self) -> Vec<String> {
         let session = self.session.lock().unwrap();
-        session.table_names().into_iter().map(|s| s.to_string()).collect()
+        session
+            .table_names()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
     }
 
     /// Get table info (rows, cols) for a registered table.
@@ -91,21 +98,35 @@ impl QueryRouter {
 
                 Ok(QueryResult { columns, rows })
             }
-            teide::ExecResult::Ddl(msg) => {
-                Ok(QueryResult {
-                    columns: vec![ColumnSchema {
-                        name: "status".to_string(),
-                        dtype: "string".to_string(),
-                    }],
-                    rows: vec![vec![Value::String(msg)]],
-                })
-            }
+            teide::ExecResult::Ddl(msg) => Ok(QueryResult {
+                columns: vec![ColumnSchema {
+                    name: "status".to_string(),
+                    dtype: "string".to_string(),
+                }],
+                rows: vec![vec![Value::String(msg)]],
+            }),
         }
     }
 
     /// Async wrapper.
     pub async fn query(&self, sql: &str) -> Result<QueryResult> {
         self.query_sync(sql)
+    }
+
+    /// Extract a column's values as optional strings, for use by GraphEngine.
+    pub fn query_column_values(&self, table: &str, col: &str) -> Result<Vec<Option<String>>> {
+        let result = self.query_sync(&format!("SELECT {col} FROM {table}"))?;
+        Ok(result
+            .rows
+            .into_iter()
+            .map(|row| match row.into_iter().next() {
+                Some(Value::String(s)) => Some(s),
+                Some(Value::Int(i)) => Some(i.to_string()),
+                Some(Value::Float(f)) => Some(f.to_string()),
+                Some(Value::Bool(b)) => Some(b.to_string()),
+                _ => None,
+            })
+            .collect())
     }
 }
 

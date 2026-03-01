@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use rmcp::{ServiceExt, transport::stdio};
+use rmcp::{transport::stdio, ServiceExt};
 use tracing_subscriber::EnvFilter;
 
-use teidelum::catalog::{Catalog, ColumnInfo, StorageType, TableEntry};
+use teidelum::catalog::{Catalog, ColumnInfo, Relationship, StorageType, TableEntry};
+use teidelum::graph::GraphEngine;
 use teidelum::mcp::Teidelum;
 use teidelum::router::QueryRouter;
 use teidelum::search::SearchEngine;
@@ -43,9 +44,32 @@ async fn main() -> Result<()> {
     let mut catalog = Catalog::new();
     load_tables(&query_router, &mut catalog, &data.join("tables"))?;
 
+    // Register FK relationships between demo tables
+    catalog.register_relationship(Relationship {
+        from_table: "project_tasks".to_string(),
+        from_col: "assignee".to_string(),
+        to_table: "team_members".to_string(),
+        to_col: "name".to_string(),
+        relation: "assigned_to".to_string(),
+    });
+    catalog.register_relationship(Relationship {
+        from_table: "incidents".to_string(),
+        from_col: "reporter".to_string(),
+        to_table: "team_members".to_string(),
+        to_col: "name".to_string(),
+        relation: "reported_by".to_string(),
+    });
+
+    // Build graph engine from catalog relationships
+    let graph_engine = GraphEngine::build_from_catalog(&catalog);
+    tracing::info!(
+        "graph engine ready ({} relationships)",
+        catalog.relationships().len()
+    );
+
     tracing::info!("teidelum ready — serving MCP over stdio");
 
-    let server = Teidelum::new(catalog, search_engine, query_router);
+    let server = Teidelum::new(catalog, search_engine, query_router, graph_engine);
 
     let service = server.serve(stdio()).await.inspect_err(|e| {
         tracing::error!("serving error: {:?}", e);
@@ -65,7 +89,7 @@ fn index_documents(engine: &SearchEngine, docs_dir: &Path) -> Result<()> {
     for entry in std::fs::read_dir(docs_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().map_or(false, |e| e == "md") {
+        if path.extension().is_some_and(|e| e == "md") {
             let content = std::fs::read_to_string(&path)?;
             let filename = path.file_stem().unwrap().to_string_lossy().to_string();
 
@@ -77,7 +101,11 @@ fn index_documents(engine: &SearchEngine, docs_dir: &Path) -> Result<()> {
                 .unwrap_or_else(|| filename.clone());
 
             // Infer source from content or default to "docs"
-            let source = if content.contains("zulip") || filename.contains("zulip") || filename.contains("standup") || filename.contains("incident") {
+            let source = if content.contains("zulip")
+                || filename.contains("zulip")
+                || filename.contains("standup")
+                || filename.contains("incident")
+            {
                 "zulip"
             } else {
                 "notion"
@@ -90,9 +118,7 @@ fn index_documents(engine: &SearchEngine, docs_dir: &Path) -> Result<()> {
     let count = engine.index_documents(
         &documents
             .iter()
-            .map(|(id, src, title, body)| {
-                (id.clone(), src.clone(), title.clone(), body.clone())
-            })
+            .map(|(id, src, title, body)| (id.clone(), src.clone(), title.clone(), body.clone()))
             .collect::<Vec<_>>(),
     )?;
 
@@ -124,10 +150,14 @@ fn load_tables(router: &QueryRouter, catalog: &mut Catalog, tables_dir: &Path) -
             // Query the table to get real column names and types
             if let Some((nrows, _ncols)) = router.table_info(&name) {
                 let result = router.query_sync(&format!("SELECT * FROM {name} LIMIT 1"))?;
-                let columns = result.columns.iter().map(|c| ColumnInfo {
-                    name: c.name.clone(),
-                    dtype: c.dtype.clone(),
-                }).collect::<Vec<_>>();
+                let columns = result
+                    .columns
+                    .iter()
+                    .map(|c| ColumnInfo {
+                        name: c.name.clone(),
+                        dtype: c.dtype.clone(),
+                    })
+                    .collect::<Vec<_>>();
                 let ncols = columns.len();
 
                 catalog.register_table(TableEntry {

@@ -3,13 +3,14 @@ use async_trait::async_trait;
 
 use super::{SyncOutput, SyncSource};
 
+#[derive(Default)]
 pub struct ZulipSync {
     // TODO: API config (server URL, credentials)
 }
 
 impl ZulipSync {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 }
 
