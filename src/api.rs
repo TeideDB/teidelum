@@ -137,17 +137,13 @@ impl TeidelumApi {
         );
         self.query_router.query_sync(&create_sql)?;
 
-        // Insert rows in batches of 1000
+        // Insert rows in batches of 1000; rollback (DROP) if any batch fails
         if !rows.is_empty() {
-            for chunk in rows.chunks(1000) {
-                let values: Vec<String> = chunk.iter().map(|row| row_to_sql_values(row)).collect();
-                let col_names: Vec<&str> = columns.iter().map(|c| c.name.as_str()).collect();
-                let insert_sql = format!(
-                    "INSERT INTO {name} ({cols}) VALUES {vals}",
-                    cols = col_names.join(", "),
-                    vals = values.join(", "),
-                );
-                self.query_router.query_sync(&insert_sql)?;
+            if let Err(e) = self.insert_rows(name, columns, rows) {
+                let _ = self
+                    .query_router
+                    .query_sync(&format!("DROP TABLE IF EXISTS {name}"));
+                return Err(e);
             }
         }
 
@@ -171,6 +167,21 @@ impl TeidelumApi {
             });
         }
 
+        Ok(())
+    }
+
+    /// Insert rows into an existing table in batches.
+    fn insert_rows(&self, name: &str, columns: &[ColumnSchema], rows: &[Vec<Value>]) -> Result<()> {
+        for chunk in rows.chunks(1000) {
+            let values: Vec<String> = chunk.iter().map(|row| row_to_sql_values(row)).collect();
+            let col_names: Vec<&str> = columns.iter().map(|c| c.name.as_str()).collect();
+            let insert_sql = format!(
+                "INSERT INTO {name} ({cols}) VALUES {vals}",
+                cols = col_names.join(", "),
+                vals = values.join(", "),
+            );
+            self.query_router.query_sync(&insert_sql)?;
+        }
         Ok(())
     }
 
