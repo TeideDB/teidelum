@@ -13,6 +13,11 @@ fn escape_sql_value(s: &str) -> String {
     s.replace('\'', "''")
 }
 
+/// Validate that a string is a safe SQL identifier (alphanumeric + underscores).
+fn is_valid_identifier(s: &str) -> bool {
+    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
+}
+
 /// Describes one edge in a graph traversal result.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Edge {
@@ -55,6 +60,12 @@ impl GraphEngine {
         rel_types: Option<&[String]>,
         router: &QueryRouter,
     ) -> Result<serde_json::Value> {
+        if !is_valid_identifier(table) {
+            bail!("invalid table name: {table}");
+        }
+        if !is_valid_identifier(key_col) {
+            bail!("invalid column name: {key_col}");
+        }
         let mut visited: HashMap<(String, String), serde_json::Value> = HashMap::new();
         let mut edges: Vec<Edge> = Vec::new();
         let mut frontier: Vec<(String, String, String)> = vec![(
@@ -94,7 +105,7 @@ impl GraphEngine {
                         router,
                     )?;
 
-                    for nval in &neighbor_values {
+                    for (id_col, nval) in &neighbor_values {
                         // Add edge
                         if is_forward {
                             edges.push(Edge {
@@ -117,12 +128,15 @@ impl GraphEngine {
                         // Visit neighbor if not already seen
                         let key = (neighbor_table.clone(), nval.clone());
                         if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(key) {
-                            let id_col = neighbor_col.to_string();
                             if let Ok(props) =
-                                self.fetch_node_properties(neighbor_table, &id_col, nval, router)
+                                self.fetch_node_properties(neighbor_table, id_col, nval, router)
                             {
                                 e.insert(props);
-                                next_frontier.push((neighbor_table.clone(), id_col, nval.clone()));
+                                next_frontier.push((
+                                    neighbor_table.clone(),
+                                    id_col.clone(),
+                                    nval.clone(),
+                                ));
                             }
                         }
                     }
@@ -165,6 +179,15 @@ impl GraphEngine {
         max_depth: usize,
         router: &QueryRouter,
     ) -> Result<serde_json::Value> {
+        if !is_valid_identifier(from_table) {
+            bail!("invalid table name: {from_table}");
+        }
+        if !is_valid_identifier(from_key_col) {
+            bail!("invalid column name: {from_key_col}");
+        }
+        if !is_valid_identifier(to_table) {
+            bail!("invalid table name: {to_table}");
+        }
         // BFS from source to destination
         let mut visited: HashMap<(String, String), PathParent> = HashMap::new();
         visited.insert((from_table.to_string(), from_key.to_string()), None);
@@ -203,15 +226,18 @@ impl GraphEngine {
                         router,
                     )?;
 
-                    for nval in &neighbor_values {
+                    for (id_col, nval) in &neighbor_values {
                         let key = (neighbor_table.clone(), nval.clone());
                         if !visited.contains_key(&key) {
                             visited.insert(
                                 key.clone(),
                                 Some(((tbl.clone(), kval.clone()), rel.relation.clone())),
                             );
-                            let id_col = neighbor_col.to_string();
-                            next_frontier.push((neighbor_table.clone(), id_col, nval.clone()));
+                            next_frontier.push((
+                                neighbor_table.clone(),
+                                id_col.clone(),
+                                nval.clone(),
+                            ));
 
                             if key == target {
                                 found = true;
@@ -286,14 +312,16 @@ impl GraphEngine {
             .collect()
     }
 
-    /// Resolve neighbor values via SQL.
+    /// Resolve neighbor values via SQL, returning (id_col, id_value) pairs.
     ///
     /// If `is_forward`: we have a row in `source_table` where `key_col=key_value`,
     /// and `source_col` is the FK column. We need to find matching rows in
     /// `neighbor_table` where `neighbor_col` matches the FK value.
+    /// Returns `neighbor_col` as the id column.
     ///
     /// If `!is_forward` (reverse): we look in `neighbor_table` for rows whose
-    /// `neighbor_col` (FK) value matches our `key_value`.
+    /// `neighbor_col` (FK) value matches our `key_value`, and return a
+    /// distinguishing identity column for each matched row.
     #[allow(clippy::too_many_arguments)]
     fn resolve_neighbors(
         &self,
@@ -305,7 +333,7 @@ impl GraphEngine {
         neighbor_col: &str,
         is_forward: bool,
         router: &QueryRouter,
-    ) -> Result<Vec<String>> {
+    ) -> Result<Vec<(String, String)>> {
         let escaped_key = escape_sql_value(key_value);
         if is_forward {
             // Forward: get FK value from source, then find matching rows in neighbor
@@ -313,27 +341,45 @@ impl GraphEngine {
                 "SELECT {source_col} FROM {source_table} WHERE {key_col} = '{escaped_key}'"
             );
             let result = router.query_sync(&sql)?;
+            let id_col = neighbor_col.to_string();
             let mut neighbors = Vec::new();
             for row in &result.rows {
                 if let Some(Value::String(fk_val)) = row.first() {
                     // The FK value IS the key in the neighbor table
-                    neighbors.push(fk_val.clone());
+                    neighbors.push((id_col.clone(), fk_val.clone()));
                 }
             }
             Ok(neighbors)
         } else {
             // Reverse: find rows in neighbor_table where neighbor_col (FK) = key_value
-            let sql = format!(
-                "SELECT {neighbor_col} FROM {neighbor_table} WHERE {neighbor_col} = '{escaped_key}'"
-            );
+            // Select all columns so we can pick an identity column for each row
+            let sql =
+                format!("SELECT * FROM {neighbor_table} WHERE {neighbor_col} = '{escaped_key}'");
             let result = router.query_sync(&sql)?;
+            // Find the first non-FK column to use as the identity column
+            let fk_idx = result.columns.iter().position(|c| c.name == neighbor_col);
+            let id_idx = result
+                .columns
+                .iter()
+                .position(|c| c.name != neighbor_col)
+                .unwrap_or(0);
+            let id_col = result
+                .columns
+                .get(id_idx)
+                .map(|c| c.name.clone())
+                .unwrap_or_else(|| neighbor_col.to_string());
+            // If the only column is the FK column, fall back to it
+            let pick_idx = if fk_idx == Some(id_idx) { 0 } else { id_idx };
             Ok(result
                 .rows
                 .into_iter()
-                .filter_map(|row| match row.into_iter().next() {
-                    Some(Value::String(s)) => Some(s),
-                    Some(Value::Int(i)) => Some(i.to_string()),
-                    _ => None,
+                .filter_map(|row| {
+                    let val = row.get(pick_idx)?;
+                    match val {
+                        Value::String(s) => Some((id_col.clone(), s.clone())),
+                        Value::Int(i) => Some((id_col.clone(), i.to_string())),
+                        _ => None,
+                    }
                 })
                 .collect())
         }
