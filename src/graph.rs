@@ -16,9 +16,16 @@ fn escape_sql_value(s: &str) -> String {
     s.replace('\'', "''")
 }
 
-/// Validate that a string is a safe SQL identifier (alphanumeric + underscores).
+/// Validate that a string is a safe SQL identifier.
+/// Must start with a letter or underscore, then alphanumeric or underscores.
 fn is_valid_identifier(s: &str) -> bool {
-    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+            chars.all(|c| c.is_alphanumeric() || c == '_')
+        }
+        _ => false,
+    }
 }
 
 /// Describes one edge in a graph traversal result.
@@ -221,6 +228,12 @@ impl GraphEngine {
             bail!("invalid direction: '{direction}'. Use 'forward', 'reverse', or 'both'");
         }
         let max_depth = max_depth.min(MAX_DEPTH);
+
+        // Verify the source node exists before starting BFS
+        self.fetch_node_properties(from_table, from_key_col, from_key, router)
+            .map_err(|_| {
+                anyhow::anyhow!("source node not found: {from_table}.{from_key_col}={from_key}")
+            })?;
 
         // Pre-resolve the target row: BFS discovers nodes using an identity
         // column from resolve_neighbors (which may differ from to_key_col).
@@ -461,12 +474,12 @@ impl GraphEngine {
         let row = &result.rows[0];
         let mut target = HashMap::new();
         for (i, col) in result.columns.iter().enumerate() {
-            let val = match &row[i] {
-                Value::String(s) => s.clone(),
-                Value::Int(i) => i.to_string(),
-                Value::Float(f) => f.to_string(),
-                Value::Bool(b) => b.to_string(),
-                Value::Null => continue,
+            let val = match row.get(i) {
+                Some(Value::String(s)) => s.clone(),
+                Some(Value::Int(i)) => i.to_string(),
+                Some(Value::Float(f)) => f.to_string(),
+                Some(Value::Bool(b)) => b.to_string(),
+                Some(Value::Null) | None => continue,
             };
             target.insert(col.name.clone(), val);
         }
@@ -498,12 +511,12 @@ impl GraphEngine {
         let row = &result.rows[0];
         let mut props = serde_json::Map::new();
         for (i, col) in result.columns.iter().enumerate() {
-            let val = match &row[i] {
-                Value::String(s) => json!(s),
-                Value::Int(i) => json!(i),
-                Value::Float(f) => json!(f),
-                Value::Bool(b) => json!(b),
-                Value::Null => serde_json::Value::Null,
+            let val = match row.get(i) {
+                Some(Value::String(s)) => json!(s),
+                Some(Value::Int(i)) => json!(i),
+                Some(Value::Float(f)) => json!(f),
+                Some(Value::Bool(b)) => json!(b),
+                Some(Value::Null) | None => serde_json::Value::Null,
             };
             props.insert(col.name.clone(), val);
         }
@@ -853,10 +866,10 @@ mod tests {
     }
 
     #[test]
-    fn test_path_not_found() {
+    fn test_path_target_not_found() {
         let engine = GraphEngine::from_relationships(test_relationships());
         let (router, _tmp) = setup_demo_router();
-        // Search for a path to a nonexistent target
+        // Search for a path to a nonexistent target - should error at pre-resolve
         let result = engine.path(
             "team_members",
             "name",
@@ -869,7 +882,81 @@ mod tests {
             None,
             &router,
         );
-        // target node not found at pre-resolve step
         assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("target node not found"));
+    }
+
+    #[test]
+    fn test_path_source_not_found() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine.path(
+            "team_members",
+            "name",
+            "Nonexistent Person",
+            "team_members",
+            "name",
+            "Alice Chen",
+            5,
+            "both",
+            None,
+            &router,
+        );
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("source node not found"));
+    }
+
+    #[test]
+    fn test_path_no_route() {
+        // Test the BFS "no path found" code path (found: false)
+        // Use depth=0 so BFS never expands, guaranteeing no path
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+
+        // Find a task assigned to Alice to use as target
+        let result = router
+            .query_sync("SELECT title FROM project_tasks WHERE assignee = 'Alice Chen' LIMIT 1")
+            .unwrap();
+        if result.rows.is_empty() {
+            return;
+        }
+        let task_title = match &result.rows[0][0] {
+            Value::String(s) => s.clone(),
+            _ => return,
+        };
+
+        let result = engine
+            .path(
+                "team_members",
+                "name",
+                "Alice Chen",
+                "project_tasks",
+                "title",
+                &task_title,
+                0, // depth=0: BFS won't expand, so no path
+                "both",
+                None,
+                &router,
+            )
+            .unwrap();
+
+        assert_eq!(result["found"], false);
+        assert!(result["message"].as_str().unwrap().contains("no path"));
+    }
+
+    #[test]
+    fn test_is_valid_identifier_digit_start() {
+        // Identifiers starting with digits should be rejected
+        assert!(!is_valid_identifier("1table"));
+        assert!(!is_valid_identifier("123"));
+        // But digits after the first character are fine
+        assert!(is_valid_identifier("table1"));
+        assert!(is_valid_identifier("_1"));
     }
 }

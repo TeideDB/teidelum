@@ -66,8 +66,15 @@ impl Catalog {
             ("from_col", &rel.from_col),
             ("to_table", &rel.to_table),
             ("to_col", &rel.to_col),
+            ("relation", &rel.relation),
         ] {
-            if val.is_empty() || !val.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            let valid = match val.chars().next() {
+                Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+                    val.chars().all(|c| c.is_alphanumeric() || c == '_')
+                }
+                _ => false,
+            };
+            if !valid {
                 bail!("invalid identifier in relationship {label}: '{val}'");
             }
         }
