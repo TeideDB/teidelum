@@ -245,6 +245,19 @@ impl GraphEngine {
                 anyhow::anyhow!("target node not found: {to_table}.{to_key_col}={to_key}")
             })?;
 
+        // Trivial case: source is target
+        if from_table == to_table {
+            if let Some(expected) = target_row.get(from_key_col) {
+                if expected == from_key {
+                    return Ok(json!({
+                        "found": true,
+                        "path": [{"table": from_table, "key": from_key}],
+                        "hops": 0,
+                    }));
+                }
+            }
+        }
+
         // BFS from source to destination
         let mut visited: HashMap<(String, String), PathParent> = HashMap::new();
         visited.insert((from_table.to_string(), from_key.to_string()), None);
@@ -948,6 +961,34 @@ mod tests {
 
         assert_eq!(result["found"], false);
         assert!(result["message"].as_str().unwrap().contains("no path"));
+    }
+
+    #[test]
+    fn test_path_self() {
+        // Path from a node to itself should return a trivial 0-hop path
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine
+            .path(
+                "team_members",
+                "name",
+                "Alice Chen",
+                "team_members",
+                "name",
+                "Alice Chen",
+                5,
+                "both",
+                None,
+                &router,
+            )
+            .unwrap();
+
+        assert_eq!(result["found"], true);
+        let path = result["path"].as_array().unwrap();
+        assert_eq!(path.len(), 1);
+        assert_eq!(result["hops"], 0);
+        assert_eq!(path[0]["table"], "team_members");
+        assert_eq!(path[0]["key"], "Alice Chen");
     }
 
     #[test]
