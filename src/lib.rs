@@ -1,3 +1,4 @@
+pub mod api;
 pub mod catalog;
 pub mod connector;
 pub mod demo;

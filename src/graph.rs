@@ -571,18 +571,16 @@ impl GraphEngine {
         Ok(target)
     }
 
-    /// Build a GraphEngine directly from a list of relationships (for testing).
-    #[cfg(test)]
-    fn from_relationships(relationships: Vec<Relationship>) -> Self {
+    /// Build a GraphEngine directly from a list of relationships.
+    pub fn from_relationships(relationships: Vec<Relationship>) -> Self {
         GraphEngine {
             relationships,
             table_columns: HashMap::new(),
         }
     }
 
-    /// Build a GraphEngine from relationships and table column metadata (for testing).
-    #[cfg(test)]
-    fn from_relationships_with_columns(
+    /// Build a GraphEngine from relationships and table column metadata.
+    pub fn from_relationships_with_columns(
         relationships: Vec<Relationship>,
         table_columns: HashMap<String, Vec<String>>,
     ) -> Self {

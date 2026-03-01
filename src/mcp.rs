@@ -4,12 +4,9 @@ use rmcp::{
     handler::server::tool::ToolRouter, handler::server::wrapper::Parameters, model::*, schemars,
     tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler,
 };
-use tokio::sync::Mutex;
 
-use crate::catalog::Catalog;
-use crate::graph::GraphEngine;
-use crate::router::QueryRouter;
-use crate::search::{SearchEngine, SearchQuery};
+use crate::api::TeidelumApi;
+use crate::search::SearchQuery;
 
 /// Tool parameter types — derive JsonSchema for automatic MCP schema generation.
 
@@ -106,26 +103,15 @@ pub struct GraphParams {
 /// The Teidelum MCP server — exposes search, sql, describe, graph, and sync tools.
 #[derive(Clone)]
 pub struct Teidelum {
-    catalog: Arc<Mutex<Catalog>>,
-    search_engine: Arc<SearchEngine>,
-    query_router: Arc<QueryRouter>,
-    graph_engine: Arc<GraphEngine>,
+    api: Arc<TeidelumApi>,
     tool_router: ToolRouter<Self>,
 }
 
 #[tool_router]
 impl Teidelum {
-    pub fn new(
-        catalog: Catalog,
-        search_engine: SearchEngine,
-        query_router: QueryRouter,
-        graph_engine: GraphEngine,
-    ) -> Self {
+    pub fn new(api: TeidelumApi) -> Self {
         Self {
-            catalog: Arc::new(Mutex::new(catalog)),
-            search_engine: Arc::new(search_engine),
-            query_router: Arc::new(query_router),
-            graph_engine: Arc::new(graph_engine),
+            api: Arc::new(api),
             tool_router: Self::tool_router(),
         }
     }
@@ -144,7 +130,7 @@ impl Teidelum {
         };
 
         let results = self
-            .search_engine
+            .api
             .search(&query)
             .map_err(|e| McpError::internal_error(format!("search failed: {e}"), None))?;
 
@@ -160,9 +146,8 @@ impl Teidelum {
         Parameters(params): Parameters<SqlParams>,
     ) -> Result<CallToolResult, McpError> {
         let result = self
-            .query_router
+            .api
             .query(&params.query)
-            .await
             .map_err(|e| McpError::internal_error(format!("query failed: {e}"), None))?;
 
         let json = serde_json::to_string_pretty(&result)
@@ -176,8 +161,8 @@ impl Teidelum {
         &self,
         Parameters(params): Parameters<DescribeParams>,
     ) -> Result<CallToolResult, McpError> {
-        let catalog = self.catalog.lock().await;
-        let description = catalog
+        let description = self
+            .api
             .describe(params.source.as_deref())
             .map_err(|e| McpError::internal_error(format!("describe failed: {e}"), None))?;
 
@@ -209,14 +194,13 @@ impl Teidelum {
         Parameters(params): Parameters<GraphParams>,
     ) -> Result<CallToolResult, McpError> {
         let result = match params.operation.as_str() {
-            "neighbors" => self.graph_engine.neighbors(
+            "neighbors" => self.api.neighbors(
                 &params.table,
                 &params.key_col,
                 &params.key,
                 params.depth,
                 &params.direction,
                 params.rel_types.as_deref(),
-                &self.query_router,
             ),
             "path" => {
                 let to_table = params.to_table.as_deref().ok_or_else(|| {
@@ -226,7 +210,7 @@ impl Teidelum {
                     McpError::invalid_params("'to_key' is required for path operation", None)
                 })?;
                 let to_key_col = params.to_key_col.as_deref().unwrap_or(&params.key_col);
-                self.graph_engine.path(
+                self.api.path(
                     &params.table,
                     &params.key_col,
                     &params.key,
@@ -236,7 +220,6 @@ impl Teidelum {
                     params.depth,
                     &params.direction,
                     params.rel_types.as_deref(),
-                    &self.query_router,
                 )
             }
             other => {
@@ -249,8 +232,6 @@ impl Teidelum {
 
         let result = result.map_err(|e| {
             let msg = e.to_string();
-            // Map known user-facing errors to invalid_params. These are
-            // specific prefixes produced by GraphEngine for bad input.
             let is_user_error = msg.starts_with("invalid ")
                 || msg.starts_with("starting node not found")
                 || msg.starts_with("source node not found")
