@@ -51,14 +51,14 @@ async fn main() -> Result<()> {
         to_table: "team_members".to_string(),
         to_col: "name".to_string(),
         relation: "assigned_to".to_string(),
-    });
+    })?;
     catalog.register_relationship(Relationship {
         from_table: "incidents".to_string(),
         from_col: "reporter".to_string(),
         to_table: "team_members".to_string(),
         to_col: "name".to_string(),
         relation: "reported_by".to_string(),
-    });
+    })?;
 
     // Build graph engine from catalog relationships
     let graph_engine = GraphEngine::build_from_catalog(&catalog);

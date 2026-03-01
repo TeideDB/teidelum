@@ -72,6 +72,9 @@ impl GraphEngine {
         if !is_valid_identifier(key_col) {
             bail!("invalid column name: {key_col}");
         }
+        if !matches!(direction, "forward" | "reverse" | "both") {
+            bail!("invalid direction: '{direction}'. Use 'forward', 'reverse', or 'both'");
+        }
         let depth = depth.min(MAX_DEPTH);
         let mut visited: HashMap<(String, String), serde_json::Value> = HashMap::new();
         let mut edges: Vec<Edge> = Vec::new();
@@ -129,9 +132,7 @@ impl GraphEngine {
                                 id_col.clone(),
                                 nval.clone(),
                             ));
-                        }
 
-                        {
                             if is_forward {
                                 edges.push(Edge {
                                     from_table: tbl.clone(),
@@ -203,6 +204,9 @@ impl GraphEngine {
         }
         if !is_valid_identifier(to_key_col) {
             bail!("invalid column name: {to_key_col}");
+        }
+        if !matches!(direction, "forward" | "reverse" | "both") {
+            bail!("invalid direction: '{direction}'. Use 'forward', 'reverse', or 'both'");
         }
         let max_depth = max_depth.min(MAX_DEPTH);
 
@@ -457,6 +461,12 @@ impl GraphEngine {
         Ok(target)
     }
 
+    /// Build a GraphEngine directly from a list of relationships (for testing).
+    #[cfg(test)]
+    fn from_relationships(relationships: Vec<Relationship>) -> Self {
+        GraphEngine { relationships }
+    }
+
     /// Fetch all properties of a node as JSON.
     fn fetch_node_properties(
         &self,
@@ -487,5 +497,367 @@ impl GraphEngine {
         }
 
         Ok(serde_json::Value::Object(props))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ---- Unit tests for utility functions ----
+
+    #[test]
+    fn test_escape_sql_value_no_quotes() {
+        assert_eq!(escape_sql_value("hello"), "hello");
+    }
+
+    #[test]
+    fn test_escape_sql_value_single_quote() {
+        assert_eq!(escape_sql_value("it's"), "it''s");
+    }
+
+    #[test]
+    fn test_escape_sql_value_multiple_quotes() {
+        assert_eq!(escape_sql_value("a'b'c"), "a''b''c");
+    }
+
+    #[test]
+    fn test_escape_sql_value_empty() {
+        assert_eq!(escape_sql_value(""), "");
+    }
+
+    #[test]
+    fn test_is_valid_identifier_valid() {
+        assert!(is_valid_identifier("team_members"));
+        assert!(is_valid_identifier("name"));
+        assert!(is_valid_identifier("col1"));
+    }
+
+    #[test]
+    fn test_is_valid_identifier_empty() {
+        assert!(!is_valid_identifier(""));
+    }
+
+    #[test]
+    fn test_is_valid_identifier_with_spaces() {
+        assert!(!is_valid_identifier("has space"));
+    }
+
+    #[test]
+    fn test_is_valid_identifier_injection_attempt() {
+        assert!(!is_valid_identifier("'; DROP TABLE x;--"));
+        assert!(!is_valid_identifier("name; --"));
+    }
+
+    #[test]
+    fn test_is_valid_identifier_special_chars() {
+        assert!(!is_valid_identifier("has-hyphen"));
+        assert!(!is_valid_identifier("has.dot"));
+    }
+
+    // ---- Unit tests for find_relationships ----
+
+    fn test_relationships() -> Vec<Relationship> {
+        vec![
+            Relationship {
+                from_table: "project_tasks".to_string(),
+                from_col: "assignee".to_string(),
+                to_table: "team_members".to_string(),
+                to_col: "name".to_string(),
+                relation: "assigned_to".to_string(),
+            },
+            Relationship {
+                from_table: "incidents".to_string(),
+                from_col: "reporter".to_string(),
+                to_table: "team_members".to_string(),
+                to_col: "name".to_string(),
+                relation: "reported_by".to_string(),
+            },
+        ]
+    }
+
+    #[test]
+    fn test_find_relationships_forward() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let rels = engine.find_relationships("project_tasks", "forward", None);
+        assert_eq!(rels.len(), 1);
+        assert_eq!(rels[0].relation, "assigned_to");
+    }
+
+    #[test]
+    fn test_find_relationships_reverse() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let rels = engine.find_relationships("team_members", "reverse", None);
+        assert_eq!(rels.len(), 2);
+    }
+
+    #[test]
+    fn test_find_relationships_both() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let rels = engine.find_relationships("team_members", "both", None);
+        assert_eq!(rels.len(), 2);
+    }
+
+    #[test]
+    fn test_find_relationships_with_type_filter() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let types = vec!["assigned_to".to_string()];
+        let rels = engine.find_relationships("team_members", "both", Some(&types));
+        assert_eq!(rels.len(), 1);
+        assert_eq!(rels[0].relation, "assigned_to");
+    }
+
+    #[test]
+    fn test_find_relationships_no_match() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let rels = engine.find_relationships("nonexistent_table", "forward", None);
+        assert!(rels.is_empty());
+    }
+
+    // ---- Validation tests ----
+
+    fn setup_demo_router() -> (QueryRouter, tempfile::TempDir) {
+        let tmp = tempfile::tempdir().unwrap();
+        crate::demo::generate(tmp.path()).unwrap();
+
+        let router = QueryRouter::new().unwrap();
+        let tables_dir = tmp.path().join("tables");
+        let sym_path = tables_dir.join("sym");
+
+        for table_name in &["team_members", "project_tasks", "incidents"] {
+            let table_dir = tables_dir.join(table_name);
+            router
+                .load_splayed(table_name, &table_dir, Some(&sym_path))
+                .unwrap();
+        }
+        (router, tmp)
+    }
+
+    #[test]
+    fn test_neighbors_invalid_table() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine.neighbors("bad table", "name", "Alice", 2, "both", None, &router);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("invalid table name"));
+    }
+
+    #[test]
+    fn test_neighbors_invalid_column() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine.neighbors("team_members", "bad col", "Alice", 2, "both", None, &router);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("invalid column name"));
+    }
+
+    #[test]
+    fn test_neighbors_invalid_direction() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine.neighbors(
+            "team_members",
+            "name",
+            "Alice",
+            2,
+            "backwards",
+            None,
+            &router,
+        );
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("invalid direction"));
+    }
+
+    #[test]
+    fn test_path_invalid_direction() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine.path(
+            "team_members",
+            "name",
+            "Alice Chen",
+            "incidents",
+            "reporter",
+            "Alice Chen",
+            5,
+            "backwards",
+            None,
+            &router,
+        );
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("invalid direction"));
+    }
+
+    // ---- Integration tests with demo data ----
+
+    #[test]
+    fn test_neighbors_depth_1() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine
+            .neighbors(
+                "team_members",
+                "name",
+                "Alice Chen",
+                1,
+                "both",
+                None,
+                &router,
+            )
+            .unwrap();
+
+        let nodes = result["nodes"].as_array().unwrap();
+        let edges = result["edges"].as_array().unwrap();
+
+        // Must include at least the starting node + some neighbors
+        assert!(nodes.len() >= 2, "should find neighbors for Alice Chen");
+        assert!(!edges.is_empty(), "should have edges");
+
+        // Starting node should be present
+        let has_alice = nodes.iter().any(|n| n["key"] == "Alice Chen");
+        assert!(has_alice, "starting node should be in results");
+    }
+
+    #[test]
+    fn test_neighbors_no_duplicate_edges() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine
+            .neighbors(
+                "team_members",
+                "name",
+                "Alice Chen",
+                2,
+                "both",
+                None,
+                &router,
+            )
+            .unwrap();
+
+        let edges = result["edges"].as_array().unwrap();
+
+        // Check for duplicate edges: same (from_table, from_key, to_table, to_key, relation)
+        let mut seen = std::collections::HashSet::new();
+        for edge in edges {
+            let key = format!(
+                "{}:{}->{}:{}:{}",
+                edge["from_table"],
+                edge["from_key"],
+                edge["to_table"],
+                edge["to_key"],
+                edge["relation"]
+            );
+            assert!(seen.insert(key.clone()), "duplicate edge found: {key}");
+        }
+    }
+
+    #[test]
+    fn test_neighbors_nonexistent_start() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        let result = engine.neighbors(
+            "team_members",
+            "name",
+            "Nonexistent Person",
+            1,
+            "both",
+            None,
+            &router,
+        );
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("starting node not found"));
+    }
+
+    #[test]
+    fn test_neighbors_depth_clamped_to_max() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        // depth=100 should be clamped to MAX_DEPTH (10) without error
+        let result = engine.neighbors(
+            "team_members",
+            "name",
+            "Alice Chen",
+            100,
+            "both",
+            None,
+            &router,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_path_found() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+
+        // Find a task assigned to Alice Chen via SQL to get a valid path target
+        let result = router
+            .query_sync("SELECT title FROM project_tasks WHERE assignee = 'Alice Chen' LIMIT 1")
+            .unwrap();
+        if result.rows.is_empty() {
+            // Alice has no tasks in this random seed - skip
+            return;
+        }
+        let task_title = match &result.rows[0][0] {
+            Value::String(s) => s.clone(),
+            _ => return,
+        };
+
+        // Path from task to Alice via assignee FK
+        let result = engine
+            .path(
+                "project_tasks",
+                "title",
+                &task_title,
+                "team_members",
+                "name",
+                "Alice Chen",
+                5,
+                "both",
+                None,
+                &router,
+            )
+            .unwrap();
+
+        assert_eq!(result["found"], true);
+        let path = result["path"].as_array().unwrap();
+        assert!(path.len() >= 2, "path should have at least 2 nodes");
+        assert_eq!(result["hops"], 1);
+    }
+
+    #[test]
+    fn test_path_not_found() {
+        let engine = GraphEngine::from_relationships(test_relationships());
+        let (router, _tmp) = setup_demo_router();
+        // Search for a path to a nonexistent target
+        let result = engine.path(
+            "team_members",
+            "name",
+            "Alice Chen",
+            "team_members",
+            "name",
+            "Nonexistent Person",
+            5,
+            "both",
+            None,
+            &router,
+        );
+        // target node not found at pre-resolve step
+        assert!(result.is_err());
     }
 }

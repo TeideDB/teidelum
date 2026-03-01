@@ -43,6 +43,7 @@ Single crate, modules under `src/`:
 - **Dual Storage**: Sync modules split data into structured fields (→ libteide columnar tables for SQL) and freeform content (→ tantivy full-text index for search).
 - **Incremental Sync**: Sync modules track cursors to pull only changed data on subsequent runs.
 - **Catalog-Driven**: `Catalog` describes all available data, enabling the `describe` MCP tool and the query router.
+- **Graph Traversal** (`graph.rs`): BFS over catalog FK relationships using SQL queries at each hop. Supports neighbor discovery and path-finding with direction and relationship-type filtering. Capped at 10 hops (`MAX_DEPTH`).
 - **MCP via rmcp**: Tools are defined with `#[tool]` macro on `Teidelum` struct methods. Parameters use `schemars::JsonSchema` for auto-generated schemas. Tracing goes to stderr (stdout is the MCP transport).
 
 ### MCP Tools

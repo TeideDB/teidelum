@@ -80,7 +80,7 @@ pub struct GraphParams {
     /// Key column name to identify the node (default: "name").
     #[serde(default = "default_key_col")]
     pub key_col: String,
-    /// Graph operation: "neighbors", "path", or "subgraph".
+    /// Graph operation: "neighbors" or "path".
     #[serde(default = "default_operation")]
     pub operation: String,
     /// Maximum traversal depth in hops (default: 2).
@@ -203,7 +203,7 @@ impl Teidelum {
         )]))
     }
 
-    #[tool(description = "Traverse relationships between entities (neighbors, paths, subgraphs)")]
+    #[tool(description = "Traverse relationships between entities (neighbors, paths)")]
     async fn graph(
         &self,
         Parameters(params): Parameters<GraphParams>,
@@ -239,18 +239,9 @@ impl Teidelum {
                     &self.query_router,
                 )
             }
-            "subgraph" => self.graph_engine.neighbors(
-                &params.table,
-                &params.key_col,
-                &params.key,
-                params.depth,
-                &params.direction,
-                params.rel_types.as_deref(),
-                &self.query_router,
-            ),
             other => {
                 return Err(McpError::invalid_params(
-                    format!("unknown graph operation: '{other}'. Use 'neighbors', 'path', or 'subgraph'"),
+                    format!("unknown graph operation: '{other}'. Use 'neighbors' or 'path'"),
                     None,
                 ));
             }

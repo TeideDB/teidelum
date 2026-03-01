@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 /// Where a table's data is stored.
@@ -60,8 +60,19 @@ impl Catalog {
         self.tables.push(entry);
     }
 
-    pub fn register_relationship(&mut self, rel: Relationship) {
+    pub fn register_relationship(&mut self, rel: Relationship) -> Result<()> {
+        for (label, val) in [
+            ("from_table", &rel.from_table),
+            ("from_col", &rel.from_col),
+            ("to_table", &rel.to_table),
+            ("to_col", &rel.to_col),
+        ] {
+            if val.is_empty() || !val.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                bail!("invalid identifier in relationship {label}: '{val}'");
+            }
+        }
         self.relationships.push(rel);
+        Ok(())
     }
 
     pub fn lookup_table(&self, name: &str) -> Option<&TableEntry> {
