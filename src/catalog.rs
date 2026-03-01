@@ -36,6 +36,17 @@ pub struct Relationship {
     pub relation: String,
 }
 
+/// Validate that a string is a safe SQL identifier.
+/// Must start with a letter or underscore, then alphanumeric or underscores.
+pub fn is_valid_identifier(s: &str) -> bool {
+    match s.chars().next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {
+            s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        }
+        _ => false,
+    }
+}
+
 /// The metadata catalog tracks all available tables, their schemas,
 /// storage type (local vs remote), and foreign key relationships.
 ///
@@ -68,13 +79,7 @@ impl Catalog {
             ("to_col", &rel.to_col),
             ("relation", &rel.relation),
         ] {
-            let valid = match val.chars().next() {
-                Some(c) if c.is_ascii_alphabetic() || c == '_' => {
-                    val.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-                }
-                _ => false,
-            };
-            if !valid {
+            if !is_valid_identifier(val) {
                 bail!("invalid identifier in relationship {label}: '{val}'");
             }
         }

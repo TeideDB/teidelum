@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{bail, Result};
 use serde_json::json;
 
-use crate::catalog::{Catalog, Relationship};
+use crate::catalog::{is_valid_identifier, Catalog, Relationship};
 use crate::connector::Value;
 use crate::router::QueryRouter;
 
@@ -14,18 +14,6 @@ const MAX_DEPTH: usize = 10;
 /// Replaces `'` with `''` to prevent SQL injection.
 fn escape_sql_value(s: &str) -> String {
     s.replace('\'', "''")
-}
-
-/// Validate that a string is a safe SQL identifier.
-/// Must start with a letter or underscore, then alphanumeric or underscores.
-fn is_valid_identifier(s: &str) -> bool {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(c) if c.is_ascii_alphabetic() || c == '_' => {
-            chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
-        }
-        _ => false,
-    }
 }
 
 /// Describes one edge in a graph traversal result.

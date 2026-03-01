@@ -4,7 +4,9 @@ use std::sync::{Arc, RwLock};
 use anyhow::{bail, Result};
 use serde_json::Value as JsonValue;
 
-use crate::catalog::{Catalog, ColumnInfo, Relationship, StorageType, TableEntry};
+use crate::catalog::{
+    is_valid_identifier, Catalog, ColumnInfo, Relationship, StorageType, TableEntry,
+};
 use crate::connector::{ColumnSchema, QueryResult, Value};
 use crate::graph::GraphEngine;
 use crate::router::QueryRouter;
@@ -50,22 +52,22 @@ fn row_to_sql_values(row: &[Value]) -> String {
                 }
             }
             Value::Int(i) => i.to_string(),
-            Value::Float(f) => format!("{f}"),
+            Value::Float(f) => {
+                if f.is_finite() {
+                    format!("{f}")
+                } else {
+                    "NULL".to_string()
+                }
+            }
             Value::String(s) => format!("'{}'", s.replace('\'', "''")),
         })
         .collect();
     format!("({})", parts.join(", "))
 }
 
-/// Validate that a string is a safe SQL identifier.
+/// Validate that a string is a safe SQL identifier, returning an error if not.
 fn validate_identifier(s: &str) -> Result<()> {
-    let valid = match s.chars().next() {
-        Some(c) if c.is_ascii_alphabetic() || c == '_' => {
-            s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-        }
-        _ => false,
-    };
-    if !valid {
+    if !is_valid_identifier(s) {
         bail!("invalid identifier: '{s}'");
     }
     Ok(())
@@ -109,6 +111,17 @@ impl TeidelumApi {
             bail!("table must have at least one column");
         }
 
+        // Validate row widths match column count
+        for (i, row) in rows.iter().enumerate() {
+            if row.len() != columns.len() {
+                bail!(
+                    "row {i} has {} values but {} columns defined",
+                    row.len(),
+                    columns.len()
+                );
+            }
+        }
+
         // Build CREATE TABLE statement
         let col_defs: Vec<String> = columns
             .iter()
@@ -124,6 +137,26 @@ impl TeidelumApi {
         );
         self.query_router.query_sync(&create_sql)?;
 
+        // Register in catalog before inserting rows so the table is always visible
+        let catalog_columns: Vec<ColumnInfo> = columns
+            .iter()
+            .map(|c| ColumnInfo {
+                name: c.name.clone(),
+                dtype: c.dtype.clone(),
+            })
+            .collect();
+
+        {
+            let mut catalog = self.catalog.write().unwrap();
+            catalog.register_table(TableEntry {
+                name: name.to_string(),
+                source: source.to_string(),
+                storage: StorageType::Local,
+                columns: catalog_columns,
+                row_count: Some(rows.len() as u64),
+            });
+        }
+
         // Insert rows in batches of 1000
         if !rows.is_empty() {
             for chunk in rows.chunks(1000) {
@@ -137,24 +170,6 @@ impl TeidelumApi {
                 self.query_router.query_sync(&insert_sql)?;
             }
         }
-
-        // Register in catalog
-        let catalog_columns: Vec<ColumnInfo> = columns
-            .iter()
-            .map(|c| ColumnInfo {
-                name: c.name.clone(),
-                dtype: c.dtype.clone(),
-            })
-            .collect();
-
-        let mut catalog = self.catalog.write().unwrap();
-        catalog.register_table(TableEntry {
-            name: name.to_string(),
-            source: source.to_string(),
-            storage: StorageType::Local,
-            columns: catalog_columns,
-            row_count: Some(rows.len() as u64),
-        });
 
         Ok(())
     }
@@ -183,12 +198,6 @@ impl TeidelumApi {
     /// Run a full-text search.
     pub fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>> {
         self.search_engine.search(query)
-    }
-
-    /// Register a table entry in the catalog.
-    pub fn register_table(&self, entry: TableEntry) {
-        let mut catalog = self.catalog.write().unwrap();
-        catalog.register_table(entry);
     }
 
     /// Register a relationship and rebuild the graph engine.
@@ -269,16 +278,6 @@ impl TeidelumApi {
         )
     }
 
-    /// Access the search engine (for MCP delegation).
-    pub fn search_engine(&self) -> &Arc<SearchEngine> {
-        &self.search_engine
-    }
-
-    /// Access the query router (for MCP delegation).
-    pub fn query_router(&self) -> &Arc<QueryRouter> {
-        &self.query_router
-    }
-
     /// Load all splayed tables from a directory.
     fn load_splayed_tables(&self, tables_dir: &Path) -> Result<()> {
         if !tables_dir.exists() {
@@ -298,6 +297,10 @@ impl TeidelumApi {
 
             if path.is_dir() && path.join(".d").exists() {
                 let name = path.file_name().unwrap().to_string_lossy().to_string();
+                if validate_identifier(&name).is_err() {
+                    tracing::warn!("skipping directory with invalid name: {name}");
+                    continue;
+                }
                 self.query_router.load_splayed(&name, &path, sym)?;
 
                 if let Some((nrows, _ncols)) = self.query_router.table_info(&name) {
@@ -371,14 +374,7 @@ impl TeidelumApi {
             }
         }
 
-        let count = self.search_engine.index_documents(
-            &documents
-                .iter()
-                .map(|(id, src, title, body)| {
-                    (id.clone(), src.clone(), title.clone(), body.clone())
-                })
-                .collect::<Vec<_>>(),
-        )?;
+        let count = self.search_engine.index_documents(&documents)?;
 
         tracing::info!("indexed {count} documents for full-text search");
         Ok(())
@@ -511,6 +507,24 @@ mod tests {
 
         let result = api.query("SELECT * FROM typed").unwrap();
         assert_eq!(result.rows.len(), 1);
+
+        let row = &result.rows[0];
+        match &row[0] {
+            Value::Bool(b) => assert!(b, "expected true"),
+            other => panic!("expected Bool, got {other:?}"),
+        }
+        match &row[1] {
+            Value::Int(i) => assert_eq!(*i, 42),
+            other => panic!("expected Int, got {other:?}"),
+        }
+        match &row[2] {
+            Value::Float(f) => assert!((f - 3.14).abs() < 0.001),
+            other => panic!("expected Float, got {other:?}"),
+        }
+        match &row[3] {
+            Value::String(s) => assert_eq!(s, "hello"),
+            other => panic!("expected String, got {other:?}"),
+        }
     }
 
     #[test]

@@ -25,8 +25,9 @@ Single crate, modules under `src/`:
 
 | Module | Role |
 |--------|------|
-| `main.rs` | Entrypoint: initializes components, serves MCP over stdio |
-| `mcp.rs` | MCP tool definitions (search, sql, describe, graph, sync) via `rmcp` |
+| `main.rs` | Entrypoint: opens `TeidelumApi`, registers relationships, serves MCP over stdio |
+| `api.rs` | Unified programmatic API: `TeidelumApi` wraps catalog, search, router, graph behind thread-safe interface |
+| `mcp.rs` | MCP tool definitions via `rmcp`; delegates to `TeidelumApi` for all operations |
 | `router.rs` | Query router: dispatches SQL to libteide (local) or connectors (remote) |
 | `search.rs` | tantivy wrapper: `SearchEngine` (BM25, fuzzy) |
 | `catalog.rs` | Metadata catalog: schemas, FK relationships, local vs remote tracking |
@@ -44,6 +45,7 @@ Single crate, modules under `src/`:
 - **Incremental Sync**: Sync modules track cursors to pull only changed data on subsequent runs.
 - **Catalog-Driven**: `Catalog` describes all available data, enabling the `describe` MCP tool and the query router.
 - **Graph Traversal** (`graph.rs`): BFS over catalog FK relationships using SQL queries at each hop. Supports neighbor discovery and path-finding with direction and relationship-type filtering. Capped at 10 hops (`MAX_DEPTH`).
+- **Unified API** (`api.rs`): `TeidelumApi` wraps all subsystems (catalog, search engine, query router, graph engine) behind a single thread-safe facade. Uses `std::sync::RwLock` for concurrent read access to catalog and graph. MCP server, tests, and future plugins all delegate through this API.
 - **MCP via rmcp**: Tools are defined with `#[tool]` macro on `Teidelum` struct methods. Parameters use `schemars::JsonSchema` for auto-generated schemas. Tracing goes to stderr (stdout is the MCP transport).
 
 ### MCP Tools
