@@ -183,7 +183,7 @@ impl TeidelumApi {
     }
 
     /// Insert rows into an existing table in batches.
-    fn insert_rows(&self, name: &str, columns: &[ColumnSchema], rows: &[Vec<Value>]) -> Result<()> {
+    pub fn insert_rows(&self, name: &str, columns: &[ColumnSchema], rows: &[Vec<Value>]) -> Result<()> {
         for chunk in rows.chunks(1000) {
             let values: Vec<String> = chunk.iter().map(|row| row_to_sql_values(row)).collect();
             let col_names: Vec<&str> = columns.iter().map(|c| c.name.as_str()).collect();
@@ -211,6 +211,30 @@ impl TeidelumApi {
             })
             .collect();
         self.search_engine.index_documents(&tuples)
+    }
+
+    /// Delete a table from the SQL engine, catalog, and rebuild graph.
+    pub fn delete_table(&self, name: &str) -> Result<()> {
+        validate_identifier(name)?;
+
+        // Remove from catalog first to check it exists
+        let mut catalog = self.catalog.write().unwrap();
+        if !catalog.remove_table(name) {
+            bail!("table '{name}' not found");
+        }
+
+        // Drop from SQL engine (ignore errors if not present in SQL — could be remote-only)
+        let _ = self.query_router.drop_table(name);
+
+        // Rebuild graph
+        self.rebuild_graph_locked(&catalog);
+
+        Ok(())
+    }
+
+    /// Delete documents from the search index by their IDs.
+    pub fn delete_documents(&self, ids: &[String]) -> Result<usize> {
+        self.search_engine.delete_documents(ids)
     }
 
     /// Register a pre-built table entry in the catalog (e.g. for remote connectors).
@@ -902,6 +926,90 @@ mod tests {
             task_nodes.len(),
             task_nodes,
         );
+    }
+
+    #[test]
+    fn test_delete_table() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = TeidelumApi::new(tmp.path()).unwrap();
+
+        let columns = vec![
+            ColumnSchema {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            },
+            ColumnSchema {
+                name: "name".to_string(),
+                dtype: "string".to_string(),
+            },
+        ];
+        api.create_table("ephemeral", "test", &columns, &[vec![
+            Value::Int(1),
+            Value::String("Alice".to_string()),
+        ]])
+        .unwrap();
+
+        // Verify it exists
+        assert!(api.query("SELECT * FROM ephemeral").is_ok());
+        let desc = api.describe(None).unwrap();
+        assert_eq!(desc["tables"].as_array().unwrap().len(), 1);
+
+        // Delete it
+        api.delete_table("ephemeral").unwrap();
+
+        // Table gone from SQL engine
+        assert!(api.query("SELECT * FROM ephemeral").is_err());
+
+        // Table gone from catalog
+        let desc = api.describe(None).unwrap();
+        assert!(desc["tables"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_delete_table_nonexistent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = TeidelumApi::new(tmp.path()).unwrap();
+
+        let result = api.delete_table("ghost");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_delete_documents() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = TeidelumApi::new(tmp.path()).unwrap();
+
+        let docs = vec![
+            SearchDocument {
+                id: "d1".to_string(),
+                source: "test".to_string(),
+                title: "First".to_string(),
+                body: "first document content".to_string(),
+                metadata: serde_json::Map::new(),
+            },
+            SearchDocument {
+                id: "d2".to_string(),
+                source: "test".to_string(),
+                title: "Second".to_string(),
+                body: "second document content".to_string(),
+                metadata: serde_json::Map::new(),
+            },
+        ];
+        api.add_documents(&docs).unwrap();
+
+        api.delete_documents(&["d1".to_string()]).unwrap();
+
+        let results = api
+            .search(&SearchQuery {
+                text: "document content".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "d2");
     }
 
     #[test]
