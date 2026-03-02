@@ -183,7 +183,12 @@ impl TeidelumApi {
     }
 
     /// Insert rows into an existing table in batches.
-    pub fn insert_rows(&self, name: &str, columns: &[ColumnSchema], rows: &[Vec<Value>]) -> Result<()> {
+    pub fn insert_rows(
+        &self,
+        name: &str,
+        columns: &[ColumnSchema],
+        rows: &[Vec<Value>],
+    ) -> Result<()> {
         for chunk in rows.chunks(1000) {
             let values: Vec<String> = chunk.iter().map(|row| row_to_sql_values(row)).collect();
             let col_names: Vec<&str> = columns.iter().map(|c| c.name.as_str()).collect();
@@ -943,10 +948,12 @@ mod tests {
                 dtype: "string".to_string(),
             },
         ];
-        api.create_table("ephemeral", "test", &columns, &[vec![
-            Value::Int(1),
-            Value::String("Alice".to_string()),
-        ]])
+        api.create_table(
+            "ephemeral",
+            "test",
+            &columns,
+            &[vec![Value::Int(1), Value::String("Alice".to_string())]],
+        )
         .unwrap();
 
         // Verify it exists

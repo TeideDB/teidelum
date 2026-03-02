@@ -6,7 +6,10 @@ use rmcp::{
 };
 
 use crate::api::TeidelumApi;
+use crate::catalog::Relationship;
+use crate::connector::{ColumnSchema, Value};
 use crate::search::SearchQuery;
+use crate::sync::SearchDocument;
 
 /// Tool parameter types — derive JsonSchema for automatic MCP schema generation.
 
@@ -100,11 +103,124 @@ pub struct GraphParams {
     pub to_key_col: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct CreateTableParams {
+    /// Table name (alphanumeric + underscores).
+    pub name: String,
+    /// Source identifier (e.g. "app", "import").
+    pub source: String,
+    /// Column definitions.
+    pub columns: Vec<ColumnDef>,
+    /// Rows to insert (each row is a JSON array matching column order).
+    #[serde(default)]
+    pub rows: Vec<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ColumnDef {
+    /// Column name.
+    pub name: String,
+    /// Column type: "int", "varchar", "double", "boolean", "date", "time", "timestamp".
+    #[serde(rename = "type")]
+    pub dtype: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct InsertRowsParams {
+    /// Target table name.
+    pub table: String,
+    /// Rows to insert (each row is a JSON array matching table column order).
+    pub rows: Vec<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct DeleteTableParams {
+    /// Table name to delete.
+    pub table: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AddDocumentsParams {
+    /// Documents to index for full-text search.
+    pub documents: Vec<DocumentInput>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct DocumentInput {
+    /// Unique document ID.
+    pub id: String,
+    /// Source identifier (e.g. "notion", "app").
+    pub source: String,
+    /// Document title.
+    pub title: String,
+    /// Full text content for indexing.
+    pub body: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct DeleteDocumentsParams {
+    /// Document IDs to remove from the search index.
+    pub ids: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AddRelationshipParams {
+    /// Source table name.
+    pub from_table: String,
+    /// Source column name.
+    pub from_col: String,
+    /// Target table name.
+    pub to_table: String,
+    /// Target column name.
+    pub to_col: String,
+    /// Relationship label (e.g. "has_orders", "assigned_to").
+    pub relation: String,
+}
+
 /// The Teidelum MCP server — exposes search, sql, describe, graph, and sync tools.
 #[derive(Clone)]
 pub struct Teidelum {
     api: Arc<TeidelumApi>,
     tool_router: ToolRouter<Self>,
+}
+
+/// Convert a JSON value to a connector Value.
+fn json_to_value(v: &serde_json::Value, dtype: &str) -> Result<Value, McpError> {
+    match v {
+        serde_json::Value::Null => Ok(Value::Null),
+        serde_json::Value::Bool(b) => Ok(Value::Bool(*b)),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Ok(Value::Int(i))
+            } else if let Some(f) = n.as_f64() {
+                Ok(Value::Float(f))
+            } else {
+                Err(McpError::invalid_params(
+                    format!("unsupported number: {n}"),
+                    None,
+                ))
+            }
+        }
+        serde_json::Value::String(s) => Ok(Value::String(s.clone())),
+        _ => Err(McpError::invalid_params(
+            format!("unsupported value type for column type '{dtype}': {v}"),
+            None,
+        )),
+    }
+}
+
+/// Map MCP column type names to internal dtype strings.
+fn mcp_type_to_dtype(t: &str) -> &str {
+    match t {
+        "int" | "integer" | "bigint" => "i64",
+        "varchar" | "text" | "string" => "string",
+        "double" | "float" | "real" => "f64",
+        "boolean" | "bool" => "bool",
+        "date" => "date",
+        "time" => "time",
+        "timestamp" | "datetime" => "timestamp",
+        other => other,
+    }
 }
 
 #[tool_router]
@@ -247,6 +363,204 @@ impl Teidelum {
             .map_err(|e| McpError::internal_error(format!("serialization failed: {e}"), None))?;
 
         Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    #[tool(description = "Create a new table with schema and optional initial rows")]
+    async fn create_table(
+        &self,
+        Parameters(params): Parameters<CreateTableParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let columns: Vec<ColumnSchema> = params
+            .columns
+            .iter()
+            .map(|c| ColumnSchema {
+                name: c.name.clone(),
+                dtype: mcp_type_to_dtype(&c.dtype).to_string(),
+            })
+            .collect();
+
+        let rows: Vec<Vec<Value>> = params
+            .rows
+            .iter()
+            .enumerate()
+            .map(|(i, row)| {
+                if row.len() != columns.len() {
+                    return Err(McpError::invalid_params(
+                        format!(
+                            "row {i} has {} values but {} columns",
+                            row.len(),
+                            columns.len()
+                        ),
+                        None,
+                    ));
+                }
+                row.iter()
+                    .zip(columns.iter())
+                    .map(|(v, c)| json_to_value(v, &c.dtype))
+                    .collect()
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.api
+            .create_table(&params.name, &params.source, &columns, &rows)
+            .map_err(|e| McpError::internal_error(format!("create_table failed: {e}"), None))?;
+
+        let result = serde_json::json!({
+            "table": params.name,
+            "rows_inserted": rows.len(),
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Insert rows into an existing table")]
+    async fn insert_rows(
+        &self,
+        Parameters(params): Parameters<InsertRowsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        // Look up column schemas from catalog
+        let desc = self
+            .api
+            .describe(None)
+            .map_err(|e| McpError::internal_error(format!("describe failed: {e}"), None))?;
+
+        let tables = desc["tables"].as_array().ok_or_else(|| {
+            McpError::internal_error("unexpected catalog format".to_string(), None)
+        })?;
+
+        let table_entry = tables
+            .iter()
+            .find(|t| t["name"].as_str() == Some(&params.table))
+            .ok_or_else(|| {
+                McpError::invalid_params(format!("table '{}' not found", params.table), None)
+            })?;
+
+        let columns: Vec<ColumnSchema> = table_entry["columns"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .map(|c| ColumnSchema {
+                name: c["name"].as_str().unwrap_or("").to_string(),
+                dtype: c["dtype"].as_str().unwrap_or("string").to_string(),
+            })
+            .collect();
+
+        let rows: Vec<Vec<Value>> = params
+            .rows
+            .iter()
+            .enumerate()
+            .map(|(i, row)| {
+                if row.len() != columns.len() {
+                    return Err(McpError::invalid_params(
+                        format!(
+                            "row {i} has {} values but {} columns",
+                            row.len(),
+                            columns.len()
+                        ),
+                        None,
+                    ));
+                }
+                row.iter()
+                    .zip(columns.iter())
+                    .map(|(v, c)| json_to_value(v, &c.dtype))
+                    .collect()
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.api
+            .insert_rows(&params.table, &columns, &rows)
+            .map_err(|e| McpError::internal_error(format!("insert_rows failed: {e}"), None))?;
+
+        let result = serde_json::json!({
+            "table": params.table,
+            "rows_inserted": rows.len(),
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Delete a table and remove it from the catalog")]
+    async fn delete_table(
+        &self,
+        Parameters(params): Parameters<DeleteTableParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.api
+            .delete_table(&params.table)
+            .map_err(|e| McpError::internal_error(format!("delete_table failed: {e}"), None))?;
+
+        let result = serde_json::json!({"deleted": params.table});
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Index documents for full-text search")]
+    async fn add_documents(
+        &self,
+        Parameters(params): Parameters<AddDocumentsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let docs: Vec<SearchDocument> = params
+            .documents
+            .into_iter()
+            .map(|d| SearchDocument {
+                id: d.id,
+                source: d.source,
+                title: d.title,
+                body: d.body,
+                metadata: serde_json::Map::new(),
+            })
+            .collect();
+
+        let count = self
+            .api
+            .add_documents(&docs)
+            .map_err(|e| McpError::internal_error(format!("add_documents failed: {e}"), None))?;
+
+        let result = serde_json::json!({"documents_indexed": count});
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Remove documents from the search index by ID")]
+    async fn delete_documents(
+        &self,
+        Parameters(params): Parameters<DeleteDocumentsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let count = self
+            .api
+            .delete_documents(&params.ids)
+            .map_err(|e| McpError::internal_error(format!("delete_documents failed: {e}"), None))?;
+
+        let result = serde_json::json!({"delete_operations": count});
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Register a foreign key relationship between two tables")]
+    async fn add_relationship(
+        &self,
+        Parameters(params): Parameters<AddRelationshipParams>,
+    ) -> Result<CallToolResult, McpError> {
+        self.api
+            .register_relationship(Relationship {
+                from_table: params.from_table.clone(),
+                from_col: params.from_col.clone(),
+                to_table: params.to_table.clone(),
+                to_col: params.to_col.clone(),
+                relation: params.relation,
+            })
+            .map_err(|e| McpError::internal_error(format!("add_relationship failed: {e}"), None))?;
+
+        let result = serde_json::json!({
+            "relationship": format!("{}.{} -> {}.{}", params.from_table, params.from_col, params.to_table, params.to_col),
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
     }
 }
 

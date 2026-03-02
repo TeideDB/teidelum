@@ -183,14 +183,31 @@ mod tests {
 
         // Index 3 docs
         let docs = vec![
-            ("d1".to_string(), "test".to_string(), "Alpha".to_string(), "alpha content".to_string()),
-            ("d2".to_string(), "test".to_string(), "Beta".to_string(), "beta content".to_string()),
-            ("d3".to_string(), "test".to_string(), "Gamma".to_string(), "gamma content".to_string()),
+            (
+                "d1".to_string(),
+                "test".to_string(),
+                "Alpha".to_string(),
+                "alpha content".to_string(),
+            ),
+            (
+                "d2".to_string(),
+                "test".to_string(),
+                "Beta".to_string(),
+                "beta content".to_string(),
+            ),
+            (
+                "d3".to_string(),
+                "test".to_string(),
+                "Gamma".to_string(),
+                "gamma content".to_string(),
+            ),
         ];
         engine.index_documents(&docs).unwrap();
 
         // Delete d1 and d3
-        let deleted = engine.delete_documents(&["d1".to_string(), "d3".to_string()]).unwrap();
+        let deleted = engine
+            .delete_documents(&["d1".to_string(), "d3".to_string()])
+            .unwrap();
         assert_eq!(deleted, 2);
 
         // Search should only find d2
