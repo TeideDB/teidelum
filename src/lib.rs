@@ -5,5 +5,7 @@ pub mod demo;
 pub mod graph;
 pub mod mcp;
 pub mod router;
+pub mod routes;
 pub mod search;
+pub mod server;
 pub mod sync;
