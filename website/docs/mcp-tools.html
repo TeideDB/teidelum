@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MCP Tools Reference — Teidelum</title>
-  <meta name="description" content="Complete reference for all 5 MCP tools exposed by Teidelum: search, sql, describe, graph, and sync.">
+  <meta name="description" content="Complete reference for all 11 MCP tools exposed by Teidelum: 5 read tools and 6 write tools.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -55,7 +55,10 @@
     <!-- Content -->
     <main class="docs-content">
       <h1>MCP Tools Reference</h1>
-      <p class="page-subtitle">Complete reference for all 5 MCP tools exposed by Teidelum.</p>
+      <p class="page-subtitle">Complete reference for all 11 MCP tools exposed by Teidelum (5 read + 6 write).</p>
+
+      <h2>Read Tools</h2>
+      <p>These tools query and retrieve data without modifying state.</p>
 
       <h2>search</h2>
       <p><em>Full-text search across all connected sources</em></p>
@@ -152,6 +155,119 @@ ORDER BY task_count DESC</code></pre>
           <tr><td><code>source</code></td><td>string</td><td>no</td><td>Sync a specific source, or omit to sync all configured sources</td></tr>
         </tbody>
       </table>
+
+      <h2>Write Tools</h2>
+      <p>These tools create, modify, and delete data — tables, rows, documents, and relationships.</p>
+
+      <h2>create_table</h2>
+      <p><em>Create a new table with schema and optional initial rows</em></p>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>name</code></td><td>string</td><td>yes</td><td>Table name (alphanumeric + underscores)</td></tr>
+          <tr><td><code>source</code></td><td>string</td><td>yes</td><td>Source identifier (e.g. "app", "import")</td></tr>
+          <tr><td><code>columns</code></td><td>array</td><td>yes</td><td>Column definitions with <code>name</code> and <code>type</code> fields</td></tr>
+          <tr><td><code>rows</code></td><td>array</td><td>no</td><td>Initial rows to insert</td></tr>
+        </tbody>
+      </table>
+      <h3>Example</h3>
+      <pre><code>{
+  "name": "customers",
+  "source": "app",
+  "columns": [
+    {"name": "id", "type": "int"},
+    {"name": "name", "type": "varchar"},
+    {"name": "email", "type": "varchar"}
+  ],
+  "rows": [
+    [1, "Alice", "alice@example.com"],
+    [2, "Bob", "bob@example.com"]
+  ]
+}</code></pre>
+
+      <h2>insert_rows</h2>
+      <p><em>Insert rows into an existing table</em></p>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>table</code></td><td>string</td><td>yes</td><td>Target table name</td></tr>
+          <tr><td><code>rows</code></td><td>array</td><td>yes</td><td>Rows to insert (JSON arrays matching table column order)</td></tr>
+        </tbody>
+      </table>
+      <h3>Example</h3>
+      <pre><code>{
+  "table": "customers",
+  "rows": [[3, "Charlie", "charlie@example.com"]]
+}</code></pre>
+
+      <h2>delete_table</h2>
+      <p><em>Delete a table and remove it from the catalog</em></p>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>table</code></td><td>string</td><td>yes</td><td>Table name to delete</td></tr>
+        </tbody>
+      </table>
+
+      <h2>add_documents</h2>
+      <p><em>Index documents for full-text search</em></p>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>documents</code></td><td>array</td><td>yes</td><td>Documents with <code>id</code>, <code>source</code>, <code>title</code>, <code>body</code> fields</td></tr>
+        </tbody>
+      </table>
+      <h3>Example</h3>
+      <pre><code>{
+  "documents": [{
+    "id": "doc-001",
+    "source": "notion",
+    "title": "Auth Migration Plan",
+    "body": "We are migrating from session-based auth to JWT..."
+  }]
+}</code></pre>
+
+      <h2>delete_documents</h2>
+      <p><em>Remove documents from the search index by ID</em></p>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>ids</code></td><td>array</td><td>yes</td><td>Document IDs to remove</td></tr>
+        </tbody>
+      </table>
+
+      <h2>add_relationship</h2>
+      <p><em>Register a foreign key relationship between two tables</em></p>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>from_table</code></td><td>string</td><td>yes</td><td>Source table name</td></tr>
+          <tr><td><code>from_col</code></td><td>string</td><td>yes</td><td>Source column name</td></tr>
+          <tr><td><code>to_table</code></td><td>string</td><td>yes</td><td>Target table name</td></tr>
+          <tr><td><code>to_col</code></td><td>string</td><td>yes</td><td>Target column name</td></tr>
+          <tr><td><code>relation</code></td><td>string</td><td>yes</td><td>Relationship label</td></tr>
+        </tbody>
+      </table>
+      <h3>Example</h3>
+      <pre><code>{
+  "from_table": "customers",
+  "from_col": "id",
+  "to_table": "orders",
+  "to_col": "customer_id",
+  "relation": "has_orders"
+}</code></pre>
 
       <!-- Prev/Next -->
       <div class="docs-nav-footer">
