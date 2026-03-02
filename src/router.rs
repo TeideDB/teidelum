@@ -108,6 +108,12 @@ impl QueryRouter {
         }
     }
 
+    /// Drop a table from the teide session.
+    pub fn drop_table(&self, name: &str) -> Result<()> {
+        self.query_sync(&format!("DROP TABLE IF EXISTS {name}"))?;
+        Ok(())
+    }
+
     /// Async wrapper.
     pub async fn query(&self, sql: &str) -> Result<QueryResult> {
         self.query_sync(sql)
@@ -148,5 +154,34 @@ fn read_value(table: &teide::Table, col: usize, row: usize) -> Value {
             None => Value::Null,
         },
         _ => Value::Null,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_drop_table() {
+        let router = QueryRouter::new().unwrap();
+
+        // Create a table first
+        router
+            .query_sync("CREATE TABLE test_drop (id BIGINT, name VARCHAR)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO test_drop (id, name) VALUES (1, 'Alice')")
+            .unwrap();
+
+        // Verify it exists
+        let result = router.query_sync("SELECT * FROM test_drop").unwrap();
+        assert_eq!(result.rows.len(), 1);
+
+        // Drop it
+        router.drop_table("test_drop").unwrap();
+
+        // Verify it's gone (query should fail)
+        let result = router.query_sync("SELECT * FROM test_drop");
+        assert!(result.is_err());
     }
 }
