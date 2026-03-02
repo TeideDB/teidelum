@@ -7,16 +7,21 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
+use rmcp::transport::streamable_http_server::{
+    session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
+};
+use tokio_util::sync::CancellationToken;
 use tower_http::cors::CorsLayer;
 
 use crate::api::TeidelumApi;
+use crate::mcp::Teidelum;
 use crate::routes;
 
 /// Build the axum router with all routes, CORS, and optional auth.
-pub fn build_router(api: Arc<TeidelumApi>) -> Router {
+pub fn build_router(api: Arc<TeidelumApi>, ct: CancellationToken) -> Router {
     let mut app = Router::new()
         .merge(routes::api_routes())
-        .with_state(api)
+        .with_state(api.clone())
         .layer(CorsLayer::permissive());
 
     // If TEIDELUM_API_KEY is set, capture it once and wrap all routes with auth middleware
@@ -29,7 +34,19 @@ pub fn build_router(api: Arc<TeidelumApi>) -> Router {
         }
     }
 
-    app
+    // MCP Streamable HTTP endpoint
+    let mcp_api = api;
+    let mcp_service = StreamableHttpService::new(
+        move || Ok(Teidelum::new_with_shared(mcp_api.clone())),
+        Arc::new(LocalSessionManager::default()),
+        StreamableHttpServerConfig {
+            stateful_mode: true,
+            cancellation_token: ct.child_token(),
+            ..Default::default()
+        },
+    );
+
+    app.nest_service("/mcp", mcp_service)
 }
 
 /// Auth check: requires `Authorization: Bearer <key>` matching the captured key.
@@ -62,10 +79,13 @@ async fn auth_check(request: Request, next: Next, expected_key: String) -> Respo
 
 /// Start the HTTP server on the given address.
 pub async fn start(api: Arc<TeidelumApi>, bind: &str, port: u16) -> anyhow::Result<()> {
-    let app = build_router(api);
+    let ct = CancellationToken::new();
+    let app = build_router(api, ct.clone());
     let addr = format!("{bind}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("HTTP server listening on {addr}");
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move { ct.cancelled().await })
+        .await?;
     Ok(())
 }

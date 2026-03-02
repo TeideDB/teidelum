@@ -16,7 +16,8 @@ use teidelum::server::build_router;
 fn test_app() -> (axum::Router, tempfile::TempDir) {
     let tmp = tempfile::tempdir().unwrap();
     let api = TeidelumApi::new(tmp.path()).unwrap();
-    (build_router(Arc::new(api)), tmp)
+    let ct = tokio_util::sync::CancellationToken::new();
+    (build_router(Arc::new(api), ct), tmp)
 }
 
 fn json_request(method: &str, uri: &str, body: serde_json::Value) -> Request<Body> {
