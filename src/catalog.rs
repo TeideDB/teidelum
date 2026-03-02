@@ -87,6 +87,18 @@ impl Catalog {
         Ok(())
     }
 
+    /// Remove a table and any relationships referencing it. Returns true if the table existed.
+    pub fn remove_table(&mut self, name: &str) -> bool {
+        let before = self.tables.len();
+        self.tables.retain(|t| t.name != name);
+        if self.tables.len() == before {
+            return false;
+        }
+        self.relationships
+            .retain(|r| r.from_table != name && r.to_table != name);
+        true
+    }
+
     pub fn lookup_table(&self, name: &str) -> Option<&TableEntry> {
         self.tables.iter().find(|t| t.name == name)
     }
@@ -134,5 +146,58 @@ impl Catalog {
 impl Default for Catalog {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remove_table() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "users".to_string(),
+            source: "test".to_string(),
+            storage: StorageType::Local,
+            columns: vec![ColumnInfo {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            }],
+            row_count: Some(10),
+        });
+        catalog.register_table(TableEntry {
+            name: "orders".to_string(),
+            source: "test".to_string(),
+            storage: StorageType::Local,
+            columns: vec![ColumnInfo {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            }],
+            row_count: Some(5),
+        });
+        catalog
+            .register_relationship(Relationship {
+                from_table: "orders".to_string(),
+                from_col: "user_id".to_string(),
+                to_table: "users".to_string(),
+                to_col: "id".to_string(),
+                relation: "belongs_to".to_string(),
+            })
+            .unwrap();
+
+        assert!(catalog.remove_table("users"));
+
+        // Table gone
+        assert!(catalog.lookup_table("users").is_none());
+        assert_eq!(catalog.tables().len(), 1);
+        // Relationships referencing "users" also removed
+        assert!(catalog.relationships().is_empty());
+    }
+
+    #[test]
+    fn test_remove_table_nonexistent() {
+        let mut catalog = Catalog::new();
+        assert!(!catalog.remove_table("ghost"));
     }
 }
