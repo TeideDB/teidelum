@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teidelum — Knowledge Infrastructure for AI Agents &amp; Applications</title>
+  <title>Teidelum — Knowledge Infrastructure for AI and Humans</title>
   <meta name="description" content="Local-first knowledge server that syncs work tools, indexes content with BM25 search and columnar SQL, and serves it to AI agents via MCP and applications via REST API. Single binary, zero config.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/teidelum-icon.svg" type="image/svg+xml">
 </head>
 <body>
 
@@ -51,8 +52,8 @@
     </svg>
     <div class="container">
       <div class="hero-content">
-        <h1>Knowledge infrastructure <span class="accent">for AI.</span></h1>
-        <p class="hero-subtitle">Teidelum syncs your work tools, indexes everything into searchable and queryable storage, and serves it to AI agents via MCP and applications via REST API. Single binary. Zero config. Data never leaves your machine.</p>
+        <h1>Knowledge infrastructure <span class="accent">for AI and humans.</span></h1>
+        <p class="hero-subtitle">Built on <a href="https://teidedb.com" target="_blank" rel="noopener"><strong>Teide</strong></a>&mdash;an ultrafast columnar database engine. Teidelum syncs your work tools, indexes everything into searchable and queryable storage, and serves it to AI agents via MCP and applications via REST API. Single binary. Zero config. Data never leaves your machine.</p>
         <div class="hero-chips">
           <span class="chip">MCP Server</span>
           <span class="chip">REST API</span>
@@ -69,6 +70,16 @@
           </a>
         </div>
       </div>
+
+      <!-- Animated query card -->
+      <div class="hero-card">
+        <div class="hero-card-header">
+          <span class="code-dot red"></span>
+          <span class="code-dot yellow"></span>
+          <span class="code-dot green"></span>
+        </div>
+        <div class="hero-card-body" id="hero-typer"></div>
+      </div>
     </div>
   </section>
 
@@ -80,7 +91,7 @@
       <p class="why-lead">Most "knowledge base" setups point an LLM at a folder of files. That works for small personal vaults&mdash;but it breaks down fast. No ranking. No structure. No relationships. Every query re-reads everything.</p>
 
       <div class="why-grid">
-        <div class="why-card why-card-problem">
+        <div class="why-card why-card-problem fade-in-up">
           <div class="why-card-label">Without infrastructure</div>
           <ul class="why-list">
             <li>LLM scans raw files on every query</li>
@@ -91,7 +102,7 @@
             <li>Slows down as knowledge grows</li>
           </ul>
         </div>
-        <div class="why-card why-card-solution">
+        <div class="why-card why-card-solution fade-in-up">
           <div class="why-card-label">With Teidelum</div>
           <ul class="why-list">
             <li>Indexed BM25 search with fuzzy matching</li>
@@ -114,56 +125,44 @@
 
         <div class="feature-item">
           <div class="feature-number">01</div>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </div>
+          <div class="feature-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
           <h3>Indexed Search</h3>
-          <p>BM25 ranking with fuzzy matching and highlighted snippets. Your AI agent asks a question and gets the 5 most relevant results&mdash;not a token-heavy dump of every file that might be related.</p>
+          <p>BM25 ranking with fuzzy matching and highlighted snippets. Your AI agent asks a question and gets the most relevant results&mdash;not a token-heavy dump of every file that might be related.</p>
         </div>
 
         <div class="feature-item">
           <div class="feature-number">02</div>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          </div>
+          <div class="feature-icon"><i class="fa-solid fa-database"></i></div>
           <h3>SQL Analytics</h3>
-          <p>Run columnar queries over structured data from any synced source. Filter, group, sort, and join&mdash;things that are impossible when your knowledge base is just a pile of markdown files.</p>
+          <p>Powered by <a href="https://teidedb.com" target="_blank" rel="noopener">Teide</a>&mdash;an ultrafast columnar engine. Filter, group, sort, and join structured data from any synced source. Things that are impossible when your knowledge base is just a pile of markdown files.</p>
         </div>
 
         <div class="feature-item">
           <div class="feature-number">03</div>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/></svg>
-          </div>
+          <div class="feature-icon"><i class="fa-solid fa-diagram-project"></i></div>
           <h3>Graph Traversal</h3>
-          <p>Foreign-key relationships between entities create a navigable graph. Ask "what's connected to this customer?" and get answers&mdash;no need to teach your LLM a custom schema on every conversation.</p>
+          <p>Foreign-key relationships create a navigable graph. Ask "what's connected to this customer?" and get answers&mdash;no need to teach your LLM a custom schema on every conversation.</p>
         </div>
 
         <div class="feature-item">
           <div class="feature-number">04</div>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0118 0"/><path d="M4 11V8"/><path d="M20 11V8"/><path d="M12 20v-9"/><circle cx="12" cy="4" r="2"/></svg>
-          </div>
+          <div class="feature-icon"><i class="fa-solid fa-plug"></i></div>
           <h3>Universal API</h3>
-          <p>MCP over stdio for AI agents. REST over HTTP for applications and scripts. Same data, same capabilities, two transports. Connect Claude, GPT, your internal dashboard, or a cron job&mdash;all at once.</p>
+          <p>MCP over stdio for AI agents. REST over HTTP for apps and scripts. Same data, same tools, two transports. Connect Claude, GPT, your dashboard, or a cron job&mdash;all at once.</p>
         </div>
 
         <div class="feature-item">
           <div class="feature-number">05</div>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-          </div>
+          <div class="feature-icon"><i class="fa-solid fa-arrows-rotate"></i></div>
           <h3>Work Tool Sync</h3>
-          <p>Pull from Notion pages, Zulip messages, and kdb+ databases. Incremental sync means only changed records on each run. Your knowledge base stays current without rebuilding from scratch.</p>
+          <p>Pull from Notion pages, Zulip messages, and live database connections. Incremental sync means only changed records on each run. Your knowledge base stays current without full rebuilds.</p>
         </div>
 
         <div class="feature-item">
           <div class="feature-number">06</div>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-          </div>
+          <div class="feature-icon"><i class="fa-solid fa-cube"></i></div>
           <h3>Single Binary, Zero Ops</h3>
-          <p>One Rust binary. No Docker. No database server. No config files. Set a data directory and start it. Everything runs locally&mdash;your organizational knowledge never touches a third-party cloud.</p>
+          <p>One Rust binary with the <a href="https://teidedb.com" target="_blank" rel="noopener">Teide</a> columnar engine embedded. No Docker. No database server. No config files. Set a data directory and start it. Your organizational knowledge never touches a third-party cloud.</p>
         </div>
 
       </div>
@@ -175,132 +174,124 @@
     <div class="container">
       <div class="section-label">ARCHITECTURE</div>
       <h2 class="arch-title">Sync, index, serve</h2>
-      <p class="arch-subtitle">Data flows from your tools through dual storage engines into read and write operations exposed over both MCP and HTTP.</p>
+      <p class="arch-subtitle">Data flows from your tools through dual storage engines into 11 tools exposed over both MCP and HTTP.</p>
 
-      <div class="arch-diagram">
-        <div class="arch-flow">
-          <div class="arch-node">
-            <div class="arch-node-label">Sources</div>
-            <div class="arch-node-items">
-              <span>Notion</span>
-              <span>Zulip</span>
-              <span>kdb+</span>
-              <span>REST API</span>
-            </div>
-          </div>
+      <div class="arch-diagram fade-in-up">
+        <svg class="arch-svg" viewBox="0 0 800 180" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
 
-          <div class="arch-arrow">&rarr;</div>
+          <!-- Source nodes -->
+          <rect x="10" y="15" width="120" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)"/>
+          <text x="70" y="38" text-anchor="middle" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="12">Notion</text>
+          <rect x="10" y="63" width="120" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)"/>
+          <text x="70" y="86" text-anchor="middle" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="12">Zulip</text>
+          <rect x="10" y="111" width="120" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)"/>
+          <text x="70" y="134" text-anchor="middle" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="12">Databases</text>
+          <text x="70" y="166" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-family="Oswald, sans-serif" font-size="9" font-weight="600" letter-spacing="0.12em">SOURCES</text>
 
-          <div class="arch-core">
-            <div class="arch-core-title">Teidelum</div>
-            <div class="arch-core-tools">
-              <div class="arch-tool">tantivy</div>
-              <div class="arch-tool">libteide</div>
-              <div class="arch-tool">graph</div>
-            </div>
-          </div>
+          <!-- Left connection paths -->
+          <path d="M130,33 C185,33 185,60 240,60" fill="none" stroke="rgba(96,165,250,0.15)" stroke-width="1.5"/>
+          <path d="M130,81 C185,81 185,90 240,90" fill="none" stroke="rgba(96,165,250,0.15)" stroke-width="1.5"/>
+          <path d="M130,129 C185,129 185,120 240,120" fill="none" stroke="rgba(96,165,250,0.15)" stroke-width="1.5"/>
 
-          <div class="arch-arrow">&rarr;</div>
+          <!-- Animated dots - left -->
+          <circle r="3" fill="#60a5fa" filter="url(#glow)">
+            <animateMotion dur="2.4s" repeatCount="indefinite" path="M130,33 C185,33 185,60 240,60"/>
+          </circle>
+          <circle r="3" fill="#60a5fa" filter="url(#glow)">
+            <animateMotion dur="2.8s" repeatCount="indefinite" path="M130,81 C185,81 185,90 240,90" begin="0.9s"/>
+          </circle>
+          <circle r="3" fill="#60a5fa" filter="url(#glow)">
+            <animateMotion dur="2.6s" repeatCount="indefinite" path="M130,129 C185,129 185,120 240,120" begin="1.7s"/>
+          </circle>
 
-          <div class="arch-node">
-            <div class="arch-node-label">Transports</div>
-            <div class="arch-node-items">
-              <span>MCP (stdio)</span>
-              <span>MCP (HTTP)</span>
-              <span>REST API</span>
-            </div>
-          </div>
+          <!-- Teidelum core -->
+          <rect class="arch-core-rect" x="240" y="10" width="320" height="160" rx="14" fill="rgba(75,103,119,0.25)" stroke="rgba(75,103,119,0.5)" stroke-width="1.5"/>
+          <text x="400" y="34" text-anchor="middle" fill="rgba(107,138,158,0.9)" font-family="Oswald, sans-serif" font-size="11" font-weight="700" letter-spacing="0.12em">TEIDELUM</text>
 
-          <div class="arch-arrow">&rarr;</div>
+          <!-- Tool pills row -->
+          <rect x="258" y="46" width="78" height="28" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+          <text x="297" y="64" text-anchor="middle" fill="#e2e8f0" font-family="'JetBrains Mono', monospace" font-size="11">search</text>
+          <rect x="344" y="46" width="50" height="28" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+          <text x="369" y="64" text-anchor="middle" fill="#e2e8f0" font-family="'JetBrains Mono', monospace" font-size="11">sql</text>
+          <rect x="402" y="46" width="72" height="28" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+          <text x="438" y="64" text-anchor="middle" fill="#e2e8f0" font-family="'JetBrains Mono', monospace" font-size="11">graph</text>
+          <rect x="482" y="46" width="60" height="28" rx="6" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+          <text x="512" y="64" text-anchor="middle" fill="#e2e8f0" font-family="'JetBrains Mono', monospace" font-size="11">sync</text>
 
-          <div class="arch-node">
-            <div class="arch-node-label">Consumers</div>
-            <div class="arch-node-items">
-              <span>AI Agents</span>
-              <span>Applications</span>
-              <span>Scripts</span>
-            </div>
-          </div>
-        </div>
+          <!-- Storage row -->
+          <rect x="258" y="84" width="78" height="26" rx="6" fill="rgba(255,255,255,0.03)"/>
+          <text x="297" y="101" text-anchor="middle" fill="rgba(226,232,240,0.45)" font-family="'JetBrains Mono', monospace" font-size="10">tantivy</text>
+          <rect x="344" y="84" width="78" height="26" rx="6" fill="rgba(255,255,255,0.03)"/>
+          <text x="383" y="101" text-anchor="middle" fill="rgba(226,232,240,0.45)" font-family="'JetBrains Mono', monospace" font-size="10">libteide</text>
+          <rect x="430" y="84" width="78" height="26" rx="6" fill="rgba(255,255,255,0.03)"/>
+          <text x="469" y="101" text-anchor="middle" fill="rgba(226,232,240,0.45)" font-family="'JetBrains Mono', monospace" font-size="10">catalog</text>
+
+          <!-- Transport row -->
+          <text x="400" y="128" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-family="Oswald, sans-serif" font-size="9" font-weight="600" letter-spacing="0.08em">TRANSPORTS</text>
+          <rect x="258" y="135" width="98" height="24" rx="6" fill="rgba(255,255,255,0.03)"/>
+          <text x="307" y="151" text-anchor="middle" fill="rgba(226,232,240,0.4)" font-family="'JetBrains Mono', monospace" font-size="10">MCP stdio</text>
+          <rect x="364" y="135" width="88" height="24" rx="6" fill="rgba(255,255,255,0.03)"/>
+          <text x="408" y="151" text-anchor="middle" fill="rgba(226,232,240,0.4)" font-family="'JetBrains Mono', monospace" font-size="10">MCP HTTP</text>
+          <rect x="460" y="135" width="80" height="24" rx="6" fill="rgba(255,255,255,0.03)"/>
+          <text x="500" y="151" text-anchor="middle" fill="rgba(226,232,240,0.4)" font-family="'JetBrains Mono', monospace" font-size="10">REST API</text>
+
+          <!-- Right connection paths -->
+          <path d="M560,60 C615,60 615,33 670,33" fill="none" stroke="rgba(96,165,250,0.15)" stroke-width="1.5"/>
+          <path d="M560,90 C615,90 615,81 670,81" fill="none" stroke="rgba(96,165,250,0.15)" stroke-width="1.5"/>
+          <path d="M560,120 C615,120 615,129 670,129" fill="none" stroke="rgba(96,165,250,0.15)" stroke-width="1.5"/>
+
+          <!-- Animated dots - right -->
+          <circle r="3" fill="#60a5fa" filter="url(#glow)">
+            <animateMotion dur="2.4s" repeatCount="indefinite" path="M560,60 C615,60 615,33 670,33" begin="1.2s"/>
+          </circle>
+          <circle r="3" fill="#60a5fa" filter="url(#glow)">
+            <animateMotion dur="2.8s" repeatCount="indefinite" path="M560,90 C615,90 615,81 670,81" begin="0.4s"/>
+          </circle>
+          <circle r="3" fill="#60a5fa" filter="url(#glow)">
+            <animateMotion dur="2.6s" repeatCount="indefinite" path="M560,120 C615,120 615,129 670,129" begin="2.1s"/>
+          </circle>
+
+          <!-- Consumer nodes -->
+          <rect x="670" y="15" width="120" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)"/>
+          <text x="730" y="38" text-anchor="middle" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="12">AI Agents</text>
+          <rect x="670" y="63" width="120" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)"/>
+          <text x="730" y="86" text-anchor="middle" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="12">Applications</text>
+          <rect x="670" y="111" width="120" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)"/>
+          <text x="730" y="134" text-anchor="middle" fill="#60a5fa" font-family="'JetBrains Mono', monospace" font-size="12">Scripts</text>
+          <text x="730" y="166" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-family="Oswald, sans-serif" font-size="9" font-weight="600" letter-spacing="0.12em">CONSUMERS</text>
+        </svg>
       </div>
 
-      <p style="text-align:center; color: var(--gray-text); margin-top: 24px; font-size: .9rem;">
-        Synced content splits into <strong style="color: var(--text);">tantivy</strong> for full-text search and <strong style="color: var(--text);">libteide</strong> for columnar SQL. The query router dispatches automatically. Applications can also push data in via REST or MCP write tools.
+      <p class="arch-caption">
+        Synced content splits into <strong>tantivy</strong> for full-text search and <strong>libteide</strong>&mdash;the embedded <a href="https://teidedb.com" target="_blank" rel="noopener" style="color:#60a5fa;">Teide</a> columnar engine&mdash;for ultrafast SQL analytics. The query router dispatches automatically. Applications push data in via REST or MCP write tools.
       </p>
     </div>
   </section>
 
-  <!-- Code Examples -->
-  <section id="code" class="code-section">
+  <!-- Live Demo -->
+  <section id="demo" class="code-section">
     <div class="container">
       <div class="section-label">SEE IT IN ACTION</div>
-      <h2 class="code-section-title">Two lines to start, one API to use</h2>
-      <p class="code-section-subtitle">Run the binary, point your MCP client at it, or call the REST API from any language. Search, query, and traverse in seconds.</p>
+      <h2 class="code-section-title">Connect and query</h2>
+      <p class="code-section-subtitle">Start the server, search content, run SQL, and traverse relationships&mdash;from any language.</p>
 
-      <div class="code-block">
+      <div class="code-block terminal-wrapper">
         <div class="code-header">
           <span class="code-dot red"></span>
           <span class="code-dot yellow"></span>
           <span class="code-dot green"></span>
           <span class="code-filename">terminal</span>
         </div>
-        <button class="copy-btn" data-copy>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-          Copy
-        </button>
-        <pre><code><span class="cmt"># Start with HTTP server on port 8080</span>
-<span class="cmd">teidelum</span> --port <span class="num">8080</span>
-
-<span class="cmt"># Search across all indexed content</span>
-<span class="cmd">curl</span> -X POST http://localhost:8080/api/v1/search \
-  -H <span class="str">"Content-Type: application/json"</span> \
-  -d <span class="str">'{"query": "JWT token rotation", "limit": 5}'</span>
-
-<span class="cmt"># Run SQL over structured data</span>
-<span class="cmd">curl</span> -X POST http://localhost:8080/api/v1/sql \
-  -H <span class="str">"Content-Type: application/json"</span> \
-  -d <span class="str">'{"query": "SELECT assignee, count(*) FROM tasks WHERE status = '\''open'\'' GROUP BY assignee"}'</span>
-
-<span class="cmt"># Traverse entity relationships</span>
-<span class="cmd">curl</span> -X POST http://localhost:8080/api/v1/graph/neighbors \
-  -H <span class="str">"Content-Type: application/json"</span> \
-  -d <span class="str">'{"start_table": "customers", "start_id": "42", "max_depth": 2}'</span></code></pre>
+        <div class="terminal-body" id="terminal-output"></div>
       </div>
 
-      <div class="code-block" style="margin-top: 24px;">
-        <div class="code-header">
-          <span class="code-dot red"></span>
-          <span class="code-dot yellow"></span>
-          <span class="code-dot green"></span>
-          <span class="code-filename">mcp-agent.jsonc</span>
-        </div>
-        <button class="copy-btn" data-copy>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-          Copy
-        </button>
-        <pre><code><span class="cmt">// AI agents call the same operations via MCP tools</span>
-
-<span class="cmt">// Search</span>
-{ <span class="str">"tool"</span>: <span class="str">"search"</span>, <span class="str">"params"</span>: { <span class="str">"query"</span>: <span class="str">"auth migration plan"</span>, <span class="str">"limit"</span>: <span class="num">5</span> } }
-
-<span class="cmt">// SQL</span>
-{ <span class="str">"tool"</span>: <span class="str">"sql"</span>, <span class="str">"params"</span>: { <span class="str">"query"</span>: <span class="str">"SELECT * FROM projects WHERE deadline &lt; '2026-04-01'"</span> } }
-
-<span class="cmt">// Create a table (write tools work on both MCP and REST)</span>
-{
-  <span class="str">"tool"</span>: <span class="str">"create_table"</span>,
-  <span class="str">"params"</span>: {
-    <span class="str">"name"</span>: <span class="str">"meeting_notes"</span>,
-    <span class="str">"source"</span>: <span class="str">"agent"</span>,
-    <span class="str">"columns"</span>: [
-      { <span class="str">"name"</span>: <span class="str">"id"</span>, <span class="str">"type"</span>: <span class="str">"int"</span> },
-      { <span class="str">"name"</span>: <span class="str">"title"</span>, <span class="str">"type"</span>: <span class="str">"varchar"</span> },
-      { <span class="str">"name"</span>: <span class="str">"date"</span>, <span class="str">"type"</span>: <span class="str">"varchar"</span> }
-    ],
-    <span class="str">"rows"</span>: [[<span class="num">1</span>, <span class="str">"Sprint Planning"</span>, <span class="str">"2026-03-01"</span>]]
-  }
-}</code></pre>
-      </div>
+      <p class="code-section-mcp">Same operations available as MCP tools&mdash;AI agents call <code>search</code>, <code>sql</code>, <code>graph</code>, <code>create_table</code>, and 7 more directly.</p>
     </div>
   </section>
 
@@ -309,20 +300,29 @@
     <div class="container">
       <div class="section-label" style="text-align:center;">WHO IT'S FOR</div>
       <h2 class="arch-title">Built for teams that use AI seriously</h2>
-      <p class="arch-subtitle">Whether you're building AI-powered internal tools, giving agents access to company knowledge, or connecting live data sources&mdash;Teidelum is the server that sits between your data and everything that consumes it.</p>
+      <p class="arch-subtitle">Whether you're building AI-powered internal tools, giving agents access to company knowledge, or connecting live data sources&mdash;Teidelum is the server between your data and everything that consumes it.</p>
 
       <div class="usecases-grid">
         <div class="usecase-card fade-in-up">
-          <h3>AI-Powered Applications</h3>
-          <p>Build apps that search, query, and write organizational knowledge through a standard REST API. No ML pipeline. No vector database. Just HTTP and JSON.</p>
-        </div>
-        <div class="usecase-card fade-in-up">
+          <div class="usecase-illustration">
+            <i class="fa-solid fa-robot"></i>
+          </div>
           <h3>AI Agent Infrastructure</h3>
-          <p>Give your MCP-enabled agents 11 tools for reading, writing, and traversing knowledge. They create tables, index documents, and discover relationships on their own.</p>
+          <p>Give MCP-enabled agents 11 tools for reading, writing, and traversing knowledge. They create tables, index documents, and discover relationships autonomously.</p>
         </div>
         <div class="usecase-card fade-in-up">
+          <div class="usecase-illustration">
+            <i class="fa-solid fa-gears"></i>
+          </div>
+          <h3>Automation &amp; Pipelines</h3>
+          <p>Scripts and cron jobs push data in via REST, query it with SQL, and pull results out. Automate knowledge workflows without any SDK&mdash;just curl and JSON.</p>
+        </div>
+        <div class="usecase-card fade-in-up">
+          <div class="usecase-illustration">
+            <i class="fa-solid fa-users"></i>
+          </div>
           <h3>Knowledge Consolidation</h3>
-          <p>Notion pages, Zulip threads, kdb+ tables&mdash;fragmented across tools. Teidelum syncs it all into one index. Search across everything. Query across everything. Connect everything.</p>
+          <p>Notion pages, Zulip threads, database tables&mdash;fragmented across tools. Teidelum syncs it all into one index. Search, query, and connect everything.</p>
         </div>
       </div>
     </div>
@@ -332,7 +332,7 @@
   <section class="cta-section">
     <div class="container" style="text-align:center;">
       <h2 class="arch-title">Ready to try it?</h2>
-      <p class="arch-subtitle">Teidelum is open-source, MIT-licensed, and runs anywhere Rust compiles. One cargo install and you're live.</p>
+      <p class="arch-subtitle">Open-source, MIT-licensed, runs anywhere Rust compiles. One cargo install and you're live.</p>
       <div class="hero-buttons" style="justify-content:center; margin-top: 32px;">
         <a href="docs/quick-start.html" class="btn btn-primary">Quick Start Guide</a>
         <a href="docs/api-reference.html" class="btn btn-outline">API Reference</a>
@@ -350,7 +350,7 @@
         <a href="docs/api-reference.html">API Reference</a>
         <a href="https://github.com/TeideDB/teidelum/blob/master/LICENSE" target="_blank" rel="noopener">MIT License</a>
       </div>
-      <p>Teidelum &mdash; Knowledge infrastructure for AI. MIT License.</p>
+      <p>Teidelum &mdash; Knowledge infrastructure for AI and humans. MIT License.</p>
     </div>
   </footer>
 
