@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebar = document.querySelector('.docs-sidebar');
   if (toggle && sidebar) {
     toggle.addEventListener('click', () => {
-      sidebar.classList.toggle('open');
+      const isOpen = sidebar.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', String(isOpen));
     });
     // Close sidebar when a link is clicked (mobile)
     sidebar.querySelectorAll('.sidebar-link').forEach((link) => {
