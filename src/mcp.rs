@@ -232,6 +232,13 @@ impl Teidelum {
         }
     }
 
+    pub fn new_with_shared(api: Arc<TeidelumApi>) -> Self {
+        Self {
+            api,
+            tool_router: Self::tool_router(),
+        }
+    }
+
     #[tool(description = "Full-text search across all connected sources")]
     async fn search(
         &self,

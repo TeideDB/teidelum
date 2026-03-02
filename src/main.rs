@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Parser;
@@ -65,9 +66,33 @@ async fn main() -> Result<()> {
     ])?;
 
     if let Some(port) = cli.port {
-        tracing::info!("starting HTTP server on {}:{}", cli.bind, port);
-        // TODO: start HTTP server (Task 10)
-        todo!("HTTP server not yet implemented");
+        // HTTP mode: run REST API + stdio MCP in parallel
+        let api = Arc::new(api);
+
+        let server = Teidelum::new_with_shared(api.clone());
+
+        let http_handle = tokio::spawn({
+            let api = api.clone();
+            let bind = cli.bind.clone();
+            async move {
+                teidelum::server::start(api, &bind, port).await
+            }
+        });
+
+        tracing::info!("teidelum ready — serving MCP over stdio + HTTP on {}:{}", cli.bind, port);
+
+        let mcp_handle = tokio::spawn(async move {
+            let service = server.serve(stdio()).await.inspect_err(|e| {
+                tracing::error!("MCP serving error: {:?}", e);
+            })?;
+            service.waiting().await?;
+            Ok::<_, anyhow::Error>(())
+        });
+
+        tokio::select! {
+            r = http_handle => r??,
+            r = mcp_handle => r??,
+        }
     } else {
         tracing::info!("teidelum ready — serving MCP over stdio");
         let server = Teidelum::new(api);
