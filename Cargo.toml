@@ -23,9 +23,12 @@ thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
-rmcp = { version = "0.16", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "0.16", features = ["server", "transport-io", "transport-streamable-http-server", "macros"] }
 tantivy = "0.22"
 teide = { path = "../teide-rs" }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors"] }
+clap = { version = "4", features = ["derive"] }
 rand = "0.8"
 
 [dev-dependencies]
