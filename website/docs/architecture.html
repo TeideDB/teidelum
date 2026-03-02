@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture — Teidelum</title>
+  <meta name="description" content="Teidelum architecture — modules, data flow, and key design patterns.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs.css">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <!-- Top Bar -->
+  <div class="docs-topbar">
+    <div class="docs-topbar-left">
+      <button class="docs-sidebar-toggle" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <a href="../" class="docs-brand">
+        <img src="../assets/teidelum-icon.svg" alt="Teidelum" width="22" height="22">
+        Teidelum
+      </a>
+      <a href="../">&larr; Back to home</a>
+    </div>
+    <a href="https://github.com/TeideDB/teidelum" class="nav-github" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
+
+  <div class="docs-layout">
+    <!-- Sidebar (identical on all doc pages) -->
+    <nav class="docs-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Getting Started</div>
+        <a href="quick-start.html" class="sidebar-link">Quick Start</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Reference</div>
+        <a href="mcp-tools.html" class="sidebar-link">MCP Tools</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Concepts</div>
+        <a href="architecture.html" class="sidebar-link active">Architecture</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Examples</div>
+        <a href="examples.html" class="sidebar-link">Agent Workflows</a>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="docs-content">
+      <h1>Architecture</h1>
+      <p class="page-subtitle">How Teidelum works: modules, data flow, and key design patterns.</p>
+
+      <h2>Module Overview</h2>
+      <table>
+        <thead>
+          <tr><th>Module</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>main.rs</code></td><td>Entrypoint: opens TeidelumApi, registers FK relationships, serves MCP over stdio</td></tr>
+          <tr><td><code>api.rs</code></td><td>Unified API: wraps catalog, search, router, graph behind thread-safe interface</td></tr>
+          <tr><td><code>mcp.rs</code></td><td>MCP tool definitions via rmcp; delegates to TeidelumApi for all operations</td></tr>
+          <tr><td><code>router.rs</code></td><td>Query router: dispatches SQL to libteide (local) or connectors (remote)</td></tr>
+          <tr><td><code>search.rs</code></td><td>tantivy wrapper: BM25 ranking + fuzzy matching search engine</td></tr>
+          <tr><td><code>catalog.rs</code></td><td>Metadata catalog: schemas, FK relationships, local vs remote tracking</td></tr>
+          <tr><td><code>graph.rs</code></td><td>SQL-based graph traversal: BFS over catalog FK relationships (max 10 hops)</td></tr>
+          <tr><td><code>connector/kdb.rs</code></td><td>kdb+ live query adapter</td></tr>
+          <tr><td><code>sync/notion.rs</code></td><td>Notion incremental sync with cursor tracking</td></tr>
+          <tr><td><code>sync/zulip.rs</code></td><td>Zulip incremental sync with cursor tracking</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Data Flow</h2>
+      <ol>
+        <li><strong>Sync sources</strong> pull data from Notion and Zulip via the <code>SyncSource</code> trait.</li>
+        <li>Each sync output splits into <strong>structured fields</strong> (inserted into libteide columnar tables for SQL) and <strong>freeform content</strong> (indexed into tantivy for full-text search).</li>
+        <li>The <strong>Catalog</strong> registers every table's schema and foreign-key relationships.</li>
+        <li>The <strong>Query Router</strong> inspects the catalog to dispatch queries: local tables go to libteide, remote tables go through connectors.</li>
+        <li>The <strong>Graph Engine</strong> uses catalog FK relationships to traverse between entities, running SQL queries at each BFS hop.</li>
+        <li><strong>MCP tools</strong> wrap everything behind 5 simple operations: search, sql, describe, graph, sync.</li>
+      </ol>
+
+      <h2>Key Design Patterns</h2>
+
+      <h3>Dual Storage</h3>
+      <p>Sync modules split incoming data into two stores. Structured fields (names, dates, statuses, assignees) go into <strong>libteide columnar tables</strong> for fast SQL queries. Freeform content (page bodies, message text) goes into a <strong>tantivy full-text index</strong> for BM25 search. This separation lets each engine do what it does best.</p>
+
+      <h3>Catalog-Driven Routing</h3>
+      <p>The <code>Catalog</code> knows which tables exist, where they live (local libteide or remote connector), and how they relate to each other via foreign keys. The query router reads the catalog to decide where to send each SQL query. No hardcoded table lists&mdash;add a table to the catalog and the router picks it up automatically.</p>
+
+      <h3>Incremental Sync</h3>
+      <p>Sync sources track cursors (timestamps or pagination tokens) so each run pulls only changed data. First sync fetches everything; subsequent syncs fetch only what changed since the last cursor position. Cursors are persisted to disk.</p>
+
+      <h3>Unified API</h3>
+      <p><code>TeidelumApi</code> wraps all subsystems (catalog, search engine, query router, graph engine) behind a single thread-safe facade. It uses <code>std::sync::RwLock</code> for concurrent read access&mdash;multiple MCP tool calls can read the catalog and query data simultaneously.</p>
+
+      <!-- Prev/Next -->
+      <div class="docs-nav-footer">
+        <a href="mcp-tools.html" class="docs-nav-link">
+          <span class="docs-nav-label">&larr; Previous</span>
+          <span class="docs-nav-title">MCP Tools</span>
+        </a>
+        <a href="examples.html" class="docs-nav-link next">
+          <span class="docs-nav-label">Next &rarr;</span>
+          <span class="docs-nav-title">Examples</span>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <script src="docs.js"></script>
+</body>
+</html>
