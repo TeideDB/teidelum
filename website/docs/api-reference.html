@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Reference — Teidelum</title>
+  <meta name="description" content="REST API reference for Teidelum — endpoints, request/response examples, and authentication.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs.css">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <!-- Top Bar -->
+  <div class="docs-topbar">
+    <div class="docs-topbar-left">
+      <button class="docs-sidebar-toggle" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <a href="../" class="docs-brand">
+        <img src="../assets/teidelum-icon.svg" alt="Teidelum" width="22" height="22">
+        Teidelum
+      </a>
+      <a href="../">&larr; Back to home</a>
+    </div>
+    <a href="https://github.com/TeideDB/teidelum" class="nav-github" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
+
+  <div class="docs-layout">
+    <!-- Sidebar (identical on all doc pages) -->
+    <nav class="docs-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Getting Started</div>
+        <a href="quick-start.html" class="sidebar-link">Quick Start</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Reference</div>
+        <a href="mcp-tools.html" class="sidebar-link">MCP Tools</a>
+        <a href="api-reference.html" class="sidebar-link">API Reference</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Concepts</div>
+        <a href="architecture.html" class="sidebar-link">Architecture</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Examples</div>
+        <a href="examples.html" class="sidebar-link">Agent Workflows</a>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="docs-content">
+      <h1>API Reference</h1>
+      <p class="page-subtitle">REST API endpoints for programmatic access to Teidelum.</p>
+
+      <h2>Overview</h2>
+      <p>Teidelum exposes a REST API at <code>/api/v1/</code> when started with the <code>--port</code> flag. All requests and responses use JSON.</p>
+      <pre><code>./teidelum --port 8080</code></pre>
+      <p>The base URL for all endpoints is <code>http://localhost:8080/api/v1/</code>. All request bodies must be sent as <code>Content-Type: application/json</code>.</p>
+
+      <h2>Authentication</h2>
+      <p>Authentication is optional. To enable it, set the <code>TEIDELUM_API_KEY</code> environment variable before starting the server:</p>
+      <pre><code>TEIDELUM_API_KEY=your-secret-key ./teidelum --port 8080</code></pre>
+      <p>When set, all requests must include a Bearer token in the <code>Authorization</code> header:</p>
+      <pre><code>Authorization: Bearer your-secret-key</code></pre>
+      <p>If the API key is not set, all requests are accepted without authentication.</p>
+
+      <h2>Tables</h2>
+
+      <h3>Create Table</h3>
+      <p><code>POST /api/v1/tables</code></p>
+      <p>Create a new table with a defined schema.</p>
+      <p><strong>Request body:</strong></p>
+      <pre><code>{
+  "name": "employees",
+  "columns": [
+    { "name": "id", "type": "integer" },
+    { "name": "name", "type": "string" },
+    { "name": "department", "type": "string" },
+    { "name": "start_date", "type": "string" }
+  ]
+}</code></pre>
+      <p><strong>Response:</strong> <code>201 Created</code></p>
+      <pre><code>{
+  "status": "ok",
+  "table": "employees"
+}</code></pre>
+
+      <h3>Insert Rows</h3>
+      <p><code>POST /api/v1/tables/:name/rows</code></p>
+      <p>Insert one or more rows into an existing table.</p>
+      <p><strong>Request body:</strong></p>
+      <pre><code>{
+  "rows": [
+    { "id": 1, "name": "Alice Chen", "department": "Engineering", "start_date": "2023-01-15" },
+    { "id": 2, "name": "Bob Smith", "department": "Product", "start_date": "2023-03-01" }
+  ]
+}</code></pre>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "status": "ok",
+  "inserted": 2
+}</code></pre>
+
+      <h3>Delete Table</h3>
+      <p><code>DELETE /api/v1/tables/:name</code></p>
+      <p>Delete a table and all its data.</p>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "status": "ok",
+  "table": "employees"
+}</code></pre>
+
+      <h2>Documents</h2>
+
+      <h3>Add Document</h3>
+      <p><code>POST /api/v1/documents</code></p>
+      <p>Add a document to the full-text search index.</p>
+      <p><strong>Request body:</strong></p>
+      <pre><code>{
+  "id": "doc-001",
+  "title": "Deployment Runbook",
+  "body": "Step 1: Pull latest from main. Step 2: Run migrations...",
+  "source": "wiki",
+  "url": "https://wiki.example.com/deploy"
+}</code></pre>
+      <p><strong>Response:</strong> <code>201 Created</code></p>
+      <pre><code>{
+  "status": "ok",
+  "id": "doc-001"
+}</code></pre>
+
+      <h3>Delete Document</h3>
+      <p><code>DELETE /api/v1/documents/:id</code></p>
+      <p>Remove a document from the search index.</p>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "status": "ok",
+  "id": "doc-001"
+}</code></pre>
+
+      <h2>Search</h2>
+      <p><code>POST /api/v1/search</code></p>
+      <p>Full-text search across all indexed documents.</p>
+      <p><strong>Request body:</strong></p>
+      <pre><code>{
+  "query": "JWT token rotation",
+  "sources": ["notion"],
+  "limit": 5
+}</code></pre>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "results": [
+    {
+      "id": "page-auth-v2",
+      "title": "Auth Service v2 — Token Rotation",
+      "snippet": "...implements automatic JWT token rotation with a 15-minute refresh window...",
+      "source": "notion",
+      "score": 8.42,
+      "url": "https://notion.so/page-auth-v2"
+    }
+  ],
+  "total": 1
+}</code></pre>
+
+      <h2>SQL</h2>
+      <p><code>POST /api/v1/sql</code></p>
+      <p>Run analytical SQL queries over structured data from all sources.</p>
+      <p><strong>Request body:</strong></p>
+      <pre><code>{
+  "query": "SELECT assignee, COUNT(*) as task_count FROM project_tasks WHERE status = 'in_progress' GROUP BY assignee ORDER BY task_count DESC"
+}</code></pre>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "columns": ["assignee", "task_count"],
+  "rows": [
+    ["Alice Chen", 5],
+    ["Bob Smith", 3],
+    ["Carol Davis", 2]
+  ],
+  "row_count": 3
+}</code></pre>
+
+      <h2>Graph</h2>
+
+      <h3>Neighbors</h3>
+      <p><code>POST /api/v1/graph/neighbors</code></p>
+      <p>Discover entities connected to a starting node via foreign-key relationships.</p>
+      <p><strong>Request body:</strong></p>
+      <pre><code>{
+  "table": "team_members",
+  "key": "Alice Chen",
+  "key_col": "name",
+  "depth": 2,
+  "direction": "both"
+}</code></pre>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "origin": { "table": "team_members", "key": "Alice Chen" },
+  "neighbors": [
+    {
+      "table": "project_tasks",
+      "key": "Implement JWT rotation",
+      "depth": 1,
+      "relationship": "assigned_to"
+    },
+    {
+      "table": "incidents",
+      "key": "API Gateway Timeout",
+      "depth": 2,
+      "relationship": "reported_by"
+    }
+  ],
+  "total": 2
+}</code></pre>
+
+      <h3>Path</h3>
+      <p><code>POST /api/v1/graph/path</code></p>
+      <p>Find the shortest path between two entities through foreign-key relationships.</p>
+      <p><strong>Request body:</strong></p>
+      <pre><code>{
+  "table": "team_members",
+  "key": "Alice Chen",
+  "to_table": "incidents",
+  "to_key": "API Gateway Timeout",
+  "depth": 4
+}</code></pre>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "path": [
+    { "table": "team_members", "key": "Alice Chen" },
+    { "table": "project_tasks", "key": "Implement JWT rotation", "relationship": "assigned_to" },
+    { "table": "incidents", "key": "API Gateway Timeout", "relationship": "related_task" }
+  ],
+  "length": 2
+}</code></pre>
+
+      <h2>Relationships</h2>
+      <p><code>POST /api/v1/relationships</code></p>
+      <p>Register a foreign-key relationship between two tables in the catalog.</p>
+      <p><strong>Request body:</strong></p>
+      <pre><code>{
+  "from_table": "project_tasks",
+  "from_column": "assignee",
+  "to_table": "team_members",
+  "to_column": "name",
+  "rel_type": "assigned_to"
+}</code></pre>
+      <p><strong>Response:</strong> <code>201 Created</code></p>
+      <pre><code>{
+  "status": "ok",
+  "relationship": {
+    "from": "project_tasks.assignee",
+    "to": "team_members.name",
+    "type": "assigned_to"
+  }
+}</code></pre>
+
+      <h2>Describe</h2>
+
+      <h3>List All Sources</h3>
+      <p><code>GET /api/v1/describe</code></p>
+      <p>Returns the complete catalog: all tables, their columns and types, and all registered foreign-key relationships.</p>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "tables": [
+    {
+      "name": "team_members",
+      "source": "local",
+      "columns": [
+        { "name": "name", "type": "string" },
+        { "name": "role", "type": "string" },
+        { "name": "team", "type": "string" }
+      ]
+    },
+    {
+      "name": "project_tasks",
+      "source": "local",
+      "columns": [
+        { "name": "name", "type": "string" },
+        { "name": "status", "type": "string" },
+        { "name": "assignee", "type": "string" }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "from": "project_tasks.assignee",
+      "to": "team_members.name",
+      "type": "assigned_to"
+    }
+  ]
+}</code></pre>
+
+      <h3>Describe Single Source</h3>
+      <p><code>GET /api/v1/describe/:source</code></p>
+      <p>Returns catalog information filtered to a specific source.</p>
+      <p><strong>Response:</strong> <code>200 OK</code></p>
+      <pre><code>{
+  "tables": [
+    {
+      "name": "team_members",
+      "source": "local",
+      "columns": [
+        { "name": "name", "type": "string" },
+        { "name": "role", "type": "string" },
+        { "name": "team", "type": "string" }
+      ]
+    }
+  ],
+  "relationships": []
+}</code></pre>
+
+      <h2>Error Responses</h2>
+      <p>All errors return a JSON object with an <code>error</code> field and an appropriate HTTP status code.</p>
+
+      <h3>400 Bad Request</h3>
+      <p>Returned when the request body is malformed or a required parameter is missing.</p>
+      <pre><code>{
+  "error": "missing required field: query"
+}</code></pre>
+
+      <h3>401 Unauthorized</h3>
+      <p>Returned when <code>TEIDELUM_API_KEY</code> is set but the request has a missing or invalid Bearer token.</p>
+      <pre><code>{
+  "error": "unauthorized: invalid or missing API key"
+}</code></pre>
+
+      <h3>500 Internal Server Error</h3>
+      <p>Returned when an unexpected error occurs during processing.</p>
+      <pre><code>{
+  "error": "internal error: failed to execute query"
+}</code></pre>
+
+      <!-- Prev/Next -->
+      <div class="docs-nav-footer">
+        <a href="mcp-tools.html" class="docs-nav-link">
+          <span class="docs-nav-label">&larr; Previous</span>
+          <span class="docs-nav-title">MCP Tools</span>
+        </a>
+        <a href="architecture.html" class="docs-nav-link next">
+          <span class="docs-nav-label">Next &rarr;</span>
+          <span class="docs-nav-title">Architecture</span>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <script src="docs.js"></script>
+</body>
+</html>
