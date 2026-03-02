@@ -53,6 +53,7 @@
         <h1>Your tools. One index. <span class="accent">Local-first.</span></h1>
         <div class="hero-chips">
           <span class="chip">MCP Native</span>
+          <span class="chip">REST API</span>
           <span class="chip">Full-Text Search</span>
           <span class="chip">SQL Analytics</span>
           <span class="chip">Graph Traversal</span>
@@ -130,6 +131,15 @@
           <p>One Rust binary, no config files, no services to run. Set <code>TEIDELUM_DATA</code> and go. Everything stays local.</p>
         </div>
 
+        <div class="feature-item">
+          <div class="feature-number">07</div>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0118 0"/><path d="M4 11V8"/><path d="M20 11V8"/><path d="M12 20v-9"/><circle cx="12" cy="4" r="2"/></svg>
+          </div>
+          <h3>HTTP REST API</h3>
+          <p>Optional HTTP server for application integration. Create tables, run SQL queries, and search content via standard REST endpoints alongside AI agent access.</p>
+        </div>
+
       </div>
     </div>
   </section>
@@ -139,7 +149,7 @@
     <div class="container">
       <div class="section-label">ARCHITECTURE</div>
       <h2 class="arch-title">How it works</h2>
-      <p class="arch-subtitle">Data flows from your tools through Teidelum's dual storage into MCP tools that AI agents call directly.</p>
+      <p class="arch-subtitle">Data flows from your tools through Teidelum's dual storage into read &amp; write tools that AI agents and applications call directly.</p>
 
       <div class="arch-diagram">
         <div class="arch-flow">
@@ -166,31 +176,28 @@
           <div class="arch-arrow">&rarr;</div>
 
           <div class="arch-node">
-            <div class="arch-node-label">MCP Tools</div>
+            <div class="arch-node-label">Interfaces</div>
             <div class="arch-node-items">
-              <span>search</span>
-              <span>sql</span>
-              <span>describe</span>
-              <span>graph</span>
-              <span>sync</span>
+              <span>MCP (stdio)</span>
+              <span>REST API (HTTP)</span>
             </div>
           </div>
 
           <div class="arch-arrow">&rarr;</div>
 
           <div class="arch-node">
-            <div class="arch-node-label">AI Agents</div>
+            <div class="arch-node-label">Consumers</div>
             <div class="arch-node-items">
-              <span>Claude</span>
-              <span>GPT</span>
-              <span>Custom</span>
+              <span>AI Agents</span>
+              <span>Applications</span>
+              <span>Scripts</span>
             </div>
           </div>
         </div>
       </div>
 
       <p style="text-align:center; color: var(--gray-text); margin-top: 24px; font-size: .9rem;">
-        Synced data splits into <strong style="color: var(--text);">tantivy</strong> (full-text search) and <strong style="color: var(--text);">libteide</strong> (columnar SQL). The query router dispatches to the right engine automatically.
+        Synced data splits into <strong style="color: var(--text);">tantivy</strong> (full-text search) and <strong style="color: var(--text);">libteide</strong> (columnar SQL). The query router dispatches to the right engine automatically. Access via MCP for AI agents or HTTP REST API for applications.
       </p>
     </div>
   </section>
@@ -200,7 +207,7 @@
     <div class="container">
       <div class="section-label">SEE IT IN ACTION</div>
       <h2 class="code-section-title">Connect and query</h2>
-      <p class="code-section-subtitle">Agents call MCP tools directly. Search content, query tables, traverse relationships.</p>
+      <p class="code-section-subtitle">Agents call MCP tools directly, or use the REST API from any language. Search content, query tables, traverse relationships.</p>
 
       <div class="code-block">
         <div class="code-header">
@@ -229,6 +236,28 @@
     <span class="str">"query"</span>: <span class="str">"SELECT assignee, status, priority FROM project_tasks WHERE status = 'in_progress' ORDER BY priority"</span>
   }
 }</code></pre>
+      </div>
+
+      <div class="code-block" style="margin-top: 24px;">
+        <div class="code-header">
+          <span class="code-dot red"></span>
+          <span class="code-dot yellow"></span>
+          <span class="code-dot green"></span>
+          <span class="code-filename">rest-api.sh</span>
+        </div>
+        <button class="copy-btn" data-copy>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+        <pre><code><span class="cmt"># Create a table via REST API</span>
+curl -X POST http://localhost:8080/api/v1/tables \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"name":"users","source":"app","columns":[{"name":"id","type":"int"},{"name":"name","type":"varchar"}],"rows":[[1,"Alice"],[2,"Bob"]]}'</span>
+
+<span class="cmt"># Query with SQL</span>
+curl -X POST http://localhost:8080/api/v1/sql \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"query":"SELECT * FROM users WHERE id = 1"}'</span></code></pre>
       </div>
     </div>
   </section>

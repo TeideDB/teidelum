@@ -73,6 +73,47 @@ cargo build --release</code></pre>
       <p>Set <code>TEIDELUM_DATA</code> to control where data is stored (defaults to <code>./data</code>):</p>
       <pre><code>TEIDELUM_DATA=/path/to/data ./target/release/teidelum</code></pre>
 
+      <h2>HTTP Server Mode</h2>
+      <p>Teidelum can also run as an HTTP server, exposing a REST API alongside MCP. Pass <code>--port</code> to enable it:</p>
+      <pre><code># MCP over stdio (default, backward compatible)
+./target/release/teidelum
+
+# HTTP server + MCP
+./target/release/teidelum --port 8080
+
+# Custom bind address and data directory
+./target/release/teidelum --port 8080 --bind 0.0.0.0 --data /path/to/data
+
+# With API key authentication
+TEIDELUM_API_KEY=your-secret-key ./target/release/teidelum --port 8080</code></pre>
+
+      <h2>CLI Options</h2>
+      <pre><code>Options:
+  --port &lt;PORT&gt;     Enable HTTP server on this port
+  --bind &lt;ADDR&gt;     Bind address [default: 127.0.0.1]
+  --data &lt;DIR&gt;      Data directory [default: data, env: TEIDELUM_DATA]</code></pre>
+
+      <h2>REST API Quick Examples</h2>
+      <p>With the HTTP server running on port 8080, you can interact with Teidelum using plain HTTP requests:</p>
+      <pre><code># Create a table
+curl -X POST http://localhost:8080/api/v1/tables \
+  -H "Content-Type: application/json" \
+  -d '{"name":"users","source":"app","columns":[{"name":"id","type":"int"},{"name":"name","type":"varchar"}],"rows":[[1,"Alice"],[2,"Bob"]]}'
+
+# Query with SQL
+curl -X POST http://localhost:8080/api/v1/sql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"SELECT * FROM users"}'
+
+# Full-text search
+curl -X POST http://localhost:8080/api/v1/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"authentication","limit":5}'
+
+# List tables and schemas
+curl http://localhost:8080/api/v1/describe</code></pre>
+      <p>For the full list of endpoints, request/response schemas, and authentication details, see the <a href="api-reference.html">API Reference</a>.</p>
+
       <h2>Connect from Claude Desktop</h2>
       <p>Add Teidelum to your Claude Desktop MCP configuration at <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>:</p>
       <pre><code>{
