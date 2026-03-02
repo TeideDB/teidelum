@@ -74,12 +74,14 @@ async fn main() -> Result<()> {
         let http_handle = tokio::spawn({
             let api = api.clone();
             let bind = cli.bind.clone();
-            async move {
-                teidelum::server::start(api, &bind, port).await
-            }
+            async move { teidelum::server::start(api, &bind, port).await }
         });
 
-        tracing::info!("teidelum ready — serving MCP over stdio + HTTP on {}:{}", cli.bind, port);
+        tracing::info!(
+            "teidelum ready — serving MCP over stdio + HTTP on {}:{}",
+            cli.bind,
+            port
+        );
 
         let mcp_handle = tokio::spawn(async move {
             let service = server.serve(stdio()).await.inspect_err(|e| {
