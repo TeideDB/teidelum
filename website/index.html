@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teidelum — Local-First MCP Server</title>
-  <meta name="description" content="Compact MCP server that syncs work tools and connects live data sources into a single searchable, queryable index. Single binary, zero config, data never leaves your machine.">
+  <title>Teidelum — Knowledge Infrastructure for AI Agents &amp; Applications</title>
+  <meta name="description" content="Local-first knowledge server that syncs work tools, indexes content with BM25 search and columnar SQL, and serves it to AI agents via MCP and applications via REST API. Single binary, zero config.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -24,9 +24,10 @@
         <span></span><span></span><span></span>
       </button>
       <ul class="nav-links">
+        <li><a href="#why">Why</a></li>
         <li><a href="#features">Features</a></li>
-        <li><a href="docs/index.html">Docs</a></li>
         <li><a href="#architecture">Architecture</a></li>
+        <li><a href="docs/index.html">Docs</a></li>
         <li>
           <a href="https://github.com/TeideDB/teidelum" class="nav-github" target="_blank" rel="noopener">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -50,16 +51,16 @@
     </svg>
     <div class="container">
       <div class="hero-content">
-        <h1>Your tools. One index. <span class="accent">Local-first.</span></h1>
+        <h1>Knowledge infrastructure <span class="accent">for AI.</span></h1>
+        <p class="hero-subtitle">Teidelum syncs your work tools, indexes everything into searchable and queryable storage, and serves it to AI agents via MCP and applications via REST API. Single binary. Zero config. Data never leaves your machine.</p>
         <div class="hero-chips">
-          <span class="chip">MCP Native</span>
+          <span class="chip">MCP Server</span>
           <span class="chip">REST API</span>
-          <span class="chip">Full-Text Search</span>
+          <span class="chip">BM25 Search</span>
           <span class="chip">SQL Analytics</span>
           <span class="chip">Graph Traversal</span>
-          <span class="chip">Zero Config</span>
+          <span class="chip">Local-First</span>
         </div>
-        <p class="hero-subtitle">Single binary MCP server that syncs work tools and connects live data sources into a single searchable, queryable index. Data never leaves your machine.</p>
         <div class="hero-buttons">
           <a href="docs/quick-start.html" class="btn btn-primary">Get started</a>
           <a href="https://github.com/TeideDB/teidelum" class="btn btn-outline" target="_blank" rel="noopener">
@@ -71,10 +72,44 @@
     </div>
   </section>
 
+  <!-- Why -->
+  <section id="why" class="why-section">
+    <div class="container">
+      <div class="section-label" style="text-align:center;">THE PROBLEM</div>
+      <h2 class="why-title">AI agents deserve better than file scanning</h2>
+      <p class="why-lead">Most "knowledge base" setups point an LLM at a folder of files. That works for small personal vaults&mdash;but it breaks down fast. No ranking. No structure. No relationships. Every query re-reads everything.</p>
+
+      <div class="why-grid">
+        <div class="why-card why-card-problem">
+          <div class="why-card-label">Without infrastructure</div>
+          <ul class="why-list">
+            <li>LLM scans raw files on every query</li>
+            <li>No relevance ranking&mdash;all content is equal</li>
+            <li>Can't aggregate, filter, or join data</li>
+            <li>No entity relationships&mdash;flat documents only</li>
+            <li>Locked to one tool, one LLM, one format</li>
+            <li>Slows down as knowledge grows</li>
+          </ul>
+        </div>
+        <div class="why-card why-card-solution">
+          <div class="why-card-label">With Teidelum</div>
+          <ul class="why-list">
+            <li>Indexed BM25 search with fuzzy matching</li>
+            <li>Ranked results with source attribution</li>
+            <li>SQL analytics across all structured data</li>
+            <li>Graph traversal over entity relationships</li>
+            <li>MCP for any AI agent, REST for any app</li>
+            <li>Stays fast regardless of data volume</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Features -->
   <section id="features" class="features-section">
     <div class="container">
-      <div class="section-label">CAPABILITIES</div>
+      <div class="section-label">WHAT YOU GET</div>
       <div class="features-grid">
 
         <div class="feature-item">
@@ -82,8 +117,8 @@
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </div>
-          <h3>Full-Text Search</h3>
-          <p>BM25 ranking with fuzzy matching across all synced content. Highlighted snippets with source attribution and date filtering.</p>
+          <h3>Indexed Search</h3>
+          <p>BM25 ranking with fuzzy matching and highlighted snippets. Your AI agent asks a question and gets the 5 most relevant results&mdash;not a token-heavy dump of every file that might be related.</p>
         </div>
 
         <div class="feature-item">
@@ -92,7 +127,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           </div>
           <h3>SQL Analytics</h3>
-          <p>Columnar queries over structured data from any synced source. Filter, group, sort, join&mdash;all through a standard SQL interface.</p>
+          <p>Run columnar queries over structured data from any synced source. Filter, group, sort, and join&mdash;things that are impossible when your knowledge base is just a pile of markdown files.</p>
         </div>
 
         <div class="feature-item">
@@ -101,25 +136,25 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/></svg>
           </div>
           <h3>Graph Traversal</h3>
-          <p>Navigate foreign-key relationships between entities via BFS. Find neighbors, discover paths, filter by direction and relationship type.</p>
+          <p>Foreign-key relationships between entities create a navigable graph. Ask "what's connected to this customer?" and get answers&mdash;no need to teach your LLM a custom schema on every conversation.</p>
         </div>
 
         <div class="feature-item">
           <div class="feature-number">04</div>
           <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0118 0"/><path d="M4 11V8"/><path d="M20 11V8"/><path d="M12 20v-9"/><circle cx="12" cy="4" r="2"/></svg>
           </div>
-          <h3>Work Tool Sync</h3>
-          <p>Pull data from Notion pages and Zulip messages with incremental sync. Only changed records on each run.</p>
+          <h3>Universal API</h3>
+          <p>MCP over stdio for AI agents. REST over HTTP for applications and scripts. Same data, same capabilities, two transports. Connect Claude, GPT, your internal dashboard, or a cron job&mdash;all at once.</p>
         </div>
 
         <div class="feature-item">
           <div class="feature-number">05</div>
           <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           </div>
-          <h3>Live Connectors</h3>
-          <p>Query external data sources in real-time. Built-in kdb+ adapter with a trait for adding your own connectors.</p>
+          <h3>Work Tool Sync</h3>
+          <p>Pull from Notion pages, Zulip messages, and kdb+ databases. Incremental sync means only changed records on each run. Your knowledge base stays current without rebuilding from scratch.</p>
         </div>
 
         <div class="feature-item">
@@ -127,17 +162,8 @@
           <div class="feature-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
           </div>
-          <h3>Single Binary</h3>
-          <p>One Rust binary, no config files, no services to run. Set <code>TEIDELUM_DATA</code> and go. Everything stays local.</p>
-        </div>
-
-        <div class="feature-item">
-          <div class="feature-number">07</div>
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0118 0"/><path d="M4 11V8"/><path d="M20 11V8"/><path d="M12 20v-9"/><circle cx="12" cy="4" r="2"/></svg>
-          </div>
-          <h3>HTTP REST API</h3>
-          <p>Optional HTTP server for application integration. Create tables, run SQL queries, and search content via standard REST endpoints alongside AI agent access.</p>
+          <h3>Single Binary, Zero Ops</h3>
+          <p>One Rust binary. No Docker. No database server. No config files. Set a data directory and start it. Everything runs locally&mdash;your organizational knowledge never touches a third-party cloud.</p>
         </div>
 
       </div>
@@ -148,8 +174,8 @@
   <section id="architecture" class="arch-section">
     <div class="container">
       <div class="section-label">ARCHITECTURE</div>
-      <h2 class="arch-title">How it works</h2>
-      <p class="arch-subtitle">Data flows from your tools through Teidelum's dual storage into read &amp; write tools that AI agents and applications call directly.</p>
+      <h2 class="arch-title">Sync, index, serve</h2>
+      <p class="arch-subtitle">Data flows from your tools through dual storage engines into read and write operations exposed over both MCP and HTTP.</p>
 
       <div class="arch-diagram">
         <div class="arch-flow">
@@ -159,6 +185,7 @@
               <span>Notion</span>
               <span>Zulip</span>
               <span>kdb+</span>
+              <span>REST API</span>
             </div>
           </div>
 
@@ -167,8 +194,8 @@
           <div class="arch-core">
             <div class="arch-core-title">Teidelum</div>
             <div class="arch-core-tools">
-              <div class="arch-tool">search</div>
-              <div class="arch-tool">sql</div>
+              <div class="arch-tool">tantivy</div>
+              <div class="arch-tool">libteide</div>
               <div class="arch-tool">graph</div>
             </div>
           </div>
@@ -176,10 +203,11 @@
           <div class="arch-arrow">&rarr;</div>
 
           <div class="arch-node">
-            <div class="arch-node-label">Interfaces</div>
+            <div class="arch-node-label">Transports</div>
             <div class="arch-node-items">
               <span>MCP (stdio)</span>
-              <span>REST API (HTTP)</span>
+              <span>MCP (HTTP)</span>
+              <span>REST API</span>
             </div>
           </div>
 
@@ -197,45 +225,46 @@
       </div>
 
       <p style="text-align:center; color: var(--gray-text); margin-top: 24px; font-size: .9rem;">
-        Synced data splits into <strong style="color: var(--text);">tantivy</strong> (full-text search) and <strong style="color: var(--text);">libteide</strong> (columnar SQL). The query router dispatches to the right engine automatically. Access via MCP for AI agents or HTTP REST API for applications.
+        Synced content splits into <strong style="color: var(--text);">tantivy</strong> for full-text search and <strong style="color: var(--text);">libteide</strong> for columnar SQL. The query router dispatches automatically. Applications can also push data in via REST or MCP write tools.
       </p>
     </div>
   </section>
 
-  <!-- Code Example -->
+  <!-- Code Examples -->
   <section id="code" class="code-section">
     <div class="container">
       <div class="section-label">SEE IT IN ACTION</div>
-      <h2 class="code-section-title">Connect and query</h2>
-      <p class="code-section-subtitle">Agents call MCP tools directly, or use the REST API from any language. Search content, query tables, traverse relationships.</p>
+      <h2 class="code-section-title">Two lines to start, one API to use</h2>
+      <p class="code-section-subtitle">Run the binary, point your MCP client at it, or call the REST API from any language. Search, query, and traverse in seconds.</p>
 
       <div class="code-block">
         <div class="code-header">
           <span class="code-dot red"></span>
           <span class="code-dot yellow"></span>
           <span class="code-dot green"></span>
-          <span class="code-filename">agent-session.jsonc</span>
+          <span class="code-filename">terminal</span>
         </div>
         <button class="copy-btn" data-copy>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
           Copy
         </button>
-        <pre><code><span class="cmt">// Search across all synced content</span>
-{
-  <span class="str">"tool"</span>: <span class="str">"search"</span>,
-  <span class="str">"params"</span>: {
-    <span class="str">"query"</span>: <span class="str">"JWT token rotation"</span>,
-    <span class="str">"limit"</span>: <span class="num">5</span>
-  }
-}
+        <pre><code><span class="cmt"># Start with HTTP server on port 8080</span>
+<span class="cmd">teidelum</span> --port <span class="num">8080</span>
 
-<span class="cmt">// Then query structured data</span>
-{
-  <span class="str">"tool"</span>: <span class="str">"sql"</span>,
-  <span class="str">"params"</span>: {
-    <span class="str">"query"</span>: <span class="str">"SELECT assignee, status, priority FROM project_tasks WHERE status = 'in_progress' ORDER BY priority"</span>
-  }
-}</code></pre>
+<span class="cmt"># Search across all indexed content</span>
+<span class="cmd">curl</span> -X POST http://localhost:8080/api/v1/search \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"query": "JWT token rotation", "limit": 5}'</span>
+
+<span class="cmt"># Run SQL over structured data</span>
+<span class="cmd">curl</span> -X POST http://localhost:8080/api/v1/sql \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"query": "SELECT assignee, count(*) FROM tasks WHERE status = '\''open'\'' GROUP BY assignee"}'</span>
+
+<span class="cmt"># Traverse entity relationships</span>
+<span class="cmd">curl</span> -X POST http://localhost:8080/api/v1/graph/neighbors \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"start_table": "customers", "start_id": "42", "max_depth": 2}'</span></code></pre>
       </div>
 
       <div class="code-block" style="margin-top: 24px;">
@@ -243,21 +272,70 @@
           <span class="code-dot red"></span>
           <span class="code-dot yellow"></span>
           <span class="code-dot green"></span>
-          <span class="code-filename">rest-api.sh</span>
+          <span class="code-filename">mcp-agent.jsonc</span>
         </div>
         <button class="copy-btn" data-copy>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
           Copy
         </button>
-        <pre><code><span class="cmt"># Create a table via REST API</span>
-curl -X POST http://localhost:8080/api/v1/tables \
-  -H <span class="str">"Content-Type: application/json"</span> \
-  -d <span class="str">'{"name":"users","source":"app","columns":[{"name":"id","type":"int"},{"name":"name","type":"varchar"}],"rows":[[1,"Alice"],[2,"Bob"]]}'</span>
+        <pre><code><span class="cmt">// AI agents call the same operations via MCP tools</span>
 
-<span class="cmt"># Query with SQL</span>
-curl -X POST http://localhost:8080/api/v1/sql \
-  -H <span class="str">"Content-Type: application/json"</span> \
-  -d <span class="str">'{"query":"SELECT * FROM users WHERE id = 1"}'</span></code></pre>
+<span class="cmt">// Search</span>
+{ <span class="str">"tool"</span>: <span class="str">"search"</span>, <span class="str">"params"</span>: { <span class="str">"query"</span>: <span class="str">"auth migration plan"</span>, <span class="str">"limit"</span>: <span class="num">5</span> } }
+
+<span class="cmt">// SQL</span>
+{ <span class="str">"tool"</span>: <span class="str">"sql"</span>, <span class="str">"params"</span>: { <span class="str">"query"</span>: <span class="str">"SELECT * FROM projects WHERE deadline &lt; '2026-04-01'"</span> } }
+
+<span class="cmt">// Create a table (write tools work on both MCP and REST)</span>
+{
+  <span class="str">"tool"</span>: <span class="str">"create_table"</span>,
+  <span class="str">"params"</span>: {
+    <span class="str">"name"</span>: <span class="str">"meeting_notes"</span>,
+    <span class="str">"source"</span>: <span class="str">"agent"</span>,
+    <span class="str">"columns"</span>: [
+      { <span class="str">"name"</span>: <span class="str">"id"</span>, <span class="str">"type"</span>: <span class="str">"int"</span> },
+      { <span class="str">"name"</span>: <span class="str">"title"</span>, <span class="str">"type"</span>: <span class="str">"varchar"</span> },
+      { <span class="str">"name"</span>: <span class="str">"date"</span>, <span class="str">"type"</span>: <span class="str">"varchar"</span> }
+    ],
+    <span class="str">"rows"</span>: [[<span class="num">1</span>, <span class="str">"Sprint Planning"</span>, <span class="str">"2026-03-01"</span>]]
+  }
+}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Who it's for -->
+  <section class="usecases-section">
+    <div class="container">
+      <div class="section-label" style="text-align:center;">WHO IT'S FOR</div>
+      <h2 class="arch-title">Built for teams that use AI seriously</h2>
+      <p class="arch-subtitle">Whether you're building AI-powered internal tools, giving agents access to company knowledge, or connecting live data sources&mdash;Teidelum is the server that sits between your data and everything that consumes it.</p>
+
+      <div class="usecases-grid">
+        <div class="usecase-card fade-in-up">
+          <h3>AI-Powered Applications</h3>
+          <p>Build apps that search, query, and write organizational knowledge through a standard REST API. No ML pipeline. No vector database. Just HTTP and JSON.</p>
+        </div>
+        <div class="usecase-card fade-in-up">
+          <h3>AI Agent Infrastructure</h3>
+          <p>Give your MCP-enabled agents 11 tools for reading, writing, and traversing knowledge. They create tables, index documents, and discover relationships on their own.</p>
+        </div>
+        <div class="usecase-card fade-in-up">
+          <h3>Knowledge Consolidation</h3>
+          <p>Notion pages, Zulip threads, kdb+ tables&mdash;fragmented across tools. Teidelum syncs it all into one index. Search across everything. Query across everything. Connect everything.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="container" style="text-align:center;">
+      <h2 class="arch-title">Ready to try it?</h2>
+      <p class="arch-subtitle">Teidelum is open-source, MIT-licensed, and runs anywhere Rust compiles. One cargo install and you're live.</p>
+      <div class="hero-buttons" style="justify-content:center; margin-top: 32px;">
+        <a href="docs/quick-start.html" class="btn btn-primary">Quick Start Guide</a>
+        <a href="docs/api-reference.html" class="btn btn-outline">API Reference</a>
       </div>
     </div>
   </section>
@@ -269,9 +347,10 @@ curl -X POST http://localhost:8080/api/v1/sql \
         <a href="https://github.com/TeideDB/teidelum" target="_blank" rel="noopener">GitHub</a>
         <a href="https://teidedb.com" target="_blank" rel="noopener">TeideDB.com</a>
         <a href="docs/index.html">Docs</a>
+        <a href="docs/api-reference.html">API Reference</a>
         <a href="https://github.com/TeideDB/teidelum/blob/master/LICENSE" target="_blank" rel="noopener">MIT License</a>
       </div>
-      <p>Teidelum &mdash; Local-first MCP server. MIT License.</p>
+      <p>Teidelum &mdash; Knowledge infrastructure for AI. MIT License.</p>
     </div>
   </footer>
 

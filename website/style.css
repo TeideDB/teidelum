@@ -367,6 +367,70 @@ code {
 .scroll-top:hover { background: var(--primary-dark); transform: translateY(-2px); }
 .scroll-top svg { width: 20px; height: 20px; }
 
+/* ── Why Section ─────────────────────────────── */
+.why-section { padding: 80px 0 100px; }
+.why-title {
+  font-family: var(--font-heading); font-size: 2.5rem; font-weight: 700;
+  text-align: center; margin-bottom: 16px; color: var(--text);
+}
+.why-lead {
+  text-align: center; color: var(--gray-text); margin-bottom: 48px;
+  font-size: 1.05rem; max-width: 680px; margin-left: auto; margin-right: auto;
+  line-height: 1.7;
+}
+.why-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+  max-width: 860px; margin: 0 auto;
+}
+.why-card {
+  border-radius: 16px; padding: 32px;
+}
+.why-card-problem {
+  background: var(--cream); border: 1px solid var(--cream-dark);
+}
+.why-card-solution {
+  background: var(--primary-bg); border: 1px solid var(--primary-pale);
+}
+.why-card-label {
+  font-family: var(--font-heading); font-size: .75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--gray-text); margin-bottom: 16px;
+}
+.why-card-solution .why-card-label { color: var(--primary); }
+.why-list { list-style: none; padding: 0; }
+.why-list li {
+  padding: 8px 0; font-size: .93rem; color: var(--text-light);
+  line-height: 1.5; border-bottom: 1px solid rgba(75,103,119,.06);
+}
+.why-list li:last-child { border-bottom: none; }
+.why-card-problem .why-list li::before {
+  content: '\2013\00a0'; color: var(--gray-text);
+}
+.why-card-solution .why-list li::before {
+  content: '\2713\00a0'; color: var(--primary); font-weight: 600;
+}
+
+/* ── Use Cases ───────────────────────────────── */
+.usecases-section { padding: 80px 0 100px; background: var(--cream); }
+.usecases-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+  margin-top: 48px;
+}
+.usecase-card {
+  background: var(--white); border: 1px solid rgba(75,103,119,.08);
+  border-radius: 16px; padding: 32px;
+  transition: box-shadow .3s ease, transform .3s ease;
+}
+.usecase-card:hover { box-shadow: 0 8px 30px rgba(75,103,119,.1); transform: translateY(-4px); }
+.usecase-card h3 {
+  font-family: var(--font-heading); font-size: 1.3rem; font-weight: 600;
+  color: var(--text); margin-bottom: 12px;
+}
+.usecase-card p { color: var(--gray-text); font-size: .93rem; line-height: 1.7; }
+
+/* ── CTA Section ─────────────────────────────── */
+.cta-section { padding: 80px 0 100px; }
+
 /* ── Animations ──────────────────────────────── */
 .fade-in-up {
   opacity: 0; transform: translateY(30px);
@@ -396,6 +460,9 @@ code {
   .hero h1 { font-size: 2.5rem; }
   .hero-subtitle { font-size: 1rem; }
   .features-grid { grid-template-columns: 1fr; gap: 40px; }
+  .why-grid { grid-template-columns: 1fr; }
+  .why-title { font-size: 2rem; }
+  .usecases-grid { grid-template-columns: 1fr; }
   .code-block pre { font-size: .8rem; padding: 18px; }
   .code-section-title, .arch-title { font-size: 2rem; }
   .arch-flow { flex-direction: column; }
