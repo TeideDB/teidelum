@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teidelum — Local-First MCP Server</title>
+  <meta name="description" content="Compact MCP server that syncs work tools and connects live data sources into a single searchable, queryable index. Single binary, zero config, data never leaves your machine.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="nav">
+    <div class="container">
+      <a href="#" class="nav-brand">
+        <img src="assets/teidelum-icon.svg" alt="Teidelum" width="28" height="28">
+        Teidelum
+      </a>
+      <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="docs/">Docs</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li>
+          <a href="https://github.com/TeideDB/teidelum" class="nav-github" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-decor">
+      <div class="stripe stripe-1"></div>
+      <div class="stripe stripe-2"></div>
+      <div class="stripe stripe-3"></div>
+      <div class="stripe stripe-4"></div>
+    </div>
+    <svg class="hero-mountain" viewBox="0 0 48 40" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#4b6777" d="M24 2 L6 34 H42 Z"/>
+      <path d="M10 26 Q24 18 38 26" stroke="#4b6777" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="container">
+      <div class="hero-content">
+        <h1>Your tools. One index. <span class="accent">Local-first.</span></h1>
+        <div class="hero-chips">
+          <span class="chip">MCP Native</span>
+          <span class="chip">Full-Text Search</span>
+          <span class="chip">SQL Analytics</span>
+          <span class="chip">Graph Traversal</span>
+          <span class="chip">Zero Config</span>
+        </div>
+        <p class="hero-subtitle">Single binary MCP server that syncs work tools and connects live data sources into a single searchable, queryable index. Data never leaves your machine.</p>
+        <div class="hero-buttons">
+          <a href="docs/quick-start.html" class="btn btn-primary">Get started</a>
+          <a href="https://github.com/TeideDB/teidelum" class="btn btn-outline" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="features-section">
+    <div class="container">
+      <div class="section-label">CAPABILITIES</div>
+      <div class="features-grid">
+
+        <div class="feature-item">
+          <div class="feature-number">01</div>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <h3>Full-Text Search</h3>
+          <p>BM25 ranking with fuzzy matching across all synced content. Highlighted snippets with source attribution and date filtering.</p>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-number">02</div>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <h3>SQL Analytics</h3>
+          <p>Columnar queries over structured data from any synced source. Filter, group, sort, join&mdash;all through a standard SQL interface.</p>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-number">03</div>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/></svg>
+          </div>
+          <h3>Graph Traversal</h3>
+          <p>Navigate foreign-key relationships between entities via BFS. Find neighbors, discover paths, filter by direction and relationship type.</p>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-number">04</div>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </div>
+          <h3>Work Tool Sync</h3>
+          <p>Pull data from Notion pages and Zulip messages with incremental sync. Only changed records on each run.</p>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-number">05</div>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <h3>Live Connectors</h3>
+          <p>Query external data sources in real-time. Built-in kdb+ adapter with a trait for adding your own connectors.</p>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-number">06</div>
+          <div class="feature-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          </div>
+          <h3>Single Binary</h3>
+          <p>One Rust binary, no config files, no services to run. Set <code>TEIDELUM_DATA</code> and go. Everything stays local.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section id="architecture" class="arch-section">
+    <div class="container">
+      <div class="section-label">ARCHITECTURE</div>
+      <h2 class="arch-title">How it works</h2>
+      <p class="arch-subtitle">Data flows from your tools through Teidelum's dual storage into MCP tools that AI agents call directly.</p>
+
+      <div class="arch-diagram">
+        <div class="arch-flow">
+          <div class="arch-node">
+            <div class="arch-node-label">Sources</div>
+            <div class="arch-node-items">
+              <span>Notion</span>
+              <span>Zulip</span>
+              <span>kdb+</span>
+            </div>
+          </div>
+
+          <div class="arch-arrow">&rarr;</div>
+
+          <div class="arch-core">
+            <div class="arch-core-title">Teidelum</div>
+            <div class="arch-core-tools">
+              <div class="arch-tool">search</div>
+              <div class="arch-tool">sql</div>
+              <div class="arch-tool">graph</div>
+            </div>
+          </div>
+
+          <div class="arch-arrow">&rarr;</div>
+
+          <div class="arch-node">
+            <div class="arch-node-label">MCP Tools</div>
+            <div class="arch-node-items">
+              <span>search</span>
+              <span>sql</span>
+              <span>describe</span>
+              <span>graph</span>
+              <span>sync</span>
+            </div>
+          </div>
+
+          <div class="arch-arrow">&rarr;</div>
+
+          <div class="arch-node">
+            <div class="arch-node-label">AI Agents</div>
+            <div class="arch-node-items">
+              <span>Claude</span>
+              <span>GPT</span>
+              <span>Custom</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p style="text-align:center; color: var(--gray-text); margin-top: 24px; font-size: .9rem;">
+        Synced data splits into <strong style="color: var(--text);">tantivy</strong> (full-text search) and <strong style="color: var(--text);">libteide</strong> (columnar SQL). The query router dispatches to the right engine automatically.
+      </p>
+    </div>
+  </section>
+
+  <!-- Code Example -->
+  <section id="code" class="code-section">
+    <div class="container">
+      <div class="section-label">SEE IT IN ACTION</div>
+      <h2 class="code-section-title">Connect and query</h2>
+      <p class="code-section-subtitle">Agents call MCP tools directly. Search content, query tables, traverse relationships.</p>
+
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-dot red"></span>
+          <span class="code-dot yellow"></span>
+          <span class="code-dot green"></span>
+          <span class="code-filename">agent-session.jsonc</span>
+        </div>
+        <button class="copy-btn" data-copy>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+        <pre><code><span class="cmt">// Search across all synced content</span>
+{
+  <span class="str">"tool"</span>: <span class="str">"search"</span>,
+  <span class="str">"params"</span>: {
+    <span class="str">"query"</span>: <span class="str">"JWT token rotation"</span>,
+    <span class="str">"limit"</span>: <span class="num">5</span>
+  }
+}
+
+<span class="cmt">// Then query structured data</span>
+{
+  <span class="str">"tool"</span>: <span class="str">"sql"</span>,
+  <span class="str">"params"</span>: {
+    <span class="str">"query"</span>: <span class="str">"SELECT assignee, status, priority FROM project_tasks WHERE status = 'in_progress' ORDER BY priority"</span>
+  }
+}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://github.com/TeideDB/teidelum" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://teidedb.com" target="_blank" rel="noopener">TeideDB.com</a>
+        <a href="docs/">Docs</a>
+        <a href="https://github.com/TeideDB/teidelum/blob/master/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      </div>
+      <p>Teidelum &mdash; Local-first MCP server. MIT License.</p>
+    </div>
+  </footer>
+
+  <!-- Scroll-to-top -->
+  <button class="scroll-top" aria-label="Scroll to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+  </button>
+
+  <script src="script.js"></script>
+</body>
+</html>
