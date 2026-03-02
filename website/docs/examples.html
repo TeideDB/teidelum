@@ -55,7 +55,10 @@
     <!-- Content -->
     <main class="docs-content">
       <h1>Agent Workflows</h1>
-      <p class="page-subtitle">End-to-end examples showing how AI agents chain MCP tools together.</p>
+      <p class="page-subtitle">End-to-end examples showing how AI agents chain MCP tools together, plus REST API usage for application integration.</p>
+
+      <h2>MCP Tool Examples</h2>
+      <p>These examples show read operations (search, sql, describe, graph) and write operations (create_table, add_rows, add_documents, drop_table) available via MCP tools.</p>
 
       <h2>Investigation: Search &rarr; SQL &rarr; Graph</h2>
       <p>Scenario: an agent needs to understand who's working on authentication issues and what's connected.</p>
@@ -127,6 +130,66 @@
   }
 }</code></pre>
       <p>Returns the shortest path of relationships linking Alice Chen to the "API Gateway Timeout" incident&mdash;through task assignments, team membership, or incident reports.</p>
+
+      <h2>REST API Examples</h2>
+      <p>When running with <code>--port</code>, Teidelum exposes a REST API for application integration. These examples use <code>curl</code> but any HTTP client works.</p>
+
+      <h3>Creating and querying data</h3>
+      <pre><code># Start the server
+teidelum --port 8080
+
+# Create a table
+curl -X POST http://localhost:8080/api/v1/tables \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "customers",
+    "source": "crm",
+    "columns": [
+      {"name": "id", "type": "int"},
+      {"name": "name", "type": "varchar"},
+      {"name": "email", "type": "varchar"}
+    ],
+    "rows": [
+      [1, "Alice", "alice@example.com"],
+      [2, "Bob", "bob@example.com"]
+    ]
+  }'
+
+# Insert more rows
+curl -X POST http://localhost:8080/api/v1/tables/customers/rows \
+  -H "Content-Type: application/json" \
+  -d '{"rows": [[3, "Charlie", "charlie@example.com"]]}'
+
+# Query with SQL
+curl -X POST http://localhost:8080/api/v1/sql \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM customers WHERE id > 1"}'</code></pre>
+
+      <h3>Adding search documents</h3>
+      <pre><code>curl -X POST http://localhost:8080/api/v1/documents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documents": [{
+      "id": "doc-001",
+      "source": "wiki",
+      "title": "Onboarding Guide",
+      "body": "Welcome to the team. Here is how to get started..."
+    }]
+  }'
+
+# Search
+curl -X POST http://localhost:8080/api/v1/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "onboarding", "limit": 5}'</code></pre>
+
+      <h3>With authentication</h3>
+      <p>Set the <code>TEIDELUM_API_KEY</code> environment variable to require a Bearer token on every request:</p>
+      <pre><code>TEIDELUM_API_KEY=secret teidelum --port 8080
+
+curl -X POST http://localhost:8080/api/v1/tables \
+  -H "Authorization: Bearer secret" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "secure_table", "source": "app", "columns": [{"name": "id", "type": "int"}], "rows": []}'</code></pre>
 
       <!-- Prev/Next -->
       <div class="docs-nav-footer">

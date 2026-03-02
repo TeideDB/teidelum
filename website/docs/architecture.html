@@ -70,6 +70,8 @@
           <tr><td><code>search.rs</code></td><td>tantivy wrapper: BM25 ranking + fuzzy matching search engine</td></tr>
           <tr><td><code>catalog.rs</code></td><td>Metadata catalog: schemas, FK relationships, local vs remote tracking</td></tr>
           <tr><td><code>graph.rs</code></td><td>SQL-based graph traversal: BFS over catalog FK relationships (max 10 hops)</td></tr>
+          <tr><td><code>server.rs</code></td><td>HTTP server setup: axum router, CORS, API key auth middleware, MCP Streamable HTTP</td></tr>
+          <tr><td><code>routes.rs</code></td><td>REST endpoint handlers: 12 routes under /api/v1/ delegating to TeidelumApi</td></tr>
           <tr><td><code>connector/kdb.rs</code></td><td>kdb+ live query adapter</td></tr>
           <tr><td><code>sync/notion.rs</code></td><td>Notion incremental sync with cursor tracking</td></tr>
           <tr><td><code>sync/zulip.rs</code></td><td>Zulip incremental sync with cursor tracking</td></tr>
@@ -83,8 +85,26 @@
         <li>The <strong>Catalog</strong> registers every table's schema and foreign-key relationships.</li>
         <li>The <strong>Query Router</strong> inspects the catalog to dispatch queries: local tables go to libteide, remote tables go through connectors.</li>
         <li>The <strong>Graph Engine</strong> uses catalog FK relationships to traverse between entities, running SQL queries at each BFS hop.</li>
-        <li><strong>MCP tools</strong> wrap everything behind 5 simple operations: search, sql, describe, graph, sync.</li>
+        <li><strong>MCP tools</strong> wrap everything behind simple operations: search, sql, describe, graph, sync, create_table, add_rows, add_documents, drop_table.</li>
       </ol>
+
+      <h2>HTTP Server Layer</h2>
+      <p>Teidelum is a single binary with dual transport. <strong>MCP stdio</strong> is always on for AI agent integration. An <strong>HTTP server</strong> is opt-in via the <code>--port</code> flag, enabling REST API access for applications and scripts.</p>
+      <p>Both transports share a single <code>Arc&lt;TeidelumApi&gt;</code> instance&mdash;there is no data duplication or sync between them.</p>
+
+      <ul>
+        <li><strong>REST API</strong> at <code>/api/v1/*</code> &mdash; 12 routes handled by axum endpoint handlers in <code>routes.rs</code></li>
+        <li><strong>MCP Streamable HTTP</strong> at <code>/mcp</code> &mdash; the same MCP protocol available over HTTP via the rmcp transport</li>
+        <li><strong>API key auth</strong> &mdash; optional, enabled by setting the <code>TEIDELUM_API_KEY</code> environment variable. Requests must include <code>Authorization: Bearer &lt;key&gt;</code>.</li>
+      </ul>
+
+      <pre><code>teidelum [--port 8080]
+│
+├── MCP stdio (always on)
+│
+└── HTTP server (opt-in via --port)
+    ├── /api/v1/*     REST API (axum handlers)
+    └── /mcp          MCP Streamable HTTP (rmcp)</code></pre>
 
       <h2>Key Design Patterns</h2>
 
