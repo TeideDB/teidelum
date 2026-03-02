@@ -101,6 +101,23 @@ impl SearchEngine {
         Ok(count)
     }
 
+    /// Delete documents by their id field. Returns the number of delete operations issued.
+    pub fn delete_documents(&self, ids: &[String]) -> Result<usize> {
+        let mut writer: IndexWriter = self.index.writer(50_000_000)?;
+        let mut count = 0;
+
+        for id in ids {
+            let term = tantivy::Term::from_field_text(self.f_id, id);
+            writer.delete_term(term);
+            count += 1;
+        }
+
+        writer.commit()?;
+        self.reader.reload()?;
+
+        Ok(count)
+    }
+
     /// Run a full-text search query.
     pub fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
@@ -152,5 +169,51 @@ impl SearchEngine {
         }
 
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_delete_documents() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        // Index 3 docs
+        let docs = vec![
+            ("d1".to_string(), "test".to_string(), "Alpha".to_string(), "alpha content".to_string()),
+            ("d2".to_string(), "test".to_string(), "Beta".to_string(), "beta content".to_string()),
+            ("d3".to_string(), "test".to_string(), "Gamma".to_string(), "gamma content".to_string()),
+        ];
+        engine.index_documents(&docs).unwrap();
+
+        // Delete d1 and d3
+        let deleted = engine.delete_documents(&["d1".to_string(), "d3".to_string()]).unwrap();
+        assert_eq!(deleted, 2);
+
+        // Search should only find d2
+        let results = engine
+            .search(&SearchQuery {
+                text: "content".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "d2");
+    }
+
+    #[test]
+    fn test_delete_documents_nonexistent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        // delete_documents returns count of delete operations, not matched docs
+        let deleted = engine.delete_documents(&["ghost".to_string()]).unwrap();
+        assert_eq!(deleted, 1);
     }
 }
