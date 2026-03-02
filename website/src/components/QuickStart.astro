@@ -3,15 +3,13 @@
 ---
 <section class="quickstart">
   <h2 class="quickstart__title">Get started in seconds</h2>
-  <div class="quickstart__code">
-    <div><span class="comment"># Clone and build</span></div>
-    <div><span class="command">git clone https://github.com/TeideDB/teidelum.git</span></div>
-    <div><span class="command">cd teidelum && cargo build --release</span></div>
-    <div>&nbsp;</div>
-    <div><span class="comment"># Run the MCP server</span></div>
-    <div><span class="command">./target/release/teidelum</span></div>
-    <div>&nbsp;</div>
-    <div><span class="comment"># Add to your MCP client config</span></div>
-    <div><span class="command">&#123; "mcpServers": &#123; "teidelum": &#123; "command": "./target/release/teidelum" &#125; &#125; &#125;</span></div>
-  </div>
+  <pre class="quickstart__code"><code><span class="comment"># Clone and build</span>
+<span class="command">git clone https://github.com/TeideDB/teidelum.git</span>
+<span class="command">cd teidelum && cargo build --release</span>
+
+<span class="comment"># Run the MCP server</span>
+<span class="command">./target/release/teidelum</span>
+
+<span class="comment"># Add to your MCP client config</span>
+<span class="command">&#123; "mcpServers": &#123; "teidelum": &#123; "command": "./target/release/teidelum" &#125; &#125; &#125;</span></code></pre>
 </section>
