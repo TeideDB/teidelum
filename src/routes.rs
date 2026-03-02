@@ -398,8 +398,12 @@ fn json_to_value(v: &serde_json::Value, dtype: &str) -> Value {
         serde_json::Value::Number(n) => {
             if dtype == "f64" || dtype == "double" || dtype == "float" {
                 Value::Float(n.as_f64().unwrap_or(0.0))
+            } else if let Some(i) = n.as_i64() {
+                Value::Int(i)
+            } else if let Some(f) = n.as_f64() {
+                Value::Float(f)
             } else {
-                Value::Int(n.as_i64().unwrap_or(0))
+                Value::Null
             }
         }
         serde_json::Value::String(s) => Value::String(s.clone()),

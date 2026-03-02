@@ -110,6 +110,9 @@ impl QueryRouter {
 
     /// Drop a table from the teide session.
     pub fn drop_table(&self, name: &str) -> Result<()> {
+        if !crate::catalog::is_valid_identifier(name) {
+            anyhow::bail!("invalid identifier: '{name}'");
+        }
         self.query_sync(&format!("DROP TABLE IF EXISTS {name}"))?;
         Ok(())
     }

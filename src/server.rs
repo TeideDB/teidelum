@@ -19,21 +19,21 @@ pub fn build_router(api: Arc<TeidelumApi>) -> Router {
         .with_state(api)
         .layer(CorsLayer::permissive());
 
-    // If TEIDELUM_API_KEY is set, wrap all routes with auth middleware
-    if std::env::var("TEIDELUM_API_KEY").is_ok() {
-        app = app.layer(middleware::from_fn(auth_middleware));
+    // If TEIDELUM_API_KEY is set, capture it once and wrap all routes with auth middleware
+    if let Ok(key) = std::env::var("TEIDELUM_API_KEY") {
+        if !key.is_empty() {
+            app = app.layer(middleware::from_fn(move |req, next| {
+                let key = key.clone();
+                async move { auth_check(req, next, key).await }
+            }));
+        }
     }
 
     app
 }
 
-/// Auth middleware: requires `Authorization: Bearer <key>` matching TEIDELUM_API_KEY.
-async fn auth_middleware(request: Request, next: Next) -> Response {
-    let expected = match std::env::var("TEIDELUM_API_KEY") {
-        Ok(key) if !key.is_empty() => key,
-        _ => return next.run(request).await,
-    };
-
+/// Auth check: requires `Authorization: Bearer <key>` matching the captured key.
+async fn auth_check(request: Request, next: Next, expected_key: String) -> Response {
     let auth_header = request
         .headers()
         .get("authorization")
@@ -42,7 +42,7 @@ async fn auth_middleware(request: Request, next: Next) -> Response {
     match auth_header {
         Some(header) if header.starts_with("Bearer ") => {
             let token = &header[7..];
-            if token == expected {
+            if token == expected_key {
                 next.run(request).await
             } else {
                 (
