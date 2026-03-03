@@ -200,4 +200,304 @@ mod tests {
         let mut catalog = Catalog::new();
         assert!(!catalog.remove_table("ghost"));
     }
+
+    #[test]
+    fn test_register_and_lookup() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "users".to_string(),
+            source: "test".to_string(),
+            storage: StorageType::Local,
+            columns: vec![ColumnInfo {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            }],
+            row_count: Some(10),
+        });
+
+        let entry = catalog.lookup_table("users").unwrap();
+        assert_eq!(entry.name, "users");
+        assert_eq!(entry.source, "test");
+        assert_eq!(entry.columns.len(), 1);
+        assert_eq!(entry.row_count, Some(10));
+    }
+
+    #[test]
+    fn test_register_replaces_existing() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "users".to_string(),
+            source: "old".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: Some(5),
+        });
+        catalog.register_table(TableEntry {
+            name: "users".to_string(),
+            source: "new".to_string(),
+            storage: StorageType::Local,
+            columns: vec![ColumnInfo {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            }],
+            row_count: Some(20),
+        });
+
+        assert_eq!(catalog.tables().len(), 1);
+        let entry = catalog.lookup_table("users").unwrap();
+        assert_eq!(entry.source, "new");
+        assert_eq!(entry.row_count, Some(20));
+    }
+
+    #[test]
+    fn test_lookup_nonexistent() {
+        let catalog = Catalog::new();
+        assert!(catalog.lookup_table("ghost").is_none());
+    }
+
+    #[test]
+    fn test_tables_by_source() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "a".to_string(),
+            source: "notion".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+        catalog.register_table(TableEntry {
+            name: "b".to_string(),
+            source: "zulip".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+        catalog.register_table(TableEntry {
+            name: "c".to_string(),
+            source: "notion".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+
+        let notion = catalog.tables_by_source("notion");
+        assert_eq!(notion.len(), 2);
+        assert!(notion.iter().all(|t| t.source == "notion"));
+    }
+
+    #[test]
+    fn test_tables_by_source_empty() {
+        let catalog = Catalog::new();
+        assert!(catalog.tables_by_source("ghost").is_empty());
+    }
+
+    #[test]
+    fn test_describe_json_structure() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "t".to_string(),
+            source: "s".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+
+        let desc = catalog.describe(None).unwrap();
+        assert!(desc["tables"].is_array());
+        assert!(desc["relationships"].is_array());
+        assert_eq!(desc["tables"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_describe_includes_columns() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "t".to_string(),
+            source: "s".to_string(),
+            storage: StorageType::Local,
+            columns: vec![
+                ColumnInfo {
+                    name: "id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+                ColumnInfo {
+                    name: "name".to_string(),
+                    dtype: "string".to_string(),
+                },
+            ],
+            row_count: Some(42),
+        });
+
+        let desc = catalog.describe(None).unwrap();
+        let table = &desc["tables"][0];
+        let cols = table["columns"].as_array().unwrap();
+        assert_eq!(cols.len(), 2);
+        assert_eq!(cols[0]["name"], "id");
+        assert_eq!(cols[0]["dtype"], "i64");
+        assert_eq!(table["row_count"], 42);
+    }
+
+    #[test]
+    fn test_describe_source_filter_relationships() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "users".to_string(),
+            source: "notion".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+        catalog.register_table(TableEntry {
+            name: "tasks".to_string(),
+            source: "zulip".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+        catalog
+            .register_relationship(Relationship {
+                from_table: "tasks".to_string(),
+                from_col: "owner".to_string(),
+                to_table: "users".to_string(),
+                to_col: "name".to_string(),
+                relation: "owned_by".to_string(),
+            })
+            .unwrap();
+
+        // Filter by "zulip" — should see tasks table and its relationship
+        let desc = catalog.describe(Some("zulip")).unwrap();
+        let tables = desc["tables"].as_array().unwrap();
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0]["name"], "tasks");
+        let rels = desc["relationships"].as_array().unwrap();
+        assert_eq!(rels.len(), 1);
+
+        // Filter by nonexistent — no tables, no rels
+        let desc2 = catalog.describe(Some("ghost")).unwrap();
+        assert!(desc2["tables"].as_array().unwrap().is_empty());
+        assert!(desc2["relationships"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_register_relationship_valid() {
+        let mut catalog = Catalog::new();
+        catalog
+            .register_relationship(Relationship {
+                from_table: "tasks".to_string(),
+                from_col: "owner".to_string(),
+                to_table: "people".to_string(),
+                to_col: "name".to_string(),
+                relation: "owned_by".to_string(),
+            })
+            .unwrap();
+        assert_eq!(catalog.relationships().len(), 1);
+    }
+
+    #[test]
+    fn test_register_relationship_invalid_identifier() {
+        let mut catalog = Catalog::new();
+
+        let cases = vec![
+            ("bad table!", "col", "t2", "col", "rel"),
+            ("t1", "bad col!", "t2", "col", "rel"),
+            ("t1", "col", "bad table!", "col", "rel"),
+            ("t1", "col", "t2", "bad col!", "rel"),
+            ("t1", "col", "t2", "col", "bad rel!"),
+        ];
+        for (ft, fc, tt, tc, r) in cases {
+            let result = catalog.register_relationship(Relationship {
+                from_table: ft.to_string(),
+                from_col: fc.to_string(),
+                to_table: tt.to_string(),
+                to_col: tc.to_string(),
+                relation: r.to_string(),
+            });
+            assert!(
+                result.is_err(),
+                "should reject invalid identifier in ({ft}, {fc}, {tt}, {tc}, {r})"
+            );
+        }
+        assert!(catalog.relationships().is_empty());
+    }
+
+    #[test]
+    fn test_is_valid_identifier_comprehensive() {
+        // Valid
+        assert!(is_valid_identifier("a"));
+        assert!(is_valid_identifier("_a"));
+        assert!(is_valid_identifier("table_name"));
+        assert!(is_valid_identifier("col1"));
+        assert!(is_valid_identifier("ABC"));
+        assert!(is_valid_identifier("_"));
+
+        // Invalid
+        assert!(!is_valid_identifier(""));
+        assert!(!is_valid_identifier("1col"));
+        assert!(!is_valid_identifier("has space"));
+        assert!(!is_valid_identifier("dot.name"));
+        assert!(!is_valid_identifier("dash-name"));
+        assert!(!is_valid_identifier("semi;colon"));
+        assert!(!is_valid_identifier("'quoted'"));
+    }
+
+    #[test]
+    fn test_remove_table_cascades_multiple_relationships() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "a".to_string(),
+            source: "t".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+        catalog.register_table(TableEntry {
+            name: "b".to_string(),
+            source: "t".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+        catalog.register_table(TableEntry {
+            name: "c".to_string(),
+            source: "t".to_string(),
+            storage: StorageType::Local,
+            columns: vec![],
+            row_count: None,
+        });
+
+        // a->b, c->a, b->c
+        catalog
+            .register_relationship(Relationship {
+                from_table: "a".to_string(),
+                from_col: "id".to_string(),
+                to_table: "b".to_string(),
+                to_col: "ref".to_string(),
+                relation: "r1".to_string(),
+            })
+            .unwrap();
+        catalog
+            .register_relationship(Relationship {
+                from_table: "c".to_string(),
+                from_col: "id".to_string(),
+                to_table: "a".to_string(),
+                to_col: "ref".to_string(),
+                relation: "r2".to_string(),
+            })
+            .unwrap();
+        catalog
+            .register_relationship(Relationship {
+                from_table: "b".to_string(),
+                from_col: "id".to_string(),
+                to_table: "c".to_string(),
+                to_col: "ref".to_string(),
+                relation: "r3".to_string(),
+            })
+            .unwrap();
+
+        // Remove "a" — should cascade r1 (a->b) and r2 (c->a), leave r3 (b->c)
+        assert!(catalog.remove_table("a"));
+        assert_eq!(catalog.tables().len(), 2);
+        assert_eq!(catalog.relationships().len(), 1);
+        assert_eq!(catalog.relationships()[0].relation, "r3");
+    }
 }
