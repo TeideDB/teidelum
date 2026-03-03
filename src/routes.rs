@@ -423,3 +423,765 @@ fn map_dtype(t: &str) -> &str {
         other => other,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    use crate::api::TeidelumApi;
+    use crate::catalog::Relationship;
+    use crate::connector::{ColumnSchema, Value};
+    use crate::sync::SearchDocument;
+
+    /// Build a test router with a fresh TeidelumApi.
+    fn test_router(tmp: &std::path::Path) -> axum::Router {
+        let api = Arc::new(TeidelumApi::new(tmp).unwrap());
+        super::api_routes().with_state(api)
+    }
+
+    /// Build a test router pre-loaded with demo data and relationships.
+    fn test_router_with_data(tmp: &std::path::Path) -> axum::Router {
+        crate::demo::generate(tmp).unwrap();
+        let api = Arc::new(TeidelumApi::open(tmp).unwrap());
+        api.register_relationships(vec![
+            Relationship {
+                from_table: "project_tasks".to_string(),
+                from_col: "assignee".to_string(),
+                to_table: "team_members".to_string(),
+                to_col: "name".to_string(),
+                relation: "assigned_to".to_string(),
+            },
+            Relationship {
+                from_table: "incidents".to_string(),
+                from_col: "reporter".to_string(),
+                to_table: "team_members".to_string(),
+                to_col: "name".to_string(),
+                relation: "reported_by".to_string(),
+            },
+        ])
+        .unwrap();
+        super::api_routes().with_state(api)
+    }
+
+    /// Helper: extract JSON body from response.
+    async fn json_body(resp: axum::response::Response) -> serde_json::Value {
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    // --- Search ---
+
+    #[tokio::test]
+    async fn test_search_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/search")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "authentication"}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        let results = body.as_array().unwrap();
+        assert!(!results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_search_endpoint_with_source_filter() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/search")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "authentication", "sources": ["notion"]})
+                            .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        let results = body.as_array().unwrap();
+        for r in results {
+            assert_eq!(r["source"], "notion");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_search_endpoint_empty_results() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/search")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "xyznonexistentterm"}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert!(body.as_array().unwrap().is_empty());
+    }
+
+    // --- SQL ---
+
+    #[tokio::test]
+    async fn test_sql_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/sql")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "SELECT count(*) FROM team_members"})
+                            .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert!(body["columns"].is_array());
+        assert!(body["rows"].is_array());
+        assert!(!body["rows"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_sql_endpoint_invalid_query() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/sql")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "SELECTZ INVALID"}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let body = json_body(resp).await;
+        assert!(body["error"].is_string());
+    }
+
+    // --- Describe ---
+
+    #[tokio::test]
+    async fn test_describe_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/describe")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert!(body["tables"].as_array().unwrap().len() >= 3);
+        assert!(body["relationships"].is_array());
+    }
+
+    #[tokio::test]
+    async fn test_describe_source_filter() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/describe/demo")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        let tables = body["tables"].as_array().unwrap();
+        assert!(!tables.is_empty());
+        for t in tables {
+            assert_eq!(t["source"], "demo");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_describe_source_filter_nonexistent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/describe/ghostsource")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert!(body["tables"].as_array().unwrap().is_empty());
+    }
+
+    // --- Graph ---
+
+    #[tokio::test]
+    async fn test_neighbors_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/graph/neighbors")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "table": "team_members",
+                            "key": "Alice Chen",
+                            "depth": 1
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert!(body["nodes"].as_array().unwrap().len() >= 2);
+        assert!(!body["edges"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_path_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        crate::demo::generate(tmp.path()).unwrap();
+        let api = Arc::new(TeidelumApi::open(tmp.path()).unwrap());
+        api.register_relationships(vec![Relationship {
+            from_table: "project_tasks".to_string(),
+            from_col: "assignee".to_string(),
+            to_table: "team_members".to_string(),
+            to_col: "name".to_string(),
+            relation: "assigned_to".to_string(),
+        }])
+        .unwrap();
+
+        // Get a real task/assignee pair
+        let result = api
+            .query("SELECT title, assignee FROM project_tasks LIMIT 1")
+            .unwrap();
+        let title = match &result.rows[0][0] {
+            Value::String(s) => s.clone(),
+            other => panic!("expected String, got {other:?}"),
+        };
+        let assignee = match &result.rows[0][1] {
+            Value::String(s) => s.clone(),
+            other => panic!("expected String, got {other:?}"),
+        };
+
+        let app = super::api_routes().with_state(api);
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/graph/path")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "table": "project_tasks",
+                            "key": title,
+                            "key_col": "title",
+                            "to_table": "team_members",
+                            "to_key": assignee,
+                            "to_key_col": "name",
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert_eq!(body["found"], true);
+        assert!(body["path"].as_array().unwrap().len() >= 2);
+    }
+
+    #[tokio::test]
+    async fn test_path_endpoint_not_found() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router_with_data(tmp.path());
+
+        // When the target key does not exist in the database at all, the graph
+        // engine returns an error (target node not found), which the handler
+        // maps to BAD_REQUEST.
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/graph/path")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "table": "team_members",
+                            "key": "Alice Chen",
+                            "key_col": "name",
+                            "to_table": "incidents",
+                            "to_key": "NONEXISTENT",
+                            "to_key_col": "title",
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let body = json_body(resp).await;
+        assert!(body["error"].as_str().unwrap().contains("not found"));
+    }
+
+    // --- Tables CRUD ---
+
+    #[tokio::test]
+    async fn test_create_table_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/tables")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "name": "users",
+                            "source": "test",
+                            "columns": [
+                                {"name": "id", "type": "integer"},
+                                {"name": "name", "type": "string"}
+                            ],
+                            "rows": [[1, "Alice"], [2, "Bob"]]
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let body = json_body(resp).await;
+        assert_eq!(body["table"], "users");
+        assert_eq!(body["rows_inserted"], 2);
+    }
+
+    #[tokio::test]
+    async fn test_create_table_invalid_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/tables")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "name": "'; DROP TABLE x;--",
+                            "source": "test",
+                            "columns": [{"name": "id", "type": "integer"}],
+                            "rows": []
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        let body = json_body(resp).await;
+        assert!(body["error"]
+            .as_str()
+            .unwrap()
+            .contains("invalid identifier"));
+    }
+
+    #[tokio::test]
+    async fn test_insert_rows_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = Arc::new(TeidelumApi::new(tmp.path()).unwrap());
+        api.create_table(
+            "items",
+            "test",
+            &[
+                ColumnSchema {
+                    name: "id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+                ColumnSchema {
+                    name: "name".to_string(),
+                    dtype: "string".to_string(),
+                },
+            ],
+            &[vec![Value::Int(1), Value::String("first".to_string())]],
+        )
+        .unwrap();
+
+        let app = super::api_routes().with_state(api);
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/tables/items/rows")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "rows": [[2, "second"], [3, "third"]]
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert_eq!(body["rows_inserted"], 2);
+    }
+
+    #[tokio::test]
+    async fn test_insert_rows_nonexistent_table() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/tables/ghost/rows")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"rows": [[1, "a"]]}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_delete_table_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = Arc::new(TeidelumApi::new(tmp.path()).unwrap());
+        api.create_table(
+            "ephemeral",
+            "test",
+            &[ColumnSchema {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            }],
+            &[vec![Value::Int(1)]],
+        )
+        .unwrap();
+
+        let app = super::api_routes().with_state(api);
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/tables/ephemeral")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert_eq!(body["deleted"], "ephemeral");
+    }
+
+    #[tokio::test]
+    async fn test_delete_table_nonexistent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/tables/ghost")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    // --- Documents ---
+
+    #[tokio::test]
+    async fn test_add_documents_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/documents")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "documents": [
+                                {"id": "d1", "source": "test", "title": "Doc One", "body": "content one"},
+                                {"id": "d2", "source": "test", "title": "Doc Two", "body": "content two"}
+                            ]
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let body = json_body(resp).await;
+        assert_eq!(body["documents_indexed"], 2);
+    }
+
+    #[tokio::test]
+    async fn test_delete_document_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = Arc::new(TeidelumApi::new(tmp.path()).unwrap());
+        api.add_documents(&[SearchDocument {
+            id: "d1".to_string(),
+            source: "test".to_string(),
+            title: "Title".to_string(),
+            body: "body".to_string(),
+            metadata: serde_json::Map::new(),
+        }])
+        .unwrap();
+
+        let app = super::api_routes().with_state(api);
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/api/v1/documents/d1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        assert_eq!(body["deleted"], "d1");
+    }
+
+    // --- Relationships ---
+
+    #[tokio::test]
+    async fn test_add_relationship_endpoint() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/relationships")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "from_table": "tasks",
+                            "from_col": "owner",
+                            "to_table": "people",
+                            "to_col": "name",
+                            "relation": "owned_by"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let body = json_body(resp).await;
+        assert!(body["relationship"]
+            .as_str()
+            .unwrap()
+            .contains("tasks.owner"));
+    }
+
+    #[tokio::test]
+    async fn test_add_relationship_invalid() {
+        let tmp = tempfile::tempdir().unwrap();
+        let app = test_router(tmp.path());
+
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/relationships")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "from_table": "bad table!",
+                            "from_col": "col",
+                            "to_table": "t2",
+                            "to_col": "col",
+                            "relation": "rel"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    // --- End-to-end roundtrip ---
+
+    #[tokio::test]
+    async fn test_create_then_query_roundtrip() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = Arc::new(TeidelumApi::new(tmp.path()).unwrap());
+        let app = super::api_routes().with_state(api);
+
+        // Create table
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/tables")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "name": "products",
+                            "source": "test",
+                            "columns": [
+                                {"name": "id", "type": "integer"},
+                                {"name": "name", "type": "string"},
+                                {"name": "price", "type": "float"}
+                            ],
+                            "rows": [[1, "Widget", 9.99], [2, "Gadget", 19.99]]
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        // Query it back
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/v1/sql")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "SELECT name, price FROM products WHERE price > 10"})
+                            .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        let rows = body["rows"].as_array().unwrap();
+        assert_eq!(rows.len(), 1);
+
+        // Verify describe shows it
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/api/v1/describe")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = json_body(resp).await;
+        let tables = body["tables"].as_array().unwrap();
+        assert!(tables.iter().any(|t| t["name"] == "products"));
+    }
+}
