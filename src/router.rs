@@ -187,4 +187,238 @@ mod tests {
         let result = router.query_sync("SELECT * FROM test_drop");
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_create_and_select() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE people (id BIGINT, name VARCHAR, score DOUBLE)")
+            .unwrap();
+        router
+            .query_sync(
+                "INSERT INTO people (id, name, score) VALUES (1, 'Alice', 9.5), (2, 'Bob', 7.2)",
+            )
+            .unwrap();
+
+        let result = router.query_sync("SELECT * FROM people").unwrap();
+        assert_eq!(result.columns.len(), 3);
+        assert_eq!(result.rows.len(), 2);
+
+        assert_eq!(result.columns[0].name, "id");
+        assert_eq!(result.columns[1].name, "name");
+        assert_eq!(result.columns[2].name, "score");
+
+        match &result.rows[0][0] {
+            Value::Int(i) => assert_eq!(*i, 1),
+            other => panic!("expected Int, got {other:?}"),
+        }
+        match &result.rows[0][1] {
+            Value::String(s) => assert_eq!(s, "Alice"),
+            other => panic!("expected String, got {other:?}"),
+        }
+        match &result.rows[0][2] {
+            Value::Float(f) => assert!((f - 9.5).abs() < 0.001),
+            other => panic!("expected Float, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_multiple_inserts() {
+        let router = QueryRouter::new().unwrap();
+        router.query_sync("CREATE TABLE items (id BIGINT)").unwrap();
+        router
+            .query_sync("INSERT INTO items (id) VALUES (1), (2), (3)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO items (id) VALUES (4), (5)")
+            .unwrap();
+
+        let result = router.query_sync("SELECT * FROM items").unwrap();
+        assert_eq!(result.rows.len(), 5);
+    }
+
+    #[test]
+    fn test_select_with_where() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE nums (id BIGINT, val BIGINT)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO nums (id, val) VALUES (1, 10), (2, 20), (3, 30)")
+            .unwrap();
+
+        let result = router
+            .query_sync("SELECT * FROM nums WHERE val > 15")
+            .unwrap();
+        assert_eq!(result.rows.len(), 2);
+    }
+
+    #[test]
+    fn test_select_with_order_by() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE sorted (name VARCHAR, score BIGINT)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO sorted (name, score) VALUES ('c', 3), ('a', 1), ('b', 2)")
+            .unwrap();
+
+        let result = router
+            .query_sync("SELECT name FROM sorted ORDER BY score")
+            .unwrap();
+        assert_eq!(result.rows.len(), 3);
+        let names: Vec<String> = result
+            .rows
+            .iter()
+            .map(|r| match &r[0] {
+                Value::String(s) => s.clone(),
+                other => panic!("expected String, got {other:?}"),
+            })
+            .collect();
+        assert_eq!(names, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn test_select_with_aggregation() {
+        let router = QueryRouter::new().unwrap();
+        router.query_sync("CREATE TABLE agg (val BIGINT)").unwrap();
+        router
+            .query_sync("INSERT INTO agg (val) VALUES (10), (20), (30)")
+            .unwrap();
+
+        let result = router
+            .query_sync("SELECT count(*) as cnt, sum(val) as total FROM agg")
+            .unwrap();
+        assert_eq!(result.rows.len(), 1);
+        match &result.rows[0][0] {
+            Value::Int(i) => assert_eq!(*i, 3),
+            other => panic!("expected Int for count, got {other:?}"),
+        }
+        match &result.rows[0][1] {
+            Value::Int(i) => assert_eq!(*i, 60),
+            other => panic!("expected Int for sum, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_all_column_types() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE typed (b BOOLEAN, i BIGINT, f DOUBLE, s VARCHAR)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO typed (b, i, f, s) VALUES (TRUE, 42, 3.14, 'hello')")
+            .unwrap();
+
+        let result = router.query_sync("SELECT * FROM typed").unwrap();
+        assert_eq!(result.rows.len(), 1);
+
+        assert_eq!(result.columns[0].dtype, "bool");
+        assert_eq!(result.columns[1].dtype, "i64");
+        assert_eq!(result.columns[2].dtype, "f64");
+        assert_eq!(result.columns[3].dtype, "string");
+
+        match &result.rows[0][0] {
+            Value::Bool(b) => assert!(*b),
+            other => panic!("expected Bool, got {other:?}"),
+        }
+        match &result.rows[0][1] {
+            Value::Int(i) => assert_eq!(*i, 42),
+            other => panic!("expected Int, got {other:?}"),
+        }
+        match &result.rows[0][2] {
+            Value::Float(f) => assert!((f - 3.14).abs() < 0.001),
+            other => panic!("expected Float, got {other:?}"),
+        }
+        match &result.rows[0][3] {
+            Value::String(s) => assert_eq!(s, "hello"),
+            other => panic!("expected String, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_null_values() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE nullable (id BIGINT, name VARCHAR)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO nullable (id, name) VALUES (1, NULL)")
+            .unwrap();
+
+        let result = router.query_sync("SELECT * FROM nullable").unwrap();
+        assert_eq!(result.rows.len(), 1);
+        // teide represents NULL strings as empty strings
+        match &result.rows[0][1] {
+            Value::Null | Value::String(_) => {}
+            other => panic!("expected Null or String for NULL value, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_table_names() {
+        let router = QueryRouter::new().unwrap();
+        assert!(router.table_names().is_empty());
+
+        router.query_sync("CREATE TABLE alpha (id BIGINT)").unwrap();
+        router.query_sync("CREATE TABLE beta (id BIGINT)").unwrap();
+
+        let names = router.table_names();
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&"alpha".to_string()));
+        assert!(names.contains(&"beta".to_string()));
+    }
+
+    #[test]
+    fn test_table_info() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE info_test (id BIGINT, name VARCHAR)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO info_test (id, name) VALUES (1, 'a'), (2, 'b'), (3, 'c')")
+            .unwrap();
+
+        let (rows, cols) = router.table_info("info_test").unwrap();
+        assert_eq!(rows, 3);
+        assert_eq!(cols, 2);
+    }
+
+    #[test]
+    fn test_table_info_nonexistent() {
+        let router = QueryRouter::new().unwrap();
+        assert!(router.table_info("ghost").is_none());
+    }
+
+    #[test]
+    fn test_query_nonexistent_table() {
+        let router = QueryRouter::new().unwrap();
+        let result = router.query_sync("SELECT * FROM ghost");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_drop_table_invalid_identifier() {
+        let router = QueryRouter::new().unwrap();
+        let result = router.drop_table("'; DROP TABLE x;--");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("invalid identifier"));
+    }
+
+    #[test]
+    fn test_ddl_result_format() {
+        let router = QueryRouter::new().unwrap();
+        let result = router
+            .query_sync("CREATE TABLE ddl_test (id BIGINT)")
+            .unwrap();
+        assert_eq!(result.columns.len(), 1);
+        assert_eq!(result.columns[0].name, "status");
+        match &result.rows[0][0] {
+            Value::String(s) => assert!(!s.is_empty()),
+            other => panic!("expected String status, got {other:?}"),
+        }
+    }
 }
