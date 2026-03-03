@@ -350,8 +350,9 @@ mod tests {
         assert_eq!(result.rows.len(), 1);
         // teide represents NULL strings as empty strings
         match &result.rows[0][1] {
-            Value::Null | Value::String(_) => {}
-            other => panic!("expected Null or String for NULL value, got {other:?}"),
+            Value::Null => {}
+            Value::String(s) => assert!(s.is_empty(), "NULL should be empty string, got: {s}"),
+            other => panic!("expected Null or empty String for NULL value, got {other:?}"),
         }
     }
 

@@ -156,7 +156,9 @@ async fn search_handler(
     let results = api
         .search(&query)
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
-    Ok(Json(serde_json::to_value(results).unwrap()))
+    let value = serde_json::to_value(results)
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e.into()))?;
+    Ok(Json(value))
 }
 
 async fn sql_handler(
@@ -166,7 +168,9 @@ async fn sql_handler(
     let result = api
         .query(&req.query)
         .map_err(|e| err(StatusCode::BAD_REQUEST, e))?;
-    Ok(Json(serde_json::to_value(result).unwrap()))
+    let value = serde_json::to_value(result)
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e.into()))?;
+    Ok(Json(value))
 }
 
 async fn describe_handler(
@@ -239,16 +243,29 @@ async fn create_table_handler(
         })
         .collect();
 
+    let col_count = columns.len();
     let rows: Vec<Vec<Value>> = req
         .rows
         .iter()
-        .map(|row| {
-            row.iter()
+        .enumerate()
+        .map(|(i, row)| {
+            if row.len() != col_count {
+                return Err(err(
+                    StatusCode::BAD_REQUEST,
+                    anyhow::anyhow!(
+                        "row {i} has {} values but {} columns defined",
+                        row.len(),
+                        col_count,
+                    ),
+                ));
+            }
+            Ok(row
+                .iter()
                 .zip(columns.iter())
                 .map(|(v, c)| json_to_value(v, &c.dtype))
-                .collect()
+                .collect())
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     let row_count = rows.len();
 
@@ -296,16 +313,29 @@ async fn insert_rows_handler(
         })
         .collect();
 
+    let col_count = columns.len();
     let rows: Vec<Vec<Value>> = req
         .rows
         .iter()
-        .map(|row| {
-            row.iter()
+        .enumerate()
+        .map(|(i, row)| {
+            if row.len() != col_count {
+                return Err(err(
+                    StatusCode::BAD_REQUEST,
+                    anyhow::anyhow!(
+                        "row {i} has {} values but {} columns defined",
+                        row.len(),
+                        col_count,
+                    ),
+                ));
+            }
+            Ok(row
+                .iter()
                 .zip(columns.iter())
                 .map(|(v, c)| json_to_value(v, &c.dtype))
-                .collect()
+                .collect())
         })
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
 
     let row_count = rows.len();
 

@@ -408,7 +408,8 @@ mod tests {
                 date_to: None,
             })
             .unwrap();
-        assert!(results.len() <= 3);
+        assert!(!results.is_empty(), "should return at least one result");
+        assert!(results.len() <= 3, "should respect the limit");
     }
 
     #[test]
