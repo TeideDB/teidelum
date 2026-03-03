@@ -233,4 +233,313 @@ mod tests {
         let deleted = engine.delete_documents(&["ghost".to_string()]).unwrap();
         assert_eq!(deleted, 1);
     }
+
+    #[test]
+    fn test_index_and_search_basic() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![(
+            "doc1".to_string(),
+            "test".to_string(),
+            "Getting Started".to_string(),
+            "This guide covers installation and setup of the application".to_string(),
+        )];
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "installation".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "doc1");
+        assert_eq!(results[0].source, "test");
+        assert_eq!(results[0].title, "Getting Started");
+    }
+
+    #[test]
+    fn test_search_title_match() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![(
+            "doc1".to_string(),
+            "test".to_string(),
+            "Kubernetes Deployment Guide".to_string(),
+            "This document covers container orchestration".to_string(),
+        )];
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "Kubernetes".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "doc1");
+    }
+
+    #[test]
+    fn test_search_returns_scores() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![
+            (
+                "d1".to_string(),
+                "t".to_string(),
+                "Auth".to_string(),
+                "authentication authentication authentication".to_string(),
+            ),
+            (
+                "d2".to_string(),
+                "t".to_string(),
+                "Other".to_string(),
+                "something else with authentication mentioned once".to_string(),
+            ),
+        ];
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "authentication".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|r| r.score > 0.0));
+        assert!(results[0].score >= results[1].score);
+    }
+
+    #[test]
+    fn test_search_source_filter() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![
+            (
+                "d1".to_string(),
+                "notion".to_string(),
+                "Notion Doc".to_string(),
+                "important project documentation".to_string(),
+            ),
+            (
+                "d2".to_string(),
+                "zulip".to_string(),
+                "Zulip Thread".to_string(),
+                "important discussion thread".to_string(),
+            ),
+        ];
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "important".to_string(),
+                sources: Some(vec!["notion".to_string()]),
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].source, "notion");
+    }
+
+    #[test]
+    fn test_search_source_filter_excludes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![(
+            "d1".to_string(),
+            "notion".to_string(),
+            "Title".to_string(),
+            "unique content here".to_string(),
+        )];
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "unique".to_string(),
+                sources: Some(vec!["zulip".to_string()]),
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_search_limit() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs: Vec<_> = (0..10)
+            .map(|i| {
+                (
+                    format!("d{i}"),
+                    "test".to_string(),
+                    format!("Doc {i}"),
+                    "common keyword repeated here".to_string(),
+                )
+            })
+            .collect();
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "keyword".to_string(),
+                sources: None,
+                limit: 3,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert!(results.len() <= 3);
+    }
+
+    #[test]
+    fn test_search_no_results() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![(
+            "d1".to_string(),
+            "test".to_string(),
+            "Title".to_string(),
+            "some content".to_string(),
+        )];
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "xyznonexistent".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_index_empty_batch() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let count = engine.index_documents(&[]).unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_index_duplicate_ids() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![
+            (
+                "same_id".to_string(),
+                "test".to_string(),
+                "First".to_string(),
+                "first version content".to_string(),
+            ),
+            (
+                "same_id".to_string(),
+                "test".to_string(),
+                "Second".to_string(),
+                "second version content".to_string(),
+            ),
+        ];
+        let count = engine.index_documents(&docs).unwrap();
+        assert_eq!(count, 2);
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "content".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn test_search_snippet_contains_match() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![(
+            "d1".to_string(),
+            "test".to_string(),
+            "Title".to_string(),
+            "The authentication system uses JWT tokens for security".to_string(),
+        )];
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "authentication".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        let snippet = &results[0].snippet;
+        assert!(
+            snippet.contains("authentication") || snippet.contains("Authentication"),
+            "snippet should reference matched term, got: {snippet}"
+        );
+    }
+
+    #[test]
+    fn test_search_multiple_terms() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![
+            (
+                "d1".to_string(),
+                "test".to_string(),
+                "Auth".to_string(),
+                "authentication and authorization patterns".to_string(),
+            ),
+            (
+                "d2".to_string(),
+                "test".to_string(),
+                "Deploy".to_string(),
+                "deployment and monitoring setup".to_string(),
+            ),
+        ];
+        engine.index_documents(&docs).unwrap();
+
+        let results = engine
+            .search(&SearchQuery {
+                text: "authentication authorization".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert!(!results.is_empty());
+        assert_eq!(results[0].id, "d1");
+    }
 }
