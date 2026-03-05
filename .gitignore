@@ -1,10 +1,4 @@
 /target
 .claude/
+.DS_Store
 
-# ralphex progress logs
-.ralphex/progress/
-
-# website build artifacts
-website/node_modules/
-website/dist/
-website/.astro/

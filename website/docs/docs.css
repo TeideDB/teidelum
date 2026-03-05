@@ -1,4 +1,4 @@
-/* Docs layout — imports shared design tokens */
+/* Docs layout — imports shared design tokens (dark bold theme) */
 @import url('../style.css');
 
 /* ── Docs Layout ────────────────────────────── */
@@ -14,17 +14,17 @@
   height: 56px;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 24px;
-  background: rgba(255,255,255,.95);
+  background: rgba(10, 14, 19, 0.92);
   border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 .docs-topbar-left {
   display: flex; align-items: center; gap: 16px;
 }
 .docs-topbar-left a {
   display: flex; align-items: center; gap: 6px;
-  color: var(--gray-text); font-size: .85rem; font-weight: 500;
+  color: var(--text-muted); font-size: .85rem; font-weight: 500;
   transition: color .2s;
 }
 .docs-topbar-left a:hover { color: var(--text); }
@@ -36,6 +36,21 @@
 }
 .docs-brand img { width: 22px; height: 22px; }
 
+/* ── Docs GitHub Button ──────────────────────── */
+.nav-github {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text) !important;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  padding: 6px 16px;
+  border-radius: 100px; font-size: .85rem; font-weight: 600;
+  transition: all .2s;
+  box-shadow: 0 2px 12px rgba(75, 103, 119, 0.3);
+}
+.nav-github:hover {
+  box-shadow: 0 4px 20px rgba(75, 103, 119, 0.5);
+  color: var(--text) !important;
+}
+
 /* ── Sidebar ────────────────────────────────── */
 .docs-sidebar {
   width: 240px; min-width: 240px;
@@ -43,25 +58,25 @@
   border-right: 1px solid var(--border);
   position: fixed; top: 56px; bottom: 0; left: 0;
   overflow-y: auto;
-  background: var(--surface-alt);
+  background: var(--bg-section);
 }
 .sidebar-section { margin-bottom: 28px; }
 .sidebar-section-label {
-  font-family: var(--font-heading); font-size: .7rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .1em;
-  color: var(--gray-text); margin-bottom: 8px; padding-left: 12px;
+  font-family: var(--mono); font-size: .65rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .14em;
+  color: var(--accent); margin-bottom: 10px; padding-left: 12px;
 }
 .sidebar-link {
   display: block; padding: 6px 12px; border-radius: 8px;
-  font-size: .875rem; font-weight: 500; color: var(--gray-text);
+  font-size: .875rem; font-weight: 500; color: var(--text-muted);
   transition: color .15s, background .15s;
   margin-bottom: 2px;
 }
 .sidebar-link:hover {
-  color: var(--text); background: rgba(75,103,119,.06);
+  color: var(--text); background: rgba(75, 103, 119, 0.08);
 }
 .sidebar-link.active {
-  color: var(--primary); background: var(--primary-bg);
+  color: var(--accent); background: rgba(94, 234, 212, 0.08);
   font-weight: 600;
 }
 
@@ -79,28 +94,39 @@
   color: var(--text); margin-bottom: 8px; line-height: 1.15;
 }
 .docs-content .page-subtitle {
-  font-size: 1.05rem; color: var(--gray-text); margin-bottom: 40px;
+  font-size: 1.05rem; color: var(--text-muted); margin-bottom: 40px;
   line-height: 1.6;
 }
 .docs-content h2 {
   font-family: var(--font-heading); font-size: 1.5rem; font-weight: 600;
   color: var(--text); margin-top: 48px; margin-bottom: 16px;
-  padding-bottom: 8px; border-bottom: 1px solid var(--border-light);
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
 }
 .docs-content h3 {
   font-family: var(--font-heading); font-size: 1.15rem; font-weight: 600;
   color: var(--text); margin-top: 32px; margin-bottom: 12px;
 }
 .docs-content p {
-  color: var(--text-light); font-size: .95rem; line-height: 1.75;
+  color: var(--text-muted); font-size: .95rem; line-height: 1.75;
   margin-bottom: 16px;
 }
+.docs-content p a { color: var(--accent); }
+.docs-content p a:hover { color: var(--primary-lighter); }
 .docs-content ul, .docs-content ol {
-  color: var(--text-light); font-size: .95rem; line-height: 1.75;
+  color: var(--text-muted); font-size: .95rem; line-height: 1.75;
   margin-bottom: 16px; padding-left: 24px;
 }
 .docs-content li { margin-bottom: 6px; }
+.docs-content li a { color: var(--accent); }
 .docs-content strong { color: var(--text); font-weight: 600; }
+
+/* ── Inline Code ───────────────────────────── */
+.docs-content code {
+  font-family: var(--mono); font-size: .85em;
+  background: rgba(75, 103, 119, 0.15);
+  color: var(--primary-lighter);
+  padding: 2px 6px; border-radius: 4px;
+}
 
 /* ── Tables ─────────────────────────────────── */
 .docs-content table {
@@ -109,21 +135,22 @@
 }
 .docs-content th {
   text-align: left; padding: 10px 14px;
-  background: var(--surface-alt); font-weight: 600;
-  color: var(--primary-dark); border-bottom: 1px solid var(--border);
-  font-family: var(--font-heading); font-size: .75rem;
+  background: rgba(75, 103, 119, 0.06); font-weight: 600;
+  color: var(--text-muted); border-bottom: 1px solid var(--border);
+  font-family: var(--font-heading); font-size: .72rem;
   text-transform: uppercase; letter-spacing: .06em;
 }
 .docs-content td {
-  padding: 8px 14px; border-bottom: 1px solid var(--border-light);
-  color: var(--text-light);
+  padding: 8px 14px; border-bottom: 1px solid rgba(75, 103, 119, 0.06);
+  color: var(--text-muted);
 }
 .docs-content tr:last-child td { border-bottom: none; }
-.docs-content tr:hover td { background: var(--primary-bg); }
+.docs-content tr:hover td { background: rgba(75, 103, 119, 0.04); }
 
 /* ── Code Blocks in Docs ────────────────────── */
 .docs-content pre {
-  background: var(--navy); color: #e2e8f0;
+  background: var(--bg-section); color: #e2e8f0;
+  border: 1px solid var(--border);
   padding: 20px; border-radius: 12px;
   font-family: var(--mono); font-size: .82rem;
   line-height: 1.7; overflow-x: auto;
@@ -148,17 +175,17 @@
   transition: border-color .2s, box-shadow .2s;
 }
 .docs-nav-link:hover {
-  border-color: var(--primary-pale);
-  box-shadow: 0 4px 16px rgba(75,103,119,.08);
+  border-color: var(--border-hover);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 .docs-nav-link.next { text-align: right; }
 .docs-nav-label {
-  font-size: .75rem; color: var(--gray-text); font-weight: 500;
+  font-size: .75rem; color: var(--text-muted); font-weight: 500;
   text-transform: uppercase; letter-spacing: .06em;
 }
 .docs-nav-title {
   font-family: var(--font-heading); font-size: 1rem; font-weight: 600;
-  color: var(--primary);
+  color: var(--accent);
 }
 
 /* ── Mobile Sidebar Toggle ──────────────────── */
@@ -178,7 +205,7 @@
     display: none;
     position: fixed; top: 56px; left: 0; right: 0; bottom: 0;
     width: 100%; z-index: 99;
-    background: rgba(255,255,255,.98);
+    background: rgba(13, 18, 25, 0.98);
     backdrop-filter: blur(12px);
   }
   .docs-sidebar.open { display: block; }
