@@ -1217,3 +1217,44 @@ fn is_channel_member(state: &AppState, channel_id: i64, user_id: i64) -> bool {
         Err(_) => false,
     }
 }
+
+// ── Routes ──
+
+use axum::{middleware, Router};
+
+pub fn chat_routes(state: AppState) -> Router {
+    let authed = Router::new()
+        // Conversations
+        .route("/conversations.create", axum::routing::post(conversations_create))
+        .route("/conversations.list", axum::routing::post(conversations_list))
+        .route("/conversations.info", axum::routing::post(conversations_info))
+        .route("/conversations.history", axum::routing::post(conversations_history))
+        .route("/conversations.replies", axum::routing::post(conversations_replies))
+        .route("/conversations.join", axum::routing::post(conversations_join))
+        .route("/conversations.leave", axum::routing::post(conversations_leave))
+        .route("/conversations.invite", axum::routing::post(conversations_invite))
+        .route("/conversations.members", axum::routing::post(conversations_members))
+        .route("/conversations.open", axum::routing::post(conversations_open))
+        // Chat
+        .route("/chat.postMessage", axum::routing::post(chat_post_message))
+        .route("/chat.update", axum::routing::post(chat_update))
+        .route("/chat.delete", axum::routing::post(chat_delete))
+        // Users
+        .route("/users.list", axum::routing::post(users_list))
+        .route("/users.info", axum::routing::post(users_info))
+        .route("/users.setPresence", axum::routing::post(users_set_presence))
+        // Reactions
+        .route("/reactions.add", axum::routing::post(reactions_add))
+        .route("/reactions.remove", axum::routing::post(reactions_remove))
+        .layer(middleware::from_fn(crate::chat::auth::jwt_middleware))
+        .with_state(state.clone());
+
+    let public = Router::new()
+        .route("/auth.register", axum::routing::post(auth_register))
+        .route("/auth.login", axum::routing::post(auth_login))
+        .with_state(state);
+
+    Router::new()
+        .nest("/api/slack", authed)
+        .nest("/api/slack", public)
+}

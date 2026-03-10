@@ -69,6 +69,8 @@ async fn main() -> Result<()> {
     teidelum::chat::models::init_chat_tables(&api)?;
     tracing::info!("chat tables initialized");
 
+    let hub = Arc::new(teidelum::chat::hub::Hub::new());
+
     if let Some(port) = cli.port {
         // HTTP mode: run REST API + stdio MCP in parallel
         let api = Arc::new(api);
@@ -77,8 +79,9 @@ async fn main() -> Result<()> {
 
         let http_handle = tokio::spawn({
             let api = api.clone();
+            let hub = hub.clone();
             let bind = cli.bind.clone();
-            async move { teidelum::server::start(api, &bind, port).await }
+            async move { teidelum::server::start(api, hub, &bind, port).await }
         });
 
         tracing::info!(
