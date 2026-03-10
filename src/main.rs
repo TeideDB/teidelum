@@ -65,6 +65,10 @@ async fn main() -> Result<()> {
         },
     ])?;
 
+    // Initialize chat tables
+    teidelum::chat::models::init_chat_tables(&api)?;
+    tracing::info!("chat tables initialized");
+
     if let Some(port) = cli.port {
         // HTTP mode: run REST API + stdio MCP in parallel
         let api = Arc::new(api);
