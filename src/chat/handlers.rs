@@ -1239,6 +1239,66 @@ pub struct ReactionRequest {
     pub timestamp: i64,
 }
 
+// ── Search ──
+
+#[derive(Deserialize)]
+pub struct SearchMessagesRequest {
+    pub query: String,
+    #[serde(default = "default_search_limit")]
+    pub limit: usize,
+}
+
+fn default_search_limit() -> usize {
+    20
+}
+
+pub async fn search_messages(
+    State(state): State<AppState>,
+    Extension(_claims): Extension<Claims>,
+    Json(req): Json<SearchMessagesRequest>,
+) -> Response {
+    if req.query.is_empty() {
+        return slack::err("invalid_arguments");
+    }
+
+    let limit = req.limit.min(100);
+
+    let search_query = crate::search::SearchQuery {
+        text: req.query,
+        sources: Some(vec!["chat".to_string()]),
+        limit,
+        date_from: None,
+        date_to: None,
+    };
+
+    let results = match state.api.search_engine().search(&search_query) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("search.messages failed: {e}");
+            return slack::err("internal_error");
+        }
+    };
+
+    let matches: Vec<serde_json::Value> = results
+        .iter()
+        .map(|r| {
+            json!({
+                "ts": r.id,
+                "channel": r.title,
+                "text": r.snippet,
+                "score": r.score,
+            })
+        })
+        .collect();
+
+    slack::ok(json!({
+        "messages": {
+            "matches": matches,
+            "total": matches.len(),
+        }
+    }))
+}
+
 // ── Helpers ──
 
 fn is_channel_member(state: &AppState, channel_id: i64, user_id: i64) -> bool {
@@ -1280,6 +1340,8 @@ pub fn chat_routes(state: AppState) -> Router {
         // Reactions
         .route("/reactions.add", axum::routing::post(reactions_add))
         .route("/reactions.remove", axum::routing::post(reactions_remove))
+        // Search
+        .route("/search.messages", axum::routing::post(search_messages))
         .layer(middleware::from_fn(crate::chat::auth::jwt_middleware))
         .with_state(state.clone());
 
