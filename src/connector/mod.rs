@@ -15,6 +15,18 @@ pub enum Value {
     String(String),
 }
 
+impl Value {
+    pub fn to_json(&self) -> serde_json::Value {
+        match self {
+            Value::Null => serde_json::Value::Null,
+            Value::Bool(b) => serde_json::Value::Bool(*b),
+            Value::Int(i) => serde_json::json!(i.to_string()),
+            Value::Float(f) => serde_json::json!(*f),
+            Value::String(s) => serde_json::Value::String(s.clone()),
+        }
+    }
+}
+
 /// Schema information for a single column.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColumnSchema {
