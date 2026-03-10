@@ -37,6 +37,14 @@ Single crate, modules under `src/`:
 | `sync/mod.rs` | `SyncSource` trait + types (`SyncOutput`, `SearchDocument`) |
 | `sync/notion.rs` | Notion incremental sync |
 | `sync/zulip.rs` | Zulip incremental sync |
+| `server.rs` | HTTP server setup: Axum router, CORS, optional API key auth |
+| `chat/handlers.rs` | Slack-compatible REST API handlers (channels, messages, reactions, search) |
+| `chat/files.rs` | File upload (multipart, MIME allowlist) and download with auth |
+| `chat/hub.rs` | WebSocket pub/sub hub for real-time event broadcasting |
+| `chat/ws.rs` | WebSocket upgrade and per-connection event loop |
+| `chat/auth.rs` | JWT auth, Argon2 password hashing, middleware |
+| `chat/models.rs` | Chat schema DDL, FK relationships, SQL helpers |
+| `chat/events.rs` | Server/client event types for WebSocket protocol |
 
 ### Key Design Patterns
 
@@ -50,4 +58,4 @@ Single crate, modules under `src/`:
 
 ### MCP Tools
 
-Five tools exposed to AI agents: `search` (full-text), `sql` (analytical queries), `describe` (schema/catalog), `graph` (relationship traversal), `sync` (trigger data pull). Defined in `mcp.rs`.
+Seventeen tools exposed to AI agents: core tools (`search`, `sql`, `describe`, `graph`, `sync`), data management tools (`create_table`, `insert_rows`, `delete_table`, `add_documents`, `delete_documents`, `add_relationship`), and chat tools (`chat_post_message`, `chat_history`, `chat_reply`, `chat_react`, `chat_list_channels`, `chat_search`). Defined in `mcp.rs`.

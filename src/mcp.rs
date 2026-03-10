@@ -995,7 +995,12 @@ impl Teidelum {
                         _ => None,
                     })
                     .collect(),
-                Err(_) => std::collections::HashSet::new(),
+                Err(e) => {
+                    return Err(McpError::internal_error(
+                        format!("membership lookup failed: {e}"),
+                        None,
+                    ));
+                }
             }
         };
 

@@ -33,7 +33,6 @@ const ALLOWED_MIME_TYPES: &[&str] = &[
     "audio/ogg",
     "video/mp4",
     "video/webm",
-    "application/octet-stream",
 ];
 
 /// Guess MIME type from file extension.
@@ -364,6 +363,7 @@ pub async fn files_download(
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, mime_type)
         .header(header::CONTENT_DISPOSITION, content_disposition)
+        .header("X-Content-Type-Options", "nosniff")
         .body(Body::from(file_bytes))
         .unwrap_or_else(|_| {
             axum::http::Response::builder()

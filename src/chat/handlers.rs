@@ -1281,7 +1281,10 @@ pub async fn search_messages(
                     _ => None,
                 })
                 .collect(),
-            Err(_) => std::collections::HashSet::new(),
+            Err(e) => {
+                tracing::error!("membership lookup failed: {e}");
+                return slack::err("internal_error");
+            }
         }
     };
 
