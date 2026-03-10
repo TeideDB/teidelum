@@ -30,6 +30,7 @@ pub fn build_router(api: Arc<TeidelumApi>, hub: Arc<crate::chat::hub::Hub>, ct: 
         .merge(routes::api_routes())
         .with_state(api.clone())
         .merge(chat_routes(chat_state.clone()))
+        .route("/files/{id}/{filename}", axum::routing::get(crate::chat::files::files_download).with_state(chat_state.clone()))
         .route("/ws", axum::routing::get(ws_upgrade).with_state(chat_state))
         .layer(CorsLayer::permissive());
 

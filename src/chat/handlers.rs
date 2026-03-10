@@ -1342,6 +1342,8 @@ pub fn chat_routes(state: AppState) -> Router {
         .route("/reactions.remove", axum::routing::post(reactions_remove))
         // Search
         .route("/search.messages", axum::routing::post(search_messages))
+        // Files
+        .route("/files.upload", axum::routing::post(crate::chat::files::files_upload))
         .layer(middleware::from_fn(crate::chat::auth::jwt_middleware))
         .with_state(state.clone());
 
