@@ -218,16 +218,8 @@ pub async fn files_upload(
     }
 
     // Index the message in tantivy
-    let channel_name = {
-        let name_sql = format!("SELECT name FROM channels WHERE id = {}", channel_id);
-        match state.api.query_router().query_sync(&name_sql) {
-            Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
-                crate::connector::Value::String(s) => format!("#{s}"),
-                _ => format!("#{channel_id}"),
-            },
-            _ => format!("#{channel_id}"),
-        }
-    };
+    let channel_name =
+        crate::chat::models::channel_display_name(state.api.query_router(), channel_id);
     let doc = vec![(
         msg_id.to_string(),
         "chat".to_string(),

@@ -165,6 +165,24 @@ pub fn sql_str_or_null(v: &Option<String>) -> String {
     }
 }
 
+/// Over-fetch multiplier for search results before post-query auth filtering.
+/// Since tantivy has no per-user access control, we fetch extra results and
+/// filter in-app, then take the requested limit.
+pub const SEARCH_OVERFETCH_FACTOR: usize = 3;
+
+/// Look up channel display name (e.g. "#general") for tantivy indexing.
+/// Falls back to "#<channel_id>" if the channel name is unavailable.
+pub fn channel_display_name(router: &crate::router::QueryRouter, channel_id: i64) -> String {
+    let sql = format!("SELECT name FROM channels WHERE id = {}", channel_id);
+    match router.query_sync(&sql) {
+        Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
+            crate::connector::Value::String(s) => format!("#{s}"),
+            _ => format!("#{channel_id}"),
+        },
+        _ => format!("#{channel_id}"),
+    }
+}
+
 /// Get current timestamp as ISO 8601 string.
 pub fn now_timestamp() -> String {
     let now = std::time::SystemTime::now()

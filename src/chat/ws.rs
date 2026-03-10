@@ -93,8 +93,12 @@ async fn handle_socket(state: AppState, claims: auth::Claims, socket: WebSocket)
                                 if let Ok(ch_id) = channel.parse::<i64>() {
                                     if state_clone
                                         .hub
-                                        .should_broadcast_typing(user_id_clone, ch_id)
+                                        .is_channel_member(ch_id, user_id_clone)
                                         .await
+                                        && state_clone
+                                            .hub
+                                            .should_broadcast_typing(user_id_clone, ch_id)
+                                            .await
                                     {
                                         let typing_event = ServerEvent::Typing {
                                             channel: channel.clone(),

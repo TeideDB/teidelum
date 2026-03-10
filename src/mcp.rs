@@ -702,16 +702,8 @@ impl Teidelum {
             .map_err(|e| McpError::internal_error(format!("post message failed: {e}"), None))?;
 
         // Index in tantivy
-        let channel_name = {
-            let name_sql = format!("SELECT name FROM channels WHERE id = {}", params.channel);
-            match self.api.query_router().query_sync(&name_sql) {
-                Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
-                    Value::String(s) => format!("#{s}"),
-                    _ => format!("#{}", params.channel),
-                },
-                _ => format!("#{}", params.channel),
-            }
-        };
+        let channel_name =
+            crate::chat::models::channel_display_name(self.api.query_router(), params.channel);
         let doc = vec![(
             id.to_string(),
             "chat".to_string(),
@@ -820,16 +812,8 @@ impl Teidelum {
             .map_err(|e| McpError::internal_error(format!("reply failed: {e}"), None))?;
 
         // Index in tantivy
-        let channel_name = {
-            let name_sql = format!("SELECT name FROM channels WHERE id = {}", params.channel);
-            match self.api.query_router().query_sync(&name_sql) {
-                Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
-                    Value::String(s) => format!("#{s}"),
-                    _ => format!("#{}", params.channel),
-                },
-                _ => format!("#{}", params.channel),
-            }
-        };
+        let channel_name =
+            crate::chat::models::channel_display_name(self.api.query_router(), params.channel);
         let doc = vec![(
             id.to_string(),
             "chat".to_string(),
@@ -1009,7 +993,7 @@ impl Teidelum {
         let query = SearchQuery {
             text: params.query,
             sources: Some(vec!["chat".to_string()]),
-            limit: limit * 3,
+            limit: limit * crate::chat::models::SEARCH_OVERFETCH_FACTOR,
             date_from: None,
             date_to: None,
         };

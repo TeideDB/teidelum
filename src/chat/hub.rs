@@ -94,6 +94,13 @@ impl Hub {
         }
     }
 
+    /// Check if a user is in the cached membership for a channel.
+    pub async fn is_channel_member(&self, channel_id: i64, user_id: i64) -> bool {
+        let mem = self.membership.read().await;
+        mem.get(&channel_id)
+            .is_some_and(|members| members.contains(&user_id))
+    }
+
     /// Broadcast an event to all members of a channel who are connected.
     pub async fn broadcast_to_channel(&self, channel_id: i64, event: &ServerEvent) {
         let json = match serde_json::to_string(event) {

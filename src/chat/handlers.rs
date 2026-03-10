@@ -928,16 +928,8 @@ pub async fn chat_post_message(
     }
 
     // Index message in tantivy for full-text search
-    let channel_name = {
-        let name_sql = format!("SELECT name FROM channels WHERE id = {}", req.channel);
-        match state.api.query_router().query_sync(&name_sql) {
-            Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
-                crate::connector::Value::String(s) => format!("#{s}"),
-                _ => format!("#{}", req.channel),
-            },
-            _ => format!("#{}", req.channel),
-        }
-    };
+    let channel_name =
+        crate::chat::models::channel_display_name(state.api.query_router(), req.channel);
     let doc = vec![(
         id.to_string(),
         "chat".to_string(),
@@ -1215,6 +1207,22 @@ pub async fn reactions_remove(
         return slack::err("channel_not_found");
     }
 
+    // Check that the reaction actually exists before deleting
+    let check_reaction = format!(
+        "SELECT message_id FROM reactions WHERE message_id = {} AND user_id = {} AND emoji = '{}'",
+        req.timestamp,
+        claims.user_id,
+        escape_sql(&req.name)
+    );
+    match state.api.query_router().query_sync(&check_reaction) {
+        Ok(r) if r.rows.is_empty() => return slack::err("no_reaction"),
+        Err(e) => {
+            tracing::error!("reaction existence check failed: {e}");
+            return slack::err("internal_error");
+        }
+        _ => {}
+    }
+
     let delete = format!(
         "DELETE FROM reactions WHERE message_id = {} AND user_id = {} AND emoji = '{}'",
         req.timestamp,
@@ -1296,7 +1304,7 @@ pub async fn search_messages(
     let search_query = crate::search::SearchQuery {
         text: req.query,
         sources: Some(vec!["chat".to_string()]),
-        limit: limit * 3,
+        limit: limit * crate::chat::models::SEARCH_OVERFETCH_FACTOR,
         date_from: None,
         date_to: None,
     };
