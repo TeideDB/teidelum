@@ -27,8 +27,8 @@ pub fn hash_password(password: &str) -> Result<String> {
 
 /// Verify a password against a hash.
 pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
-    let parsed = PasswordHash::new(hash)
-        .map_err(|e| anyhow::anyhow!("invalid password hash: {e}"))?;
+    let parsed =
+        PasswordHash::new(hash).map_err(|e| anyhow::anyhow!("invalid password hash: {e}"))?;
     Ok(Argon2::default()
         .verify_password(password.as_bytes(), &parsed)
         .is_ok())
@@ -75,7 +75,10 @@ pub fn validate_token(secret: &str, token: &str) -> Result<Claims> {
 
 /// Axum middleware that validates JWT from Authorization header.
 /// Injects Claims into request extensions on success.
-pub async fn jwt_middleware(mut request: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+pub async fn jwt_middleware(
+    mut request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
     use axum::{http::StatusCode, response::IntoResponse, Json};
     use serde_json::json;
 

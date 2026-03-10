@@ -24,6 +24,12 @@ pub struct Hub {
     typing_throttle: RwLock<HashMap<(i64, i64), Instant>>,
 }
 
+impl Default for Hub {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Hub {
     pub fn new() -> Self {
         Self {

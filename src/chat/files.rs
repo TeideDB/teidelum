@@ -33,6 +33,7 @@ const ALLOWED_MIME_TYPES: &[&str] = &[
     "audio/ogg",
     "video/mp4",
     "video/webm",
+    "application/octet-stream",
 ];
 
 /// Guess MIME type from file extension.
@@ -75,7 +76,6 @@ pub async fn files_upload(
     let mut channel_id: Option<i64> = None;
     let mut file_data: Option<Vec<u8>> = None;
     let mut file_name: Option<String> = None;
-    let mut file_mime: Option<String> = None;
     let mut message_text: Option<String> = None;
     let mut thread_ts: Option<i64> = None;
 
@@ -89,7 +89,6 @@ pub async fn files_upload(
             }
             "file" => {
                 file_name = field.file_name().map(|s| s.to_string());
-                file_mime = field.content_type().map(|s| s.to_string());
                 match field.bytes().await {
                     Ok(bytes) => {
                         if bytes.len() > MAX_FILE_SIZE {
@@ -139,8 +138,9 @@ pub async fn files_upload(
         })
         .unwrap_or_else(|| "unnamed".to_string());
 
-    // Determine MIME type
-    let mime_type = file_mime.unwrap_or_else(|| guess_mime(&file_name).to_string());
+    // Determine MIME type from file extension (ignore client-supplied content type
+    // to prevent MIME spoofing that could bypass the allowlist)
+    let mime_type = guess_mime(&file_name).to_string();
     if !ALLOWED_MIME_TYPES.contains(&mime_type.as_str()) {
         return slack::err("invalid_file_type");
     }
@@ -222,12 +222,10 @@ pub async fn files_upload(
     let channel_name = {
         let name_sql = format!("SELECT name FROM channels WHERE id = {}", channel_id);
         match state.api.query_router().query_sync(&name_sql) {
-            Ok(r) if !r.rows.is_empty() => {
-                match &r.rows[0][0] {
-                    crate::connector::Value::String(s) => format!("#{s}"),
-                    _ => format!("#{channel_id}"),
-                }
-            }
+            Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
+                crate::connector::Value::String(s) => format!("#{s}"),
+                _ => format!("#{channel_id}"),
+            },
             _ => format!("#{channel_id}"),
         }
     };
@@ -358,10 +356,7 @@ pub async fn files_download(
     };
 
     // Sanitize filename: strip control chars to avoid header injection / panic
-    let safe_filename: String = filename
-        .chars()
-        .filter(|c| !c.is_control())
-        .collect();
+    let safe_filename: String = filename.chars().filter(|c| !c.is_control()).collect();
     let content_disposition = format!(
         "attachment; filename=\"{}\"",
         safe_filename.replace('\\', "\\\\").replace('"', "\\\"")

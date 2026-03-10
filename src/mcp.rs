@@ -293,8 +293,10 @@ impl Teidelum {
     /// Look up the first bot user. Returns (user_id, username) or error.
     fn resolve_bot_user(&self) -> Result<(i64, String), McpError> {
         let sql = "SELECT id, username FROM users WHERE is_bot = true LIMIT 1";
-        let result = self.api.query_router().query_sync(sql)
-            .map_err(|e| McpError::internal_error(format!("bot user lookup failed: {e}"), None))?;
+        let result =
+            self.api.query_router().query_sync(sql).map_err(|e| {
+                McpError::internal_error(format!("bot user lookup failed: {e}"), None)
+            })?;
 
         if result.rows.is_empty() {
             return Err(McpError::internal_error(
@@ -305,11 +307,21 @@ impl Teidelum {
 
         let user_id = match &result.rows[0][0] {
             Value::Int(v) => *v,
-            _ => return Err(McpError::internal_error("invalid bot user id".to_string(), None)),
+            _ => {
+                return Err(McpError::internal_error(
+                    "invalid bot user id".to_string(),
+                    None,
+                ))
+            }
         };
         let username = match &result.rows[0][1] {
             Value::String(s) => s.clone(),
-            _ => return Err(McpError::internal_error("invalid bot username".to_string(), None)),
+            _ => {
+                return Err(McpError::internal_error(
+                    "invalid bot username".to_string(),
+                    None,
+                ))
+            }
         };
 
         Ok((user_id, username))
@@ -684,19 +696,19 @@ impl Teidelum {
             text = text_escaped,
         );
 
-        self.api.query_router().query_sync(&sql)
+        self.api
+            .query_router()
+            .query_sync(&sql)
             .map_err(|e| McpError::internal_error(format!("post message failed: {e}"), None))?;
 
         // Index in tantivy
         let channel_name = {
             let name_sql = format!("SELECT name FROM channels WHERE id = {}", params.channel);
             match self.api.query_router().query_sync(&name_sql) {
-                Ok(r) if !r.rows.is_empty() => {
-                    match &r.rows[0][0] {
-                        Value::String(s) => format!("#{s}"),
-                        _ => format!("#{}", params.channel),
-                    }
-                }
+                Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
+                    Value::String(s) => format!("#{s}"),
+                    _ => format!("#{}", params.channel),
+                },
                 _ => format!("#{}", params.channel),
             }
         };
@@ -745,19 +757,25 @@ impl Teidelum {
             params.channel, limit
         );
 
-        let result = self.api.query_router().query_sync(&sql)
-            .map_err(|e| McpError::internal_error(format!("history query failed: {e}"), None))?;
+        let result =
+            self.api.query_router().query_sync(&sql).map_err(|e| {
+                McpError::internal_error(format!("history query failed: {e}"), None)
+            })?;
 
-        let messages: Vec<serde_json::Value> = result.rows.iter().map(|row| {
-            serde_json::json!({
-                "ts": row[0].to_json(),
-                "user": row[1].to_json(),
-                "thread_ts": row[2].to_json(),
-                "text": row[3].to_json(),
-                "created_at": row[4].to_json(),
-                "username": row[5].to_json(),
+        let messages: Vec<serde_json::Value> = result
+            .rows
+            .iter()
+            .map(|row| {
+                serde_json::json!({
+                    "ts": row[0].to_json(),
+                    "user": row[1].to_json(),
+                    "thread_ts": row[2].to_json(),
+                    "text": row[3].to_json(),
+                    "created_at": row[4].to_json(),
+                    "username": row[5].to_json(),
+                })
             })
-        }).collect();
+            .collect();
 
         let output = serde_json::json!({
             "ok": true,
@@ -796,19 +814,19 @@ impl Teidelum {
             text = text_escaped,
         );
 
-        self.api.query_router().query_sync(&sql)
+        self.api
+            .query_router()
+            .query_sync(&sql)
             .map_err(|e| McpError::internal_error(format!("reply failed: {e}"), None))?;
 
         // Index in tantivy
         let channel_name = {
             let name_sql = format!("SELECT name FROM channels WHERE id = {}", params.channel);
             match self.api.query_router().query_sync(&name_sql) {
-                Ok(r) if !r.rows.is_empty() => {
-                    match &r.rows[0][0] {
-                        Value::String(s) => format!("#{s}"),
-                        _ => format!("#{}", params.channel),
-                    }
-                }
+                Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
+                    Value::String(s) => format!("#{s}"),
+                    _ => format!("#{}", params.channel),
+                },
                 _ => format!("#{}", params.channel),
             }
         };
@@ -846,16 +864,27 @@ impl Teidelum {
             "SELECT channel_id FROM messages WHERE id = {}",
             params.timestamp
         );
-        let result = self.api.query_router().query_sync(&check_sql)
+        let result = self
+            .api
+            .query_router()
+            .query_sync(&check_sql)
             .map_err(|e| McpError::internal_error(format!("message lookup failed: {e}"), None))?;
 
         if result.rows.is_empty() {
-            return Err(McpError::invalid_params("message_not_found".to_string(), None));
+            return Err(McpError::invalid_params(
+                "message_not_found".to_string(),
+                None,
+            ));
         }
 
         let channel_id = match &result.rows[0][0] {
             Value::Int(v) => *v,
-            _ => return Err(McpError::internal_error("invalid channel_id".to_string(), None)),
+            _ => {
+                return Err(McpError::internal_error(
+                    "invalid channel_id".to_string(),
+                    None,
+                ))
+            }
         };
 
         if !self.is_member(channel_id, bot_id) {
@@ -872,7 +901,10 @@ impl Teidelum {
         );
         if let Ok(r) = self.api.query_router().query_sync(&dup_sql) {
             if !r.rows.is_empty() {
-                return Err(McpError::invalid_params("already_reacted".to_string(), None));
+                return Err(McpError::invalid_params(
+                    "already_reacted".to_string(),
+                    None,
+                ));
             }
         }
 
@@ -880,10 +912,14 @@ impl Teidelum {
         let insert_sql = format!(
             "INSERT INTO reactions (message_id, user_id, emoji, created_at) \
              VALUES ({}, {}, '{}', '{now}')",
-            params.timestamp, bot_id, crate::chat::models::escape_sql(&params.name)
+            params.timestamp,
+            bot_id,
+            crate::chat::models::escape_sql(&params.name)
         );
 
-        self.api.query_router().query_sync(&insert_sql)
+        self.api
+            .query_router()
+            .query_sync(&insert_sql)
             .map_err(|e| McpError::internal_error(format!("reaction insert failed: {e}"), None))?;
 
         let result = serde_json::json!({"ok": true});
@@ -908,17 +944,23 @@ impl Teidelum {
             bot_id
         );
 
-        let result = self.api.query_router().query_sync(&sql)
-            .map_err(|e| McpError::internal_error(format!("list channels failed: {e}"), None))?;
+        let result =
+            self.api.query_router().query_sync(&sql).map_err(|e| {
+                McpError::internal_error(format!("list channels failed: {e}"), None)
+            })?;
 
-        let channels: Vec<serde_json::Value> = result.rows.iter().map(|row| {
-            serde_json::json!({
-                "id": row[0].to_json(),
-                "name": row[1].to_json(),
-                "kind": row[2].to_json(),
-                "topic": row[3].to_json(),
+        let channels: Vec<serde_json::Value> = result
+            .rows
+            .iter()
+            .map(|row| {
+                serde_json::json!({
+                    "id": row[0].to_json(),
+                    "name": row[1].to_json(),
+                    "kind": row[2].to_json(),
+                    "topic": row[3].to_json(),
+                })
             })
-        }).collect();
+            .collect();
 
         let output = serde_json::json!({
             "ok": true,
@@ -934,6 +976,29 @@ impl Teidelum {
         &self,
         Parameters(params): Parameters<ChatSearchParams>,
     ) -> Result<CallToolResult, McpError> {
+        let (bot_id, _) = self.resolve_bot_user()?;
+
+        // Get channel names the bot is a member of for filtering results
+        let member_channels: std::collections::HashSet<String> = {
+            let sql = format!(
+                "SELECT c.name FROM channels c \
+                 JOIN channel_members cm ON c.id = cm.channel_id \
+                 WHERE cm.user_id = {}",
+                bot_id
+            );
+            match self.api.query_router().query_sync(&sql) {
+                Ok(r) => r
+                    .rows
+                    .iter()
+                    .filter_map(|row| match &row[0] {
+                        Value::String(s) => Some(format!("#{s}")),
+                        _ => None,
+                    })
+                    .collect(),
+                Err(_) => std::collections::HashSet::new(),
+            }
+        };
+
         let query = SearchQuery {
             text: params.query,
             sources: Some(vec!["chat".to_string()]),
@@ -942,17 +1007,24 @@ impl Teidelum {
             date_to: None,
         };
 
-        let results = self.api.search(&query)
+        let results = self
+            .api
+            .search(&query)
             .map_err(|e| McpError::internal_error(format!("chat search failed: {e}"), None))?;
 
-        let matches: Vec<serde_json::Value> = results.iter().map(|r| {
-            serde_json::json!({
-                "ts": r.id,
-                "channel": r.title,
-                "text": r.snippet,
-                "score": r.score,
+        // Filter results to only channels the bot is a member of
+        let matches: Vec<serde_json::Value> = results
+            .iter()
+            .filter(|r| member_channels.contains(&r.title))
+            .map(|r| {
+                serde_json::json!({
+                    "ts": r.id,
+                    "channel": r.title,
+                    "text": r.snippet,
+                    "score": r.score,
+                })
             })
-        }).collect();
+            .collect();
 
         let output = serde_json::json!({
             "ok": true,

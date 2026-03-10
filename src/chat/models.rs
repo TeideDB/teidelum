@@ -40,68 +40,94 @@ const CREATE_TABLES: &[&str] = &[
 fn chat_relationships() -> Vec<Relationship> {
     vec![
         Relationship {
-            from_table: "messages".into(), from_col: "user_id".into(),
-            to_table: "users".into(), to_col: "id".into(),
+            from_table: "messages".into(),
+            from_col: "user_id".into(),
+            to_table: "users".into(),
+            to_col: "id".into(),
             relation: "sent_by".into(),
         },
         Relationship {
-            from_table: "messages".into(), from_col: "channel_id".into(),
-            to_table: "channels".into(), to_col: "id".into(),
+            from_table: "messages".into(),
+            from_col: "channel_id".into(),
+            to_table: "channels".into(),
+            to_col: "id".into(),
             relation: "posted_in".into(),
         },
         Relationship {
-            from_table: "messages".into(), from_col: "thread_id".into(),
-            to_table: "messages".into(), to_col: "id".into(),
+            from_table: "messages".into(),
+            from_col: "thread_id".into(),
+            to_table: "messages".into(),
+            to_col: "id".into(),
             relation: "reply_to".into(),
         },
         Relationship {
-            from_table: "channel_members".into(), from_col: "user_id".into(),
-            to_table: "users".into(), to_col: "id".into(),
+            from_table: "channel_members".into(),
+            from_col: "user_id".into(),
+            to_table: "users".into(),
+            to_col: "id".into(),
             relation: "member".into(),
         },
         Relationship {
-            from_table: "channel_members".into(), from_col: "channel_id".into(),
-            to_table: "channels".into(), to_col: "id".into(),
+            from_table: "channel_members".into(),
+            from_col: "channel_id".into(),
+            to_table: "channels".into(),
+            to_col: "id".into(),
             relation: "belongs_to".into(),
         },
         Relationship {
-            from_table: "reactions".into(), from_col: "message_id".into(),
-            to_table: "messages".into(), to_col: "id".into(),
+            from_table: "reactions".into(),
+            from_col: "message_id".into(),
+            to_table: "messages".into(),
+            to_col: "id".into(),
             relation: "reacted_to".into(),
         },
         Relationship {
-            from_table: "mentions".into(), from_col: "message_id".into(),
-            to_table: "messages".into(), to_col: "id".into(),
+            from_table: "mentions".into(),
+            from_col: "message_id".into(),
+            to_table: "messages".into(),
+            to_col: "id".into(),
             relation: "mentioned_in".into(),
         },
         Relationship {
-            from_table: "mentions".into(), from_col: "user_id".into(),
-            to_table: "users".into(), to_col: "id".into(),
+            from_table: "mentions".into(),
+            from_col: "user_id".into(),
+            to_table: "users".into(),
+            to_col: "id".into(),
             relation: "mentions".into(),
         },
         Relationship {
-            from_table: "channel_reads".into(), from_col: "channel_id".into(),
-            to_table: "channels".into(), to_col: "id".into(),
+            from_table: "channel_reads".into(),
+            from_col: "channel_id".into(),
+            to_table: "channels".into(),
+            to_col: "id".into(),
             relation: "read_status_for".into(),
         },
         Relationship {
-            from_table: "channel_reads".into(), from_col: "user_id".into(),
-            to_table: "users".into(), to_col: "id".into(),
+            from_table: "channel_reads".into(),
+            from_col: "user_id".into(),
+            to_table: "users".into(),
+            to_col: "id".into(),
             relation: "read_by".into(),
         },
         Relationship {
-            from_table: "files".into(), from_col: "message_id".into(),
-            to_table: "messages".into(), to_col: "id".into(),
+            from_table: "files".into(),
+            from_col: "message_id".into(),
+            to_table: "messages".into(),
+            to_col: "id".into(),
             relation: "attached_to".into(),
         },
         Relationship {
-            from_table: "files".into(), from_col: "user_id".into(),
-            to_table: "users".into(), to_col: "id".into(),
+            from_table: "files".into(),
+            from_col: "user_id".into(),
+            to_table: "users".into(),
+            to_col: "id".into(),
             relation: "uploaded_by".into(),
         },
         Relationship {
-            from_table: "files".into(), from_col: "channel_id".into(),
-            to_table: "channels".into(), to_col: "id".into(),
+            from_table: "files".into(),
+            from_col: "channel_id".into(),
+            to_table: "channels".into(),
+            to_col: "id".into(),
             relation: "uploaded_in".into(),
         },
     ]
@@ -173,10 +199,26 @@ mod tests {
         assert_eq!(rels.len(), 13);
         // All identifiers should be valid
         for rel in &rels {
-            assert!(crate::catalog::is_valid_identifier(&rel.from_table), "invalid: {}", rel.from_table);
-            assert!(crate::catalog::is_valid_identifier(&rel.from_col), "invalid: {}", rel.from_col);
-            assert!(crate::catalog::is_valid_identifier(&rel.to_table), "invalid: {}", rel.to_table);
-            assert!(crate::catalog::is_valid_identifier(&rel.to_col), "invalid: {}", rel.to_col);
+            assert!(
+                crate::catalog::is_valid_identifier(&rel.from_table),
+                "invalid: {}",
+                rel.from_table
+            );
+            assert!(
+                crate::catalog::is_valid_identifier(&rel.from_col),
+                "invalid: {}",
+                rel.from_col
+            );
+            assert!(
+                crate::catalog::is_valid_identifier(&rel.to_table),
+                "invalid: {}",
+                rel.to_table
+            );
+            assert!(
+                crate::catalog::is_valid_identifier(&rel.to_col),
+                "invalid: {}",
+                rel.to_col
+            );
         }
     }
 }

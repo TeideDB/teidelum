@@ -24,10 +24,7 @@ pub enum ServerEvent {
     },
 
     #[serde(rename = "message_deleted")]
-    MessageDeleted {
-        channel: String,
-        ts: String,
-    },
+    MessageDeleted { channel: String, ts: String },
 
     #[serde(rename = "reaction_added")]
     ReactionAdded {
@@ -46,28 +43,16 @@ pub enum ServerEvent {
     },
 
     #[serde(rename = "typing")]
-    Typing {
-        channel: String,
-        user: String,
-    },
+    Typing { channel: String, user: String },
 
     #[serde(rename = "presence_change")]
-    PresenceChange {
-        user: String,
-        presence: String,
-    },
+    PresenceChange { user: String, presence: String },
 
     #[serde(rename = "member_joined_channel")]
-    MemberJoinedChannel {
-        channel: String,
-        user: String,
-    },
+    MemberJoinedChannel { channel: String, user: String },
 
     #[serde(rename = "member_left_channel")]
-    MemberLeftChannel {
-        channel: String,
-        user: String,
-    },
+    MemberLeftChannel { channel: String, user: String },
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -60,12 +60,10 @@ fn post_and_index(api: &TeidelumApi, channel_id: i64, user_id: i64, text: &str) 
     // Index in tantivy (same as what chat_post_message does)
     let name_sql = format!("SELECT name FROM channels WHERE id = {channel_id}");
     let channel_name = match api.query_router().query_sync(&name_sql) {
-        Ok(r) if !r.rows.is_empty() => {
-            match &r.rows[0][0] {
-                teidelum::connector::Value::String(s) => format!("#{s}"),
-                _ => format!("#{channel_id}"),
-            }
-        }
+        Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
+            teidelum::connector::Value::String(s) => format!("#{s}"),
+            _ => format!("#{channel_id}"),
+        },
         _ => format!("#{channel_id}"),
     };
     let doc = vec![(
@@ -85,44 +83,71 @@ fn test_message_search_indexing() {
     let user_id = create_user(&api, "alice", false);
     let channel_id = create_channel(&api, "general", user_id);
 
-    post_and_index(&api, channel_id, user_id, "The deployment pipeline is broken");
-    post_and_index(&api, channel_id, user_id, "Can someone review my pull request?");
-    post_and_index(&api, channel_id, user_id, "Meeting at 3pm to discuss the roadmap");
+    post_and_index(
+        &api,
+        channel_id,
+        user_id,
+        "The deployment pipeline is broken",
+    );
+    post_and_index(
+        &api,
+        channel_id,
+        user_id,
+        "Can someone review my pull request?",
+    );
+    post_and_index(
+        &api,
+        channel_id,
+        user_id,
+        "Meeting at 3pm to discuss the roadmap",
+    );
 
     // Search for "deployment" — should find the first message
-    let results = api.search_engine().search(&SearchQuery {
-        text: "deployment pipeline".to_string(),
-        sources: Some(vec!["chat".to_string()]),
-        limit: 10,
-        date_from: None,
-        date_to: None,
-    }).unwrap();
+    let results = api
+        .search_engine()
+        .search(&SearchQuery {
+            text: "deployment pipeline".to_string(),
+            sources: Some(vec!["chat".to_string()]),
+            limit: 10,
+            date_from: None,
+            date_to: None,
+        })
+        .unwrap();
 
     assert!(!results.is_empty(), "should find deployment message");
     assert_eq!(results[0].source, "chat");
     assert_eq!(results[0].title, "#general");
 
     // Search for "roadmap" — should find the third message
-    let results = api.search_engine().search(&SearchQuery {
-        text: "roadmap".to_string(),
-        sources: Some(vec!["chat".to_string()]),
-        limit: 10,
-        date_from: None,
-        date_to: None,
-    }).unwrap();
+    let results = api
+        .search_engine()
+        .search(&SearchQuery {
+            text: "roadmap".to_string(),
+            sources: Some(vec!["chat".to_string()]),
+            limit: 10,
+            date_from: None,
+            date_to: None,
+        })
+        .unwrap();
 
     assert!(!results.is_empty(), "should find roadmap message");
 
     // Search with no chat filter should also work
-    let results = api.search_engine().search(&SearchQuery {
-        text: "pull request".to_string(),
-        sources: None,
-        limit: 10,
-        date_from: None,
-        date_to: None,
-    }).unwrap();
+    let results = api
+        .search_engine()
+        .search(&SearchQuery {
+            text: "pull request".to_string(),
+            sources: None,
+            limit: 10,
+            date_from: None,
+            date_to: None,
+        })
+        .unwrap();
 
-    assert!(!results.is_empty(), "should find pull request message without source filter");
+    assert!(
+        !results.is_empty(),
+        "should find pull request message without source filter"
+    );
 }
 
 #[test]
@@ -143,13 +168,16 @@ fn test_search_does_not_find_other_sources() {
     api.search_engine().index_documents(&non_chat_doc).unwrap();
 
     // Search with chat filter should only find the chat message
-    let results = api.search_engine().search(&SearchQuery {
-        text: "unique test message".to_string(),
-        sources: Some(vec!["chat".to_string()]),
-        limit: 10,
-        date_from: None,
-        date_to: None,
-    }).unwrap();
+    let results = api
+        .search_engine()
+        .search(&SearchQuery {
+            text: "unique test message".to_string(),
+            sources: Some(vec!["chat".to_string()]),
+            limit: 10,
+            date_from: None,
+            date_to: None,
+        })
+        .unwrap();
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].source, "chat");
@@ -180,9 +208,12 @@ fn test_file_metadata_storage() {
     api.query_router().query_sync(&file_sql).unwrap();
 
     // Query back the file
-    let result = api.query_router().query_sync(&format!(
-        "SELECT filename, mime_type, size_bytes FROM files WHERE id = {file_id}"
-    )).unwrap();
+    let result = api
+        .query_router()
+        .query_sync(&format!(
+            "SELECT filename, mime_type, size_bytes FROM files WHERE id = {file_id}"
+        ))
+        .unwrap();
 
     assert_eq!(result.rows.len(), 1);
     match &result.rows[0][0] {
@@ -206,9 +237,10 @@ fn test_bot_user_query() {
     let bot_id = create_user(&api, "teidebot", true);
 
     // Query for bot users
-    let result = api.query_router().query_sync(
-        "SELECT id, username FROM users WHERE is_bot = true LIMIT 1"
-    ).unwrap();
+    let result = api
+        .query_router()
+        .query_sync("SELECT id, username FROM users WHERE is_bot = true LIMIT 1")
+        .unwrap();
 
     assert_eq!(result.rows.len(), 1);
     match &result.rows[0][0] {

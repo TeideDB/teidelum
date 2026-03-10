@@ -14,13 +14,17 @@ use tokio_util::sync::CancellationToken;
 use tower_http::cors::CorsLayer;
 
 use crate::api::TeidelumApi;
-use crate::chat::handlers::{ChatState, chat_routes};
+use crate::chat::handlers::{chat_routes, ChatState};
 use crate::chat::ws::ws_upgrade;
 use crate::mcp::Teidelum;
 use crate::routes;
 
 /// Build the axum router with all routes, CORS, and optional auth.
-pub fn build_router(api: Arc<TeidelumApi>, hub: Arc<crate::chat::hub::Hub>, ct: CancellationToken) -> Router {
+pub fn build_router(
+    api: Arc<TeidelumApi>,
+    hub: Arc<crate::chat::hub::Hub>,
+    ct: CancellationToken,
+) -> Router {
     let chat_state: crate::chat::handlers::AppState = Arc::new(ChatState {
         api: api.clone(),
         hub: hub.clone(),
@@ -30,7 +34,10 @@ pub fn build_router(api: Arc<TeidelumApi>, hub: Arc<crate::chat::hub::Hub>, ct: 
         .merge(routes::api_routes())
         .with_state(api.clone())
         .merge(chat_routes(chat_state.clone()))
-        .route("/files/{id}/{filename}", axum::routing::get(crate::chat::files::files_download).with_state(chat_state.clone()))
+        .route(
+            "/files/{id}/{filename}",
+            axum::routing::get(crate::chat::files::files_download).with_state(chat_state.clone()),
+        )
         .route("/ws", axum::routing::get(ws_upgrade).with_state(chat_state))
         .layer(CorsLayer::permissive());
 
@@ -88,7 +95,12 @@ async fn auth_check(request: Request, next: Next, expected_key: String) -> Respo
 }
 
 /// Start the HTTP server on the given address.
-pub async fn start(api: Arc<TeidelumApi>, hub: Arc<crate::chat::hub::Hub>, bind: &str, port: u16) -> anyhow::Result<()> {
+pub async fn start(
+    api: Arc<TeidelumApi>,
+    hub: Arc<crate::chat::hub::Hub>,
+    bind: &str,
+    port: u16,
+) -> anyhow::Result<()> {
     let ct = CancellationToken::new();
     let app = build_router(api, hub, ct.clone());
     let addr = format!("{bind}:{port}");

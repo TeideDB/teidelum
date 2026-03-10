@@ -1,11 +1,11 @@
 use crate::chat::auth;
 use crate::chat::events::{ClientEvent, ServerEvent};
 use crate::chat::handlers::AppState;
+use axum::extract::ws::{Message, WebSocket};
 use axum::{
     extract::{Query, State, WebSocketUpgrade},
     response::{IntoResponse, Response},
 };
-use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 
@@ -72,7 +72,11 @@ async fn handle_socket(state: AppState, claims: auth::Claims, socket: WebSocket)
     // Task: forward hub events to WebSocket
     let send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
-            if ws_sink.send(Message::Text((*msg).clone().into())).await.is_err() {
+            if ws_sink
+                .send(Message::Text((*msg).clone().into()))
+                .await
+                .is_err()
+            {
                 break;
             }
         }
@@ -87,12 +91,19 @@ async fn handle_socket(state: AppState, claims: auth::Claims, socket: WebSocket)
                         match event {
                             ClientEvent::Typing { channel } => {
                                 if let Ok(ch_id) = channel.parse::<i64>() {
-                                    if state_clone.hub.should_broadcast_typing(user_id_clone, ch_id).await {
+                                    if state_clone
+                                        .hub
+                                        .should_broadcast_typing(user_id_clone, ch_id)
+                                        .await
+                                    {
                                         let typing_event = ServerEvent::Typing {
                                             channel: channel.clone(),
                                             user: user_id_clone.to_string(),
                                         };
-                                        state_clone.hub.broadcast_to_channel(ch_id, &typing_event).await;
+                                        state_clone
+                                            .hub
+                                            .broadcast_to_channel(ch_id, &typing_event)
+                                            .await;
                                     }
                                 }
                             }

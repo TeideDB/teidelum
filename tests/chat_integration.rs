@@ -18,7 +18,9 @@ fn post_json(uri: &str, body: Value, token: Option<&str>) -> Request<Body> {
         builder = builder.header("authorization", format!("Bearer {t}"));
     }
 
-    builder.body(Body::from(serde_json::to_string(&body).unwrap())).unwrap()
+    builder
+        .body(Body::from(serde_json::to_string(&body).unwrap()))
+        .unwrap()
 }
 
 /// Parse response body as JSON.
@@ -51,13 +53,19 @@ async fn test_chat_flow() {
     let app = teidelum::chat::handlers::chat_routes(state);
 
     // 1. Register user
-    let resp = app.clone().oneshot(
-        post_json("/api/slack/auth.register", json!({
-            "username": "alice",
-            "password": "secret123",
-            "email": "alice@example.com"
-        }), None)
-    ).await.unwrap();
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.register",
+            json!({
+                "username": "alice",
+                "password": "secret123",
+                "email": "alice@example.com"
+            }),
+            None,
+        ))
+        .await
+        .unwrap();
 
     assert_eq!(resp.status(), StatusCode::CREATED);
     let body = body_json(resp).await;
@@ -65,46 +73,70 @@ async fn test_chat_flow() {
     let token = body["token"].as_str().unwrap().to_string();
 
     // 2. Login
-    let resp = app.clone().oneshot(
-        post_json("/api/slack/auth.login", json!({
-            "username": "alice",
-            "password": "secret123"
-        }), None)
-    ).await.unwrap();
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.login",
+            json!({
+                "username": "alice",
+                "password": "secret123"
+            }),
+            None,
+        ))
+        .await
+        .unwrap();
 
     let body = body_json(resp).await;
     assert_eq!(body["ok"], true);
     assert!(body["token"].is_string());
 
     // 3. Create channel
-    let resp = app.clone().oneshot(
-        post_json("/api/slack/conversations.create", json!({
-            "name": "general"
-        }), Some(&token))
-    ).await.unwrap();
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({
+                "name": "general"
+            }),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
 
     let body = body_json(resp).await;
     assert_eq!(body["ok"], true);
     let channel_id: i64 = body["channel"]["id"].as_str().unwrap().parse().unwrap();
 
     // 4. Post message
-    let resp = app.clone().oneshot(
-        post_json("/api/slack/chat.postMessage", json!({
-            "channel": channel_id,
-            "text": "Hello world!"
-        }), Some(&token))
-    ).await.unwrap();
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/chat.postMessage",
+            json!({
+                "channel": channel_id,
+                "text": "Hello world!"
+            }),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
 
     let body = body_json(resp).await;
     assert_eq!(body["ok"], true);
     assert_eq!(body["message"]["text"], "Hello world!");
 
     // 5. Get history
-    let resp = app.clone().oneshot(
-        post_json("/api/slack/conversations.history", json!({
-            "channel": channel_id
-        }), Some(&token))
-    ).await.unwrap();
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.history",
+            json!({
+                "channel": channel_id
+            }),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
 
     let body = body_json(resp).await;
     assert_eq!(body["ok"], true);
@@ -113,13 +145,19 @@ async fn test_chat_flow() {
     assert_eq!(messages[0]["text"], "Hello world!");
 
     // 6. Duplicate username rejected
-    let resp = app.clone().oneshot(
-        post_json("/api/slack/auth.register", json!({
-            "username": "alice",
-            "password": "other",
-            "email": "other@example.com"
-        }), None)
-    ).await.unwrap();
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.register",
+            json!({
+                "username": "alice",
+                "password": "other",
+                "email": "other@example.com"
+            }),
+            None,
+        ))
+        .await
+        .unwrap();
 
     let body = body_json(resp).await;
     assert_eq!(body["ok"], false);

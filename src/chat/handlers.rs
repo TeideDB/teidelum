@@ -118,10 +118,7 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-pub async fn auth_login(
-    State(state): State<AppState>,
-    Json(req): Json<LoginRequest>,
-) -> Response {
+pub async fn auth_login(State(state): State<AppState>, Json(req): Json<LoginRequest>) -> Response {
     let sql = format!(
         "SELECT id, username, password_hash, is_bot FROM users WHERE username = '{}'",
         escape_sql(&req.username)
@@ -633,7 +630,10 @@ pub async fn conversations_join(
         return slack::err("internal_error");
     }
 
-    state.hub.add_channel_member(req.channel, claims.user_id).await;
+    state
+        .hub
+        .add_channel_member(req.channel, claims.user_id)
+        .await;
 
     // Broadcast member joined
     let event = crate::chat::events::ServerEvent::MemberJoinedChannel {
@@ -929,17 +929,12 @@ pub async fn chat_post_message(
 
     // Index message in tantivy for full-text search
     let channel_name = {
-        let name_sql = format!(
-            "SELECT name FROM channels WHERE id = {}",
-            req.channel
-        );
+        let name_sql = format!("SELECT name FROM channels WHERE id = {}", req.channel);
         match state.api.query_router().query_sync(&name_sql) {
-            Ok(r) if !r.rows.is_empty() => {
-                match &r.rows[0][0] {
-                    crate::connector::Value::String(s) => format!("#{s}"),
-                    _ => format!("#{}", req.channel),
-                }
-            }
+            Ok(r) if !r.rows.is_empty() => match &r.rows[0][0] {
+                crate::connector::Value::String(s) => format!("#{s}"),
+                _ => format!("#{}", req.channel),
+            },
             _ => format!("#{}", req.channel),
         }
     };
@@ -1127,7 +1122,10 @@ pub async fn reactions_add(
     Json(req): Json<ReactionRequest>,
 ) -> Response {
     // Get channel from message
-    let check = format!("SELECT channel_id FROM messages WHERE id = {}", req.timestamp);
+    let check = format!(
+        "SELECT channel_id FROM messages WHERE id = {}",
+        req.timestamp
+    );
     let result = match state.api.query_router().query_sync(&check) {
         Ok(r) => r,
         Err(e) => {
@@ -1192,7 +1190,10 @@ pub async fn reactions_remove(
     Extension(claims): Extension<Claims>,
     Json(req): Json<ReactionRequest>,
 ) -> Response {
-    let check = format!("SELECT channel_id FROM messages WHERE id = {}", req.timestamp);
+    let check = format!(
+        "SELECT channel_id FROM messages WHERE id = {}",
+        req.timestamp
+    );
     let result = match state.api.query_router().query_sync(&check) {
         Ok(r) => r,
         Err(e) => {
@@ -1254,7 +1255,7 @@ fn default_search_limit() -> usize {
 
 pub async fn search_messages(
     State(state): State<AppState>,
-    Extension(_claims): Extension<Claims>,
+    Extension(claims): Extension<Claims>,
     Json(req): Json<SearchMessagesRequest>,
 ) -> Response {
     if req.query.is_empty() {
@@ -1262,6 +1263,27 @@ pub async fn search_messages(
     }
 
     let limit = req.limit.min(100);
+
+    // Get the set of channel names the user is a member of for filtering
+    let member_channels: std::collections::HashSet<String> = {
+        let sql = format!(
+            "SELECT c.name FROM channels c \
+             JOIN channel_members cm ON c.id = cm.channel_id \
+             WHERE cm.user_id = {}",
+            claims.user_id
+        );
+        match state.api.query_router().query_sync(&sql) {
+            Ok(r) => r
+                .rows
+                .iter()
+                .filter_map(|row| match &row[0] {
+                    crate::connector::Value::String(s) => Some(format!("#{s}")),
+                    _ => None,
+                })
+                .collect(),
+            Err(_) => std::collections::HashSet::new(),
+        }
+    };
 
     let search_query = crate::search::SearchQuery {
         text: req.query,
@@ -1279,8 +1301,10 @@ pub async fn search_messages(
         }
     };
 
+    // Filter results to only channels the user is a member of
     let matches: Vec<serde_json::Value> = results
         .iter()
+        .filter(|r| member_channels.contains(&r.title))
         .map(|r| {
             json!({
                 "ts": r.id,
@@ -1319,16 +1343,46 @@ use axum::{middleware, Router};
 pub fn chat_routes(state: AppState) -> Router {
     let authed = Router::new()
         // Conversations
-        .route("/conversations.create", axum::routing::post(conversations_create))
-        .route("/conversations.list", axum::routing::post(conversations_list))
-        .route("/conversations.info", axum::routing::post(conversations_info))
-        .route("/conversations.history", axum::routing::post(conversations_history))
-        .route("/conversations.replies", axum::routing::post(conversations_replies))
-        .route("/conversations.join", axum::routing::post(conversations_join))
-        .route("/conversations.leave", axum::routing::post(conversations_leave))
-        .route("/conversations.invite", axum::routing::post(conversations_invite))
-        .route("/conversations.members", axum::routing::post(conversations_members))
-        .route("/conversations.open", axum::routing::post(conversations_open))
+        .route(
+            "/conversations.create",
+            axum::routing::post(conversations_create),
+        )
+        .route(
+            "/conversations.list",
+            axum::routing::post(conversations_list),
+        )
+        .route(
+            "/conversations.info",
+            axum::routing::post(conversations_info),
+        )
+        .route(
+            "/conversations.history",
+            axum::routing::post(conversations_history),
+        )
+        .route(
+            "/conversations.replies",
+            axum::routing::post(conversations_replies),
+        )
+        .route(
+            "/conversations.join",
+            axum::routing::post(conversations_join),
+        )
+        .route(
+            "/conversations.leave",
+            axum::routing::post(conversations_leave),
+        )
+        .route(
+            "/conversations.invite",
+            axum::routing::post(conversations_invite),
+        )
+        .route(
+            "/conversations.members",
+            axum::routing::post(conversations_members),
+        )
+        .route(
+            "/conversations.open",
+            axum::routing::post(conversations_open),
+        )
         // Chat
         .route("/chat.postMessage", axum::routing::post(chat_post_message))
         .route("/chat.update", axum::routing::post(chat_update))
@@ -1336,14 +1390,20 @@ pub fn chat_routes(state: AppState) -> Router {
         // Users
         .route("/users.list", axum::routing::post(users_list))
         .route("/users.info", axum::routing::post(users_info))
-        .route("/users.setPresence", axum::routing::post(users_set_presence))
+        .route(
+            "/users.setPresence",
+            axum::routing::post(users_set_presence),
+        )
         // Reactions
         .route("/reactions.add", axum::routing::post(reactions_add))
         .route("/reactions.remove", axum::routing::post(reactions_remove))
         // Search
         .route("/search.messages", axum::routing::post(search_messages))
         // Files
-        .route("/files.upload", axum::routing::post(crate::chat::files::files_upload))
+        .route(
+            "/files.upload",
+            axum::routing::post(crate::chat::files::files_upload),
+        )
         .layer(middleware::from_fn(crate::chat::auth::jwt_middleware))
         .with_state(state.clone());
 
