@@ -927,6 +927,32 @@ pub async fn chat_post_message(
         }
     }
 
+    // Index message in tantivy for full-text search
+    let channel_name = {
+        let name_sql = format!(
+            "SELECT name FROM channels WHERE id = {}",
+            req.channel
+        );
+        match state.api.query_router().query_sync(&name_sql) {
+            Ok(r) if !r.rows.is_empty() => {
+                match &r.rows[0][0] {
+                    crate::connector::Value::String(s) => format!("#{s}"),
+                    _ => format!("#{}", req.channel),
+                }
+            }
+            _ => format!("#{}", req.channel),
+        }
+    };
+    let doc = vec![(
+        id.to_string(),
+        "chat".to_string(),
+        channel_name,
+        req.text.clone(),
+    )];
+    if let Err(e) = state.api.search_engine().index_documents(&doc) {
+        tracing::warn!("message search indexing failed: {e}");
+    }
+
     // Broadcast message event
     let event = crate::chat::events::ServerEvent::Message {
         channel: req.channel.to_string(),
