@@ -465,7 +465,7 @@ pub struct HistoryRequest {
     #[serde(default = "default_history_limit")]
     pub limit: usize,
     #[serde(default)]
-    pub before: Option<String>,
+    pub before: Option<i64>,
 }
 
 fn default_history_limit() -> usize {
@@ -482,8 +482,8 @@ pub async fn conversations_history(
     }
 
     let limit = req.limit.min(200);
-    let before_clause = match &req.before {
-        Some(ts) => format!(" AND m.id < {}", escape_sql(ts)),
+    let before_clause = match req.before {
+        Some(ts) => format!(" AND m.id < {}", ts),
         None => String::new(),
     };
 

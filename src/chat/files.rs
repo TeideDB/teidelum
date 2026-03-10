@@ -363,7 +363,7 @@ pub async fn files_download(
         .filter(|c| !c.is_control())
         .collect();
     let content_disposition = format!(
-        "inline; filename=\"{}\"",
+        "attachment; filename=\"{}\"",
         safe_filename.replace('\\', "\\\\").replace('"', "\\\"")
     );
 

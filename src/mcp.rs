@@ -217,11 +217,7 @@ pub struct ChatReactParams {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ChatListChannelsParams {
-    /// Optional bot user ID. If omitted, lists all public channels.
-    #[serde(default)]
-    pub bot_user_id: Option<i64>,
-}
+pub struct ChatListChannelsParams {}
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ChatSearchParams {
