@@ -26,7 +26,7 @@ We need the channel name for the title field. The handler already has the channe
 
 **Steps:**
 
-- [ ] In `chat_post_message` in `teidelum/src/chat/handlers.rs`, after the successful message INSERT and before the broadcast, add search indexing. Look up the channel name, then call `state.api.search_engine().index_documents(...)`.
+- [x] In `chat_post_message` in `teidelum/src/chat/handlers.rs`, after the successful message INSERT and before the broadcast, add search indexing. Look up the channel name, then call `state.api.search_engine().index_documents(...)`.
 
 In the `chat_post_message` function, find the section after the message INSERT succeeds (after the mentions parsing block, before the broadcast). Add search indexing there. The complete modified function:
 
@@ -191,7 +191,7 @@ cd teidelum && git add src/chat/handlers.rs && git commit -m "chat: index messag
 
 **Steps:**
 
-- [ ] Add the `SearchMessagesRequest` struct and `search_messages` handler function to `teidelum/src/chat/handlers.rs`, after the reactions handlers section.
+- [x] Add the `SearchMessagesRequest` struct and `search_messages` handler function to `teidelum/src/chat/handlers.rs`, after the reactions handlers section.
 
 Add the following after the `ReactionRequest` struct (around line 1214):
 
@@ -257,7 +257,7 @@ pub async fn search_messages(
 }
 ```
 
-- [ ] Add the route for `search.messages` to the `chat_routes` function in the `authed` router section.
+- [x] Add the route for `search.messages` to the `chat_routes` function in the `authed` router section.
 
 In the `chat_routes` function, add this line after the `.route("/reactions.remove", ...)` line:
 
@@ -331,7 +331,7 @@ CREATE TABLE files (
 
 **Steps:**
 
-- [ ] Create `teidelum/src/chat/files.rs` with the file upload handler.
+- [x] Create `teidelum/src/chat/files.rs` with the file upload handler.
 
 ```rust
 use crate::chat::auth::Claims;
@@ -588,7 +588,7 @@ pub async fn files_upload(
 }
 ```
 
-- [ ] Add `pub mod files;` to `teidelum/src/chat/mod.rs`.
+- [x] Add `pub mod files;` to `teidelum/src/chat/mod.rs`.
 
 The updated `mod.rs`:
 
@@ -626,7 +626,7 @@ cd teidelum && git add src/chat/files.rs src/chat/mod.rs && git commit -m "chat:
 
 **Steps:**
 
-- [ ] Add the `files_download` handler to `teidelum/src/chat/files.rs`.
+- [x] Add the `files_download` handler to `teidelum/src/chat/files.rs`.
 
 Add the following imports at the top of `files.rs` (merge with existing):
 
@@ -774,7 +774,7 @@ cd teidelum && git add src/chat/files.rs && git commit -m "chat: add file downlo
 
 **Steps:**
 
-- [ ] Add the `files.upload` route to the `authed` router in `chat_routes` in `teidelum/src/chat/handlers.rs`.
+- [x] Add the `files.upload` route to the `authed` router in `chat_routes` in `teidelum/src/chat/handlers.rs`.
 
 Add after the `search.messages` route:
 
@@ -817,7 +817,7 @@ The full `authed` section becomes:
         .with_state(state.clone());
 ```
 
-- [ ] Add the file download route to `build_router` in `teidelum/src/server.rs`.
+- [x] Add the file download route to `build_router` in `teidelum/src/server.rs`.
 
 In `build_router`, add the file download route after the `.merge(chat_routes(...))` line and before the `.layer(CorsLayer::permissive())`. The download route needs the `AppState`:
 
@@ -867,7 +867,7 @@ Key design decision: MCP tools operate as a **specific bot user**. The bot user 
 
 **Steps:**
 
-- [ ] Add parameter structs for the six new MCP chat tools to `teidelum/src/mcp.rs`.
+- [x] Add parameter structs for the six new MCP chat tools to `teidelum/src/mcp.rs`.
 
 Add after the `AddRelationshipParams` struct (around line 178):
 
@@ -928,7 +928,7 @@ pub struct ChatSearchParams {
 }
 ```
 
-- [ ] Add a helper method on `Teidelum` to resolve the bot user ID.
+- [x] Add a helper method on `Teidelum` to resolve the bot user ID.
 
 Add inside the `#[tool_router] impl Teidelum` block, before the first `#[tool]` method:
 
@@ -973,7 +973,7 @@ Add inside the `#[tool_router] impl Teidelum` block, before the first `#[tool]` 
 
 Note: the helper uses `Value` which is already imported as `crate::connector::Value` in the file's use section.
 
-- [ ] Add the six `#[tool]` methods inside the `#[tool_router] impl Teidelum` block, after the existing `add_relationship` tool.
+- [x] Add the six `#[tool]` methods inside the `#[tool_router] impl Teidelum` block, after the existing `add_relationship` tool.
 
 ```rust
     #[tool(description = "Send a message to a chat channel (as bot user)")]
@@ -1288,7 +1288,7 @@ Note: the helper uses `Value` which is already imported as `crate::connector::Va
     }
 ```
 
-- [ ] Verify that the necessary imports are present at the top of `mcp.rs`. The file already imports `crate::connector::Value` and `crate::search::SearchQuery`. No new imports needed since we use fully qualified paths for `crate::chat::*` items.
+- [x] Verify that the necessary imports are present at the top of `mcp.rs`. The file already imports `crate::connector::Value` and `crate::search::SearchQuery`. No new imports needed since we use fully qualified paths for `crate::chat::*` items.
 
 **Test commands:**
 
@@ -1314,7 +1314,7 @@ cd teidelum && git add src/mcp.rs && git commit -m "mcp: add chat tools — post
 
 **Steps:**
 
-- [ ] Create `teidelum/tests/chat_plan2_integration.rs` with integration tests.
+- [x] Create `teidelum/tests/chat_plan2_integration.rs` with integration tests.
 
 ```rust
 //! Integration tests for Chat Plan 2: Search, Files, MCP Tools.
