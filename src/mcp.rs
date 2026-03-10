@@ -1015,7 +1015,7 @@ impl Teidelum {
                 .map(|id| id.to_string())
                 .collect::<Vec<_>>()
                 .join(", ");
-            let sql = format!("SELECT id, channel_id FROM messages WHERE id IN ({id_list})");
+            let sql = format!("SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at IS NULL");
             match self.api.query_router().query_sync(&sql) {
                 Ok(r) => r
                     .rows

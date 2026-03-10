@@ -1021,6 +1021,23 @@ pub async fn chat_update(
         return slack::err("internal_error");
     }
 
+    // Re-index in tantivy: delete old doc and add updated one
+    let _ = state
+        .api
+        .search_engine()
+        .delete_documents(&[req.ts.to_string()]);
+    let channel_name =
+        crate::chat::models::channel_display_name(state.api.query_router(), channel_id);
+    let doc = vec![(
+        req.ts.to_string(),
+        "chat".to_string(),
+        channel_name,
+        req.text.clone(),
+    )];
+    if let Err(e) = state.api.search_engine().index_documents(&doc) {
+        tracing::warn!("message search re-indexing failed: {e}");
+    }
+
     // Broadcast message_changed
     let event = crate::chat::events::ServerEvent::MessageChanged {
         channel: channel_id.to_string(),
@@ -1090,6 +1107,15 @@ pub async fn chat_delete(
     if let Err(e) = state.api.query_router().query_sync(&soft_delete) {
         tracing::error!("chat delete failed: {e}");
         return slack::err("internal_error");
+    }
+
+    // Remove from tantivy search index
+    if let Err(e) = state
+        .api
+        .search_engine()
+        .delete_documents(&[req.ts.to_string()])
+    {
+        tracing::warn!("message search index removal failed: {e}");
     }
 
     let event = crate::chat::events::ServerEvent::MessageDeleted {
@@ -1331,7 +1357,7 @@ pub async fn search_messages(
             .map(|id| id.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        let sql = format!("SELECT id, channel_id FROM messages WHERE id IN ({id_list})");
+        let sql = format!("SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at IS NULL");
         match state.api.query_router().query_sync(&sql) {
             Ok(r) => r
                 .rows
