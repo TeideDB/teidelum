@@ -899,21 +899,18 @@ impl Teidelum {
     #[tool(description = "List chat channels accessible to the bot")]
     async fn chat_list_channels(
         &self,
-        Parameters(params): Parameters<ChatListChannelsParams>,
+        Parameters(_params): Parameters<ChatListChannelsParams>,
     ) -> Result<CallToolResult, McpError> {
-        let sql = if let Some(bot_id) = params.bot_user_id {
-            // List channels the bot is a member of
-            format!(
-                "SELECT c.id, c.name, c.kind, c.topic \
-                 FROM channels c \
-                 JOIN channel_members cm ON c.id = cm.channel_id \
-                 WHERE cm.user_id = {}",
-                bot_id
-            )
-        } else {
-            // List all public channels
-            "SELECT id, name, kind, topic FROM channels WHERE kind = 'public'".to_string()
-        };
+        let (bot_id, _) = self.resolve_bot_user()?;
+
+        // List channels the bot is a member of
+        let sql = format!(
+            "SELECT c.id, c.name, c.kind, c.topic \
+             FROM channels c \
+             JOIN channel_members cm ON c.id = cm.channel_id \
+             WHERE cm.user_id = {}",
+            bot_id
+        );
 
         let result = self.api.query_router().query_sync(&sql)
             .map_err(|e| McpError::internal_error(format!("list channels failed: {e}"), None))?;

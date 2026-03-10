@@ -33,7 +33,6 @@ const ALLOWED_MIME_TYPES: &[&str] = &[
     "audio/ogg",
     "video/mp4",
     "video/webm",
-    "application/octet-stream",
 ];
 
 /// Guess MIME type from file extension.
@@ -128,7 +127,17 @@ pub async fn files_upload(
         None => return slack::err("no_file_uploaded"),
     };
 
-    let file_name = file_name.unwrap_or_else(|| "unnamed".to_string());
+    let file_name = file_name
+        .and_then(|n| {
+            // Strip directory components to prevent path traversal
+            let sanitized = n.rsplit(['/', '\\']).next().unwrap_or("").to_string();
+            if sanitized.is_empty() || sanitized == "." || sanitized == ".." {
+                None
+            } else {
+                Some(sanitized)
+            }
+        })
+        .unwrap_or_else(|| "unnamed".to_string());
 
     // Determine MIME type
     let mime_type = file_mime.unwrap_or_else(|| guess_mime(&file_name).to_string());
@@ -182,6 +191,8 @@ pub async fn files_upload(
 
     if let Err(e) = state.api.query_router().query_sync(&msg_insert) {
         tracing::error!("file message insert failed: {e}");
+        let _ = std::fs::remove_file(&storage_path);
+        let _ = std::fs::remove_dir(&storage_dir);
         return slack::err("internal_error");
     }
 
@@ -199,6 +210,8 @@ pub async fn files_upload(
 
     if let Err(e) = state.api.query_router().query_sync(&file_insert) {
         tracing::error!("file metadata insert failed: {e}");
+        let _ = std::fs::remove_file(&storage_path);
+        let _ = std::fs::remove_dir(&storage_dir);
         return slack::err("internal_error");
     }
 
@@ -275,10 +288,16 @@ pub async fn files_download(
         Err(_) => return slack::http_err(StatusCode::UNAUTHORIZED, "invalid_auth"),
     };
 
+    // Validate file_id is numeric to prevent SQL injection
+    let file_id_num: i64 = match file_id.parse() {
+        Ok(id) => id,
+        Err(_) => return slack::http_err(StatusCode::BAD_REQUEST, "invalid_file_id"),
+    };
+
     // Look up file metadata
     let sql = format!(
         "SELECT channel_id, filename, mime_type, storage_path FROM files WHERE id = {}",
-        escape_sql(&file_id)
+        file_id_num
     );
     let result = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r,
@@ -335,13 +354,23 @@ pub async fn files_download(
         }
     };
 
-    let content_disposition = format!("inline; filename=\"{}\"", filename.replace('"', "\\\""));
+    // Sanitize filename: strip control chars to avoid header injection / panic
+    let safe_filename: String = filename
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect();
+    let content_disposition = format!("inline; filename=\"{}\"", safe_filename.replace('"', "\\\""));
 
     axum::http::Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, mime_type)
         .header(header::CONTENT_DISPOSITION, content_disposition)
         .body(Body::from(file_bytes))
-        .unwrap()
+        .unwrap_or_else(|_| {
+            axum::http::Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(Body::empty())
+                .unwrap()
+        })
         .into_response()
 }
