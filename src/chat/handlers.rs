@@ -1211,6 +1211,10 @@ pub async fn reactions_remove(
         _ => return slack::err("internal_error"),
     };
 
+    if !is_channel_member(&state, channel_id, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
     let delete = format!(
         "DELETE FROM reactions WHERE message_id = {} AND user_id = {} AND emoji = '{}'",
         req.timestamp,

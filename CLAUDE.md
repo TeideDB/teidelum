@@ -39,7 +39,7 @@ Single crate, modules under `src/`:
 | `sync/zulip.rs` | Zulip incremental sync |
 | `server.rs` | HTTP server setup: Axum router, CORS, optional API key auth |
 | `chat/handlers.rs` | Slack-compatible REST API handlers (channels, messages, reactions, search) |
-| `chat/files.rs` | File upload (multipart, MIME allowlist) and download with auth |
+| `chat/files.rs` | File upload (multipart, MIME allowlist, extension-only MIME detection) and download with auth, nosniff headers |
 | `chat/hub.rs` | WebSocket pub/sub hub for real-time event broadcasting |
 | `chat/ws.rs` | WebSocket upgrade and per-connection event loop |
 | `chat/auth.rs` | JWT auth, Argon2 password hashing, middleware |
@@ -55,6 +55,8 @@ Single crate, modules under `src/`:
 - **Graph Traversal** (`graph.rs`): BFS over catalog FK relationships using SQL queries at each hop. Supports neighbor discovery and path-finding with direction and relationship-type filtering. Capped at 10 hops (`MAX_DEPTH`).
 - **Unified API** (`api.rs`): `TeidelumApi` wraps all subsystems (catalog, search engine, query router, graph engine) behind a single thread-safe facade. Uses `std::sync::RwLock` for concurrent read access to catalog and graph. MCP server, tests, and future plugins all delegate through this API.
 - **MCP via rmcp**: Tools are defined with `#[tool]` macro on `Teidelum` struct methods. Parameters use `schemars::JsonSchema` for auto-generated schemas. Tracing goes to stderr (stdout is the MCP transport).
+- **Search Auth Filtering**: Both the `chat_search` MCP tool and `search.messages` REST endpoint filter results to only channels the caller is a member of. Results are over-fetched (3x limit) from tantivy then filtered post-query, since tantivy has no per-user access control.
+- **MIME Hardening** (`chat/files.rs`): MIME type is always derived from file extension, never from client-supplied headers or DB values. Downloads include `X-Content-Type-Options: nosniff` and `Content-Disposition: attachment`.
 
 ### MCP Tools
 
