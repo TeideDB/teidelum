@@ -999,10 +999,12 @@ impl Teidelum {
             }
         };
 
+        let limit = params.limit.min(100);
+        // Over-fetch to compensate for post-query auth filtering
         let query = SearchQuery {
             text: params.query,
             sources: Some(vec!["chat".to_string()]),
-            limit: params.limit.min(100),
+            limit: limit * 3,
             date_from: None,
             date_to: None,
         };
@@ -1016,6 +1018,7 @@ impl Teidelum {
         let matches: Vec<serde_json::Value> = results
             .iter()
             .filter(|r| member_channels.contains(&r.title))
+            .take(limit)
             .map(|r| {
                 serde_json::json!({
                     "ts": r.id,

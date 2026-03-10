@@ -1285,10 +1285,11 @@ pub async fn search_messages(
         }
     };
 
+    // Over-fetch to compensate for post-query auth filtering
     let search_query = crate::search::SearchQuery {
         text: req.query,
         sources: Some(vec!["chat".to_string()]),
-        limit,
+        limit: limit * 3,
         date_from: None,
         date_to: None,
     };
@@ -1305,6 +1306,7 @@ pub async fn search_messages(
     let matches: Vec<serde_json::Value> = results
         .iter()
         .filter(|r| member_channels.contains(&r.title))
+        .take(limit)
         .map(|r| {
             json!({
                 "ts": r.id,

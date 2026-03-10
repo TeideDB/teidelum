@@ -321,10 +321,8 @@ pub async fn files_download(
         crate::connector::Value::String(s) => s.clone(),
         _ => return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"),
     };
-    let mime_type = match &row[2] {
-        crate::connector::Value::String(s) => s.clone(),
-        _ => "application/octet-stream".to_string(),
-    };
+    // Re-derive MIME from filename rather than trusting DB value (defense-in-depth)
+    let mime_type = guess_mime(&filename).to_string();
     let storage_path = match &row[3] {
         crate::connector::Value::String(s) => s.clone(),
         _ => return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"),
