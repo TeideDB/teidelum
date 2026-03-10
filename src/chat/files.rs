@@ -3,10 +3,12 @@ use crate::chat::handlers::AppState;
 use crate::chat::id::next_id;
 use crate::chat::models::{escape_sql, now_timestamp};
 use crate::chat::slack;
-use axum::extract::State;
-use axum::response::Response;
+use axum::body::Body;
+use axum::extract::{Multipart, Path, Query, State};
+use axum::http::{header, StatusCode};
+use axum::response::{IntoResponse, Response};
 use axum::Extension;
-use axum::extract::Multipart;
+use serde::Deserialize;
 use serde_json::json;
 
 /// Maximum file size: 10 MB.
@@ -249,4 +251,97 @@ pub async fn files_upload(
             "channel": channel_id.to_string(),
         }
     }))
+}
+
+#[derive(Deserialize)]
+pub struct FileDownloadQuery {
+    pub token: String,
+}
+
+/// Handle `GET /files/:id/:filename` — download a file with auth check.
+pub async fn files_download(
+    State(state): State<AppState>,
+    Path((file_id, _filename)): Path<(String, String)>,
+    Query(query): Query<FileDownloadQuery>,
+) -> Response {
+    // Validate JWT from query param
+    let secret = match std::env::var("TEIDE_CHAT_SECRET") {
+        Ok(s) if !s.is_empty() => s,
+        _ => return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "server_misconfigured"),
+    };
+
+    let claims = match crate::chat::auth::validate_token(&secret, &query.token) {
+        Ok(c) => c,
+        Err(_) => return slack::http_err(StatusCode::UNAUTHORIZED, "invalid_auth"),
+    };
+
+    // Look up file metadata
+    let sql = format!(
+        "SELECT channel_id, filename, mime_type, storage_path FROM files WHERE id = {}",
+        escape_sql(&file_id)
+    );
+    let result = match state.api.query_router().query_sync(&sql) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("file download query failed: {e}");
+            return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "internal_error");
+        }
+    };
+
+    if result.rows.is_empty() {
+        return slack::http_err(StatusCode::NOT_FOUND, "file_not_found");
+    }
+
+    let row = &result.rows[0];
+    let channel_id = match &row[0] {
+        crate::connector::Value::Int(v) => *v,
+        _ => return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"),
+    };
+    let filename = match &row[1] {
+        crate::connector::Value::String(s) => s.clone(),
+        _ => return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"),
+    };
+    let mime_type = match &row[2] {
+        crate::connector::Value::String(s) => s.clone(),
+        _ => "application/octet-stream".to_string(),
+    };
+    let storage_path = match &row[3] {
+        crate::connector::Value::String(s) => s.clone(),
+        _ => return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"),
+    };
+
+    // Check channel membership
+    let check_sql = format!(
+        "SELECT channel_id FROM channel_members WHERE channel_id = {} AND user_id = {}",
+        channel_id, claims.user_id
+    );
+    match state.api.query_router().query_sync(&check_sql) {
+        Ok(r) if r.rows.is_empty() => {
+            return slack::http_err(StatusCode::FORBIDDEN, "not_in_channel");
+        }
+        Err(e) => {
+            tracing::error!("file download membership check failed: {e}");
+            return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "internal_error");
+        }
+        _ => {}
+    }
+
+    // Read file from disk and stream it
+    let file_bytes = match std::fs::read(&storage_path) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            tracing::error!("file read from disk failed: {e}");
+            return slack::http_err(StatusCode::NOT_FOUND, "file_not_found");
+        }
+    };
+
+    let content_disposition = format!("inline; filename=\"{}\"", filename.replace('"', "\\\""));
+
+    axum::http::Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, mime_type)
+        .header(header::CONTENT_DISPOSITION, content_disposition)
+        .body(Body::from(file_bytes))
+        .unwrap()
+        .into_response()
 }
