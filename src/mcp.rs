@@ -177,6 +177,61 @@ pub struct AddRelationshipParams {
     pub relation: String,
 }
 
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ChatPostMessageParams {
+    /// Channel ID to post to.
+    pub channel: i64,
+    /// Message text content.
+    pub text: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ChatHistoryParams {
+    /// Channel ID to read history from.
+    pub channel: i64,
+    /// Maximum number of messages to return.
+    #[serde(default = "default_history_limit")]
+    pub limit: usize,
+}
+
+fn default_history_limit() -> usize {
+    50
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ChatReplyParams {
+    /// Channel ID containing the thread.
+    pub channel: i64,
+    /// Thread parent message ID (ts).
+    pub thread_ts: i64,
+    /// Reply text content.
+    pub text: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ChatReactParams {
+    /// Message ID (ts) to react to.
+    pub timestamp: i64,
+    /// Emoji name (e.g. "thumbsup", "heart").
+    pub name: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ChatListChannelsParams {
+    /// Optional bot user ID. If omitted, lists all public channels.
+    #[serde(default)]
+    pub bot_user_id: Option<i64>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ChatSearchParams {
+    /// Search query string.
+    pub query: String,
+    /// Maximum number of results.
+    #[serde(default = "default_limit")]
+    pub limit: usize,
+}
+
 /// The Teidelum MCP server — exposes search, sql, describe, graph, and sync tools.
 #[derive(Clone)]
 pub struct Teidelum {
@@ -236,6 +291,43 @@ impl Teidelum {
         Self {
             api,
             tool_router: Self::tool_router(),
+        }
+    }
+
+    /// Look up the first bot user. Returns (user_id, username) or error.
+    fn resolve_bot_user(&self) -> Result<(i64, String), McpError> {
+        let sql = "SELECT id, username FROM users WHERE is_bot = true LIMIT 1";
+        let result = self.api.query_router().query_sync(sql)
+            .map_err(|e| McpError::internal_error(format!("bot user lookup failed: {e}"), None))?;
+
+        if result.rows.is_empty() {
+            return Err(McpError::internal_error(
+                "no bot user found — create one with is_bot=true via auth.register".to_string(),
+                None,
+            ));
+        }
+
+        let user_id = match &result.rows[0][0] {
+            Value::Int(v) => *v,
+            _ => return Err(McpError::internal_error("invalid bot user id".to_string(), None)),
+        };
+        let username = match &result.rows[0][1] {
+            Value::String(s) => s.clone(),
+            _ => return Err(McpError::internal_error("invalid bot username".to_string(), None)),
+        };
+
+        Ok((user_id, username))
+    }
+
+    /// Check if a user is a member of a channel.
+    fn is_member(&self, channel_id: i64, user_id: i64) -> bool {
+        let sql = format!(
+            "SELECT channel_id FROM channel_members WHERE channel_id = {} AND user_id = {}",
+            channel_id, user_id
+        );
+        match self.api.query_router().query_sync(&sql) {
+            Ok(r) => !r.rows.is_empty(),
+            Err(_) => false,
         }
     }
 
@@ -567,6 +659,317 @@ impl Teidelum {
         });
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Send a message to a chat channel (as bot user)")]
+    async fn chat_post_message(
+        &self,
+        Parameters(params): Parameters<ChatPostMessageParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let (bot_id, _) = self.resolve_bot_user()?;
+
+        if !self.is_member(params.channel, bot_id) {
+            return Err(McpError::invalid_params(
+                format!("bot is not a member of channel {}", params.channel),
+                None,
+            ));
+        }
+
+        let id = crate::chat::id::next_id();
+        let now = crate::chat::models::now_timestamp();
+        let text_escaped = crate::chat::models::escape_sql(&params.text);
+
+        let sql = format!(
+            "INSERT INTO messages (id, channel_id, user_id, thread_id, content, deleted_at, edited_at, created_at) \
+             VALUES ({id}, {channel}, {bot}, 0, '{text}', NULL, NULL, '{now}')",
+            channel = params.channel,
+            bot = bot_id,
+            text = text_escaped,
+        );
+
+        self.api.query_router().query_sync(&sql)
+            .map_err(|e| McpError::internal_error(format!("post message failed: {e}"), None))?;
+
+        // Index in tantivy
+        let channel_name = {
+            let name_sql = format!("SELECT name FROM channels WHERE id = {}", params.channel);
+            match self.api.query_router().query_sync(&name_sql) {
+                Ok(r) if !r.rows.is_empty() => {
+                    match &r.rows[0][0] {
+                        Value::String(s) => format!("#{s}"),
+                        _ => format!("#{}", params.channel),
+                    }
+                }
+                _ => format!("#{}", params.channel),
+            }
+        };
+        let doc = vec![(
+            id.to_string(),
+            "chat".to_string(),
+            channel_name,
+            params.text.clone(),
+        )];
+        if let Err(e) = self.api.search_engine().index_documents(&doc) {
+            tracing::warn!("MCP chat message indexing failed: {e}");
+        }
+
+        let result = serde_json::json!({
+            "ok": true,
+            "ts": id.to_string(),
+            "channel": params.channel.to_string(),
+            "text": params.text,
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Read recent message history from a chat channel")]
+    async fn chat_history(
+        &self,
+        Parameters(params): Parameters<ChatHistoryParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let (bot_id, _) = self.resolve_bot_user()?;
+
+        if !self.is_member(params.channel, bot_id) {
+            return Err(McpError::invalid_params(
+                format!("bot is not a member of channel {}", params.channel),
+                None,
+            ));
+        }
+
+        let limit = params.limit.min(200);
+        let sql = format!(
+            "SELECT m.id, m.user_id, m.thread_id, m.content, m.created_at, u.username \
+             FROM messages m \
+             JOIN users u ON m.user_id = u.id \
+             WHERE m.channel_id = {} AND m.thread_id = 0 AND m.deleted_at IS NULL \
+             ORDER BY m.id DESC LIMIT {}",
+            params.channel, limit
+        );
+
+        let result = self.api.query_router().query_sync(&sql)
+            .map_err(|e| McpError::internal_error(format!("history query failed: {e}"), None))?;
+
+        let messages: Vec<serde_json::Value> = result.rows.iter().map(|row| {
+            serde_json::json!({
+                "ts": row[0].to_json(),
+                "user": row[1].to_json(),
+                "thread_ts": row[2].to_json(),
+                "text": row[3].to_json(),
+                "created_at": row[4].to_json(),
+                "username": row[5].to_json(),
+            })
+        }).collect();
+
+        let output = serde_json::json!({
+            "ok": true,
+            "channel": params.channel.to_string(),
+            "messages": messages,
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&output).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Reply to a thread in a chat channel (as bot user)")]
+    async fn chat_reply(
+        &self,
+        Parameters(params): Parameters<ChatReplyParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let (bot_id, _) = self.resolve_bot_user()?;
+
+        if !self.is_member(params.channel, bot_id) {
+            return Err(McpError::invalid_params(
+                format!("bot is not a member of channel {}", params.channel),
+                None,
+            ));
+        }
+
+        let id = crate::chat::id::next_id();
+        let now = crate::chat::models::now_timestamp();
+        let text_escaped = crate::chat::models::escape_sql(&params.text);
+
+        let sql = format!(
+            "INSERT INTO messages (id, channel_id, user_id, thread_id, content, deleted_at, edited_at, created_at) \
+             VALUES ({id}, {channel}, {bot}, {thread}, '{text}', NULL, NULL, '{now}')",
+            channel = params.channel,
+            bot = bot_id,
+            thread = params.thread_ts,
+            text = text_escaped,
+        );
+
+        self.api.query_router().query_sync(&sql)
+            .map_err(|e| McpError::internal_error(format!("reply failed: {e}"), None))?;
+
+        // Index in tantivy
+        let channel_name = {
+            let name_sql = format!("SELECT name FROM channels WHERE id = {}", params.channel);
+            match self.api.query_router().query_sync(&name_sql) {
+                Ok(r) if !r.rows.is_empty() => {
+                    match &r.rows[0][0] {
+                        Value::String(s) => format!("#{s}"),
+                        _ => format!("#{}", params.channel),
+                    }
+                }
+                _ => format!("#{}", params.channel),
+            }
+        };
+        let doc = vec![(
+            id.to_string(),
+            "chat".to_string(),
+            channel_name,
+            params.text.clone(),
+        )];
+        if let Err(e) = self.api.search_engine().index_documents(&doc) {
+            tracing::warn!("MCP chat reply indexing failed: {e}");
+        }
+
+        let result = serde_json::json!({
+            "ok": true,
+            "ts": id.to_string(),
+            "channel": params.channel.to_string(),
+            "thread_ts": params.thread_ts.to_string(),
+            "text": params.text,
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Add an emoji reaction to a message (as bot user)")]
+    async fn chat_react(
+        &self,
+        Parameters(params): Parameters<ChatReactParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let (bot_id, _) = self.resolve_bot_user()?;
+
+        // Get channel from message
+        let check_sql = format!(
+            "SELECT channel_id FROM messages WHERE id = {}",
+            params.timestamp
+        );
+        let result = self.api.query_router().query_sync(&check_sql)
+            .map_err(|e| McpError::internal_error(format!("message lookup failed: {e}"), None))?;
+
+        if result.rows.is_empty() {
+            return Err(McpError::invalid_params("message_not_found".to_string(), None));
+        }
+
+        let channel_id = match &result.rows[0][0] {
+            Value::Int(v) => *v,
+            _ => return Err(McpError::internal_error("invalid channel_id".to_string(), None)),
+        };
+
+        if !self.is_member(channel_id, bot_id) {
+            return Err(McpError::invalid_params(
+                format!("bot is not a member of channel {channel_id}"),
+                None,
+            ));
+        }
+
+        // Check if already reacted
+        let dup_sql = format!(
+            "SELECT message_id FROM reactions WHERE message_id = {} AND user_id = {} AND emoji = '{}'",
+            params.timestamp, bot_id, crate::chat::models::escape_sql(&params.name)
+        );
+        if let Ok(r) = self.api.query_router().query_sync(&dup_sql) {
+            if !r.rows.is_empty() {
+                return Err(McpError::invalid_params("already_reacted".to_string(), None));
+            }
+        }
+
+        let now = crate::chat::models::now_timestamp();
+        let insert_sql = format!(
+            "INSERT INTO reactions (message_id, user_id, emoji, created_at) \
+             VALUES ({}, {}, '{}', '{now}')",
+            params.timestamp, bot_id, crate::chat::models::escape_sql(&params.name)
+        );
+
+        self.api.query_router().query_sync(&insert_sql)
+            .map_err(|e| McpError::internal_error(format!("reaction insert failed: {e}"), None))?;
+
+        let result = serde_json::json!({"ok": true});
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "List chat channels accessible to the bot")]
+    async fn chat_list_channels(
+        &self,
+        Parameters(params): Parameters<ChatListChannelsParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let sql = if let Some(bot_id) = params.bot_user_id {
+            // List channels the bot is a member of
+            format!(
+                "SELECT c.id, c.name, c.kind, c.topic \
+                 FROM channels c \
+                 JOIN channel_members cm ON c.id = cm.channel_id \
+                 WHERE cm.user_id = {}",
+                bot_id
+            )
+        } else {
+            // List all public channels
+            "SELECT id, name, kind, topic FROM channels WHERE kind = 'public'".to_string()
+        };
+
+        let result = self.api.query_router().query_sync(&sql)
+            .map_err(|e| McpError::internal_error(format!("list channels failed: {e}"), None))?;
+
+        let channels: Vec<serde_json::Value> = result.rows.iter().map(|row| {
+            serde_json::json!({
+                "id": row[0].to_json(),
+                "name": row[1].to_json(),
+                "kind": row[2].to_json(),
+                "topic": row[3].to_json(),
+            })
+        }).collect();
+
+        let output = serde_json::json!({
+            "ok": true,
+            "channels": channels,
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&output).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Search chat messages by keyword")]
+    async fn chat_search(
+        &self,
+        Parameters(params): Parameters<ChatSearchParams>,
+    ) -> Result<CallToolResult, McpError> {
+        let query = SearchQuery {
+            text: params.query,
+            sources: Some(vec!["chat".to_string()]),
+            limit: params.limit.min(100),
+            date_from: None,
+            date_to: None,
+        };
+
+        let results = self.api.search(&query)
+            .map_err(|e| McpError::internal_error(format!("chat search failed: {e}"), None))?;
+
+        let matches: Vec<serde_json::Value> = results.iter().map(|r| {
+            serde_json::json!({
+                "ts": r.id,
+                "channel": r.title,
+                "text": r.snippet,
+                "score": r.score,
+            })
+        }).collect();
+
+        let output = serde_json::json!({
+            "ok": true,
+            "messages": {
+                "matches": matches,
+                "total": matches.len(),
+            }
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&output).unwrap(),
         )]))
     }
 }
