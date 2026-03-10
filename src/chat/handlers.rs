@@ -509,7 +509,11 @@ pub async fn conversations_history(
         .rows
         .iter()
         .map(|row| {
-            let deleted = !matches!(&row[5], crate::connector::Value::Null);
+            let deleted = match &row[5] {
+                crate::connector::Value::Null => false,
+                crate::connector::Value::String(s) if s.is_empty() => false,
+                _ => true,
+            };
             json!({
                 "ts": row[0].to_json(),
                 "channel": row[1].to_json(),
@@ -557,7 +561,11 @@ pub async fn conversations_replies(
         .rows
         .iter()
         .map(|row| {
-            let deleted = !matches!(&row[5], crate::connector::Value::Null);
+            let deleted = match &row[5] {
+                crate::connector::Value::Null => false,
+                crate::connector::Value::String(s) if s.is_empty() => false,
+                _ => true,
+            };
             json!({
                 "ts": row[0].to_json(),
                 "channel": row[1].to_json(),
