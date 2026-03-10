@@ -5,3 +5,4 @@ pub mod hub;
 pub mod id;
 pub mod models;
 pub mod slack;
+pub mod ws;
