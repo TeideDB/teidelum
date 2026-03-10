@@ -210,6 +210,9 @@ pub async fn files_upload(
 
     if let Err(e) = state.api.query_router().query_sync(&file_insert) {
         tracing::error!("file metadata insert failed: {e}");
+        // Clean up orphaned message row
+        let del_msg = format!("DELETE FROM messages WHERE id = {msg_id}");
+        let _ = state.api.query_router().query_sync(&del_msg);
         let _ = std::fs::remove_file(&storage_path);
         let _ = std::fs::remove_dir(&storage_dir);
         return slack::err("internal_error");
@@ -359,7 +362,10 @@ pub async fn files_download(
         .chars()
         .filter(|c| !c.is_control())
         .collect();
-    let content_disposition = format!("inline; filename=\"{}\"", safe_filename.replace('"', "\\\""));
+    let content_disposition = format!(
+        "inline; filename=\"{}\"",
+        safe_filename.replace('\\', "\\\\").replace('"', "\\\"")
+    );
 
     axum::http::Response::builder()
         .status(StatusCode::OK)
