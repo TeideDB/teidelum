@@ -1207,22 +1207,8 @@ pub async fn reactions_remove(
         return slack::err("channel_not_found");
     }
 
-    // Check that the reaction actually exists before deleting
-    let check_reaction = format!(
-        "SELECT message_id FROM reactions WHERE message_id = {} AND user_id = {} AND emoji = '{}'",
-        req.timestamp,
-        claims.user_id,
-        escape_sql(&req.name)
-    );
-    match state.api.query_router().query_sync(&check_reaction) {
-        Ok(r) if r.rows.is_empty() => return slack::err("no_reaction"),
-        Err(e) => {
-            tracing::error!("reaction existence check failed: {e}");
-            return slack::err("internal_error");
-        }
-        _ => {}
-    }
-
+    // Atomic delete: single DELETE, parse result to check if any rows were removed.
+    // TeideDB returns "Deleted N rows from 'reactions'" for DELETE statements.
     let delete = format!(
         "DELETE FROM reactions WHERE message_id = {} AND user_id = {} AND emoji = '{}'",
         req.timestamp,
@@ -1230,18 +1216,34 @@ pub async fn reactions_remove(
         escape_sql(&req.name)
     );
 
-    if let Err(e) = state.api.query_router().query_sync(&delete) {
-        tracing::error!("reaction delete failed: {e}");
-        return slack::err("internal_error");
-    }
-
-    let event = crate::chat::events::ServerEvent::ReactionRemoved {
-        channel: channel_id.to_string(),
-        user: claims.user_id.to_string(),
-        reaction: req.name,
-        item_ts: req.timestamp.to_string(),
+    let delete_result = match state.api.query_router().query_sync(&delete) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("reaction delete failed: {e}");
+            return slack::err("internal_error");
+        }
     };
-    state.hub.broadcast_to_channel(channel_id, &event).await;
+
+    // Only broadcast if rows were actually deleted (status message starts with "Deleted 0" when nothing matched)
+    let actually_deleted = delete_result
+        .rows
+        .first()
+        .and_then(|row| row.first())
+        .and_then(|v| match v {
+            crate::connector::Value::String(s) => Some(!s.starts_with("Deleted 0")),
+            _ => None,
+        })
+        .unwrap_or(false);
+
+    if actually_deleted {
+        let event = crate::chat::events::ServerEvent::ReactionRemoved {
+            channel: channel_id.to_string(),
+            user: claims.user_id.to_string(),
+            reaction: req.name,
+            item_ts: req.timestamp.to_string(),
+        };
+        state.hub.broadcast_to_channel(channel_id, &event).await;
+    }
 
     slack::ok(json!({}))
 }
@@ -1276,12 +1278,10 @@ pub async fn search_messages(
 
     let limit = req.limit.min(100);
 
-    // Get the set of channel names the user is a member of for filtering
-    let member_channels: std::collections::HashSet<String> = {
+    // Get the set of channel IDs the user is a member of for filtering
+    let member_channel_ids: std::collections::HashSet<i64> = {
         let sql = format!(
-            "SELECT c.name FROM channels c \
-             JOIN channel_members cm ON c.id = cm.channel_id \
-             WHERE cm.user_id = {}",
+            "SELECT channel_id FROM channel_members WHERE user_id = {}",
             claims.user_id
         );
         match state.api.query_router().query_sync(&sql) {
@@ -1289,7 +1289,7 @@ pub async fn search_messages(
                 .rows
                 .iter()
                 .filter_map(|row| match &row[0] {
-                    crate::connector::Value::String(s) => Some(format!("#{s}")),
+                    crate::connector::Value::Int(v) => Some(*v),
                     _ => None,
                 })
                 .collect(),
@@ -1317,10 +1317,52 @@ pub async fn search_messages(
         }
     };
 
-    // Filter results to only channels the user is a member of
+    // Look up channel_id for each message to filter by ID (not name)
+    // Parse IDs to i64 to prevent SQL injection from arbitrary tantivy document IDs
+    let msg_ids: Vec<i64> = results
+        .iter()
+        .filter_map(|r| r.id.parse::<i64>().ok())
+        .collect();
+    let msg_channel_map: std::collections::HashMap<String, i64> = if msg_ids.is_empty() {
+        std::collections::HashMap::new()
+    } else {
+        let id_list = msg_ids
+            .iter()
+            .map(|id| id.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!("SELECT id, channel_id FROM messages WHERE id IN ({id_list})");
+        match state.api.query_router().query_sync(&sql) {
+            Ok(r) => r
+                .rows
+                .iter()
+                .filter_map(|row| {
+                    let id = match &row[0] {
+                        crate::connector::Value::Int(v) => v.to_string(),
+                        _ => return None,
+                    };
+                    let ch_id = match &row[1] {
+                        crate::connector::Value::Int(v) => *v,
+                        _ => return None,
+                    };
+                    Some((id, ch_id))
+                })
+                .collect(),
+            Err(e) => {
+                tracing::error!("message channel lookup failed: {e}");
+                return slack::err("internal_error");
+            }
+        }
+    };
+
+    // Filter results to only channels the user is a member of (by channel ID)
     let matches: Vec<serde_json::Value> = results
         .iter()
-        .filter(|r| member_channels.contains(&r.title))
+        .filter(|r| {
+            msg_channel_map
+                .get(&r.id)
+                .is_some_and(|ch_id| member_channel_ids.contains(ch_id))
+        })
         .take(limit)
         .map(|r| {
             json!({

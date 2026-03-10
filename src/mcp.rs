@@ -962,12 +962,10 @@ impl Teidelum {
     ) -> Result<CallToolResult, McpError> {
         let (bot_id, _) = self.resolve_bot_user()?;
 
-        // Get channel names the bot is a member of for filtering results
-        let member_channels: std::collections::HashSet<String> = {
+        // Get channel IDs the bot is a member of for filtering results
+        let member_channel_ids: std::collections::HashSet<i64> = {
             let sql = format!(
-                "SELECT c.name FROM channels c \
-                 JOIN channel_members cm ON c.id = cm.channel_id \
-                 WHERE cm.user_id = {}",
+                "SELECT channel_id FROM channel_members WHERE user_id = {}",
                 bot_id
             );
             match self.api.query_router().query_sync(&sql) {
@@ -975,7 +973,7 @@ impl Teidelum {
                     .rows
                     .iter()
                     .filter_map(|row| match &row[0] {
-                        Value::String(s) => Some(format!("#{s}")),
+                        Value::Int(v) => Some(*v),
                         _ => None,
                     })
                     .collect(),
@@ -1003,10 +1001,54 @@ impl Teidelum {
             .search(&query)
             .map_err(|e| McpError::internal_error(format!("chat search failed: {e}"), None))?;
 
-        // Filter results to only channels the bot is a member of
+        // Look up channel_id for each message to filter by ID (not name)
+        // Parse IDs to i64 to prevent SQL injection from arbitrary tantivy document IDs
+        let msg_ids: Vec<i64> = results
+            .iter()
+            .filter_map(|r| r.id.parse::<i64>().ok())
+            .collect();
+        let msg_channel_map: std::collections::HashMap<String, i64> = if msg_ids.is_empty() {
+            std::collections::HashMap::new()
+        } else {
+            let id_list = msg_ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let sql = format!("SELECT id, channel_id FROM messages WHERE id IN ({id_list})");
+            match self.api.query_router().query_sync(&sql) {
+                Ok(r) => r
+                    .rows
+                    .iter()
+                    .filter_map(|row| {
+                        let id = match &row[0] {
+                            Value::Int(v) => v.to_string(),
+                            _ => return None,
+                        };
+                        let ch_id = match &row[1] {
+                            Value::Int(v) => *v,
+                            _ => return None,
+                        };
+                        Some((id, ch_id))
+                    })
+                    .collect(),
+                Err(e) => {
+                    return Err(McpError::internal_error(
+                        format!("message channel lookup failed: {e}"),
+                        None,
+                    ));
+                }
+            }
+        };
+
+        // Filter results to only channels the bot is a member of (by channel ID)
         let matches: Vec<serde_json::Value> = results
             .iter()
-            .filter(|r| member_channels.contains(&r.title))
+            .filter(|r| {
+                msg_channel_map
+                    .get(&r.id)
+                    .is_some_and(|ch_id| member_channel_ids.contains(ch_id))
+            })
             .take(limit)
             .map(|r| {
                 serde_json::json!({
