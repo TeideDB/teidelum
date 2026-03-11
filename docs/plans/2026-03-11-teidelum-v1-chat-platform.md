@@ -1008,7 +1008,7 @@ git commit -m "feat: add conversations.update endpoint with owner/admin check"
 **Files:**
 - Modify: `src/chat/handlers.rs`
 
-- [ ] **Step 1: Write conversations_archive handler**
+- [x] **Step 1: Write conversations_archive handler**
 
 ```rust
 #[derive(Deserialize)]
@@ -1058,11 +1058,11 @@ pub async fn conversations_archive(
 }
 ```
 
-- [ ] **Step 2: Write conversations_unarchive handler**
+- [x] **Step 2: Write conversations_unarchive handler**
 
 Same structure as archive but sets `archived_at = ''` (empty string = active). Same owner-only role check. Broadcasts `ChannelUpdated` with `archived_at: Some(String::new())`. **Convention:** all archive checks use `!archived.is_empty()` — empty string means active.
 
-- [ ] **Step 3: Write conversations_set_role handler**
+- [x] **Step 3: Write conversations_set_role handler**
 
 ```rust
 #[derive(Deserialize)]
@@ -1129,7 +1129,7 @@ pub async fn conversations_set_role(
 }
 ```
 
-- [ ] **Step 4: Register routes**
+- [x] **Step 4: Register routes**
 
 ```rust
 .route("/conversations.archive", axum::routing::post(conversations_archive))
@@ -1137,7 +1137,7 @@ pub async fn conversations_set_role(
 .route("/conversations.setRole", axum::routing::post(conversations_set_role))
 ```
 
-- [ ] **Step 5: Block posting to archived channels**
+- [x] **Step 5: Block posting to archived channels**
 
 In `chat_post_message`, add a check at the start:
 
@@ -1154,9 +1154,9 @@ if let Ok(r) = state.api.query_router().query_sync(&arch_sql) {
 }
 ```
 
-- [ ] **Step 6: Run `cargo check`**
+- [x] **Step 6: Run `cargo check`**
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/chat/handlers.rs

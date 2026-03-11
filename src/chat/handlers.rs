@@ -1553,6 +1553,162 @@ pub async fn conversations_update(
     slack::ok(json!({}))
 }
 
+// ── Archive / Unarchive / SetRole ──
+
+#[derive(Deserialize)]
+pub struct ConversationsArchiveRequest {
+    #[serde(deserialize_with = "deserialize_id")]
+    pub channel: i64,
+}
+
+pub async fn conversations_archive(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<ConversationsArchiveRequest>,
+) -> Response {
+    // Only owner can archive
+    let role_sql = format!(
+        "SELECT role FROM channel_members WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    match state.api.query_router().query_sync(&role_sql) {
+        Ok(r) if !r.rows.is_empty() => {
+            let role = r.rows[0][0].to_json().as_str().unwrap_or("").to_string();
+            if role != "owner" {
+                return slack::err("not_authorized");
+            }
+        }
+        _ => return slack::err("not_in_channel"),
+    }
+
+    let now = now_timestamp();
+    let sql = format!(
+        "UPDATE channels SET archived_at = '{}' WHERE id = {}",
+        now, req.channel
+    );
+    if let Err(e) = state.api.query_router().query_sync(&sql) {
+        tracing::error!("archive failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    let event = crate::chat::events::ServerEvent::ChannelUpdated {
+        channel: req.channel.to_string(),
+        name: None,
+        topic: None,
+        description: None,
+        archived_at: Some(now),
+    };
+    state.hub.broadcast_to_channel(req.channel, &event).await;
+
+    slack::ok(json!({}))
+}
+
+pub async fn conversations_unarchive(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<ConversationsArchiveRequest>,
+) -> Response {
+    // Only owner can unarchive
+    let role_sql = format!(
+        "SELECT role FROM channel_members WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    match state.api.query_router().query_sync(&role_sql) {
+        Ok(r) if !r.rows.is_empty() => {
+            let role = r.rows[0][0].to_json().as_str().unwrap_or("").to_string();
+            if role != "owner" {
+                return slack::err("not_authorized");
+            }
+        }
+        _ => return slack::err("not_in_channel"),
+    }
+
+    let sql = format!(
+        "UPDATE channels SET archived_at = '' WHERE id = {}",
+        req.channel
+    );
+    if let Err(e) = state.api.query_router().query_sync(&sql) {
+        tracing::error!("unarchive failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    let event = crate::chat::events::ServerEvent::ChannelUpdated {
+        channel: req.channel.to_string(),
+        name: None,
+        topic: None,
+        description: None,
+        archived_at: Some(String::new()),
+    };
+    state.hub.broadcast_to_channel(req.channel, &event).await;
+
+    slack::ok(json!({}))
+}
+
+#[derive(Deserialize)]
+pub struct SetRoleRequest {
+    #[serde(deserialize_with = "deserialize_id")]
+    pub channel: i64,
+    #[serde(deserialize_with = "deserialize_id")]
+    pub user: i64,
+    pub role: String,
+}
+
+pub async fn conversations_set_role(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<SetRoleRequest>,
+) -> Response {
+    if !["admin", "member"].contains(&req.role.as_str()) {
+        return slack::err("invalid_role");
+    }
+    if req.user == claims.user_id {
+        return slack::err("cannot_change_own_role");
+    }
+
+    // Caller must be owner
+    let caller_role_sql = format!(
+        "SELECT role FROM channel_members WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    match state.api.query_router().query_sync(&caller_role_sql) {
+        Ok(r) if !r.rows.is_empty() => {
+            let role = r.rows[0][0].to_json().as_str().unwrap_or("").to_string();
+            if role != "owner" {
+                return slack::err("not_authorized");
+            }
+        }
+        _ => return slack::err("not_in_channel"),
+    }
+
+    // Target must be in channel
+    let target_sql = format!(
+        "SELECT role FROM channel_members WHERE channel_id = {} AND user_id = {}",
+        req.channel, req.user
+    );
+    match state.api.query_router().query_sync(&target_sql) {
+        Ok(r) if !r.rows.is_empty() => {
+            let current = r.rows[0][0].to_json().as_str().unwrap_or("").to_string();
+            if current == "owner" {
+                return slack::err("cannot_change_owner");
+            }
+        }
+        _ => return slack::err("user_not_in_channel"),
+    }
+
+    let sql = format!(
+        "UPDATE channel_members SET role = '{}' WHERE channel_id = {} AND user_id = {}",
+        escape_sql(&req.role),
+        req.channel,
+        req.user
+    );
+    if let Err(e) = state.api.query_router().query_sync(&sql) {
+        tracing::error!("set role failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    slack::ok(json!({}))
+}
+
 // ── Messaging ──
 
 pub async fn chat_post_message(
@@ -1562,6 +1718,20 @@ pub async fn chat_post_message(
 ) -> Response {
     if !is_channel_member(&state, req.channel, claims.user_id) {
         return slack::err("channel_not_found");
+    }
+
+    // Check if channel is archived
+    let arch_sql = format!(
+        "SELECT archived_at FROM channels WHERE id = {}",
+        req.channel
+    );
+    if let Ok(r) = state.api.query_router().query_sync(&arch_sql) {
+        if let Some(row) = r.rows.first() {
+            let archived = row[0].to_json().as_str().unwrap_or("").to_string();
+            if !archived.is_empty() {
+                return slack::err("channel_archived");
+            }
+        }
     }
 
     let id = next_id();
@@ -2193,6 +2363,18 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/conversations.update",
             axum::routing::post(conversations_update),
+        )
+        .route(
+            "/conversations.archive",
+            axum::routing::post(conversations_archive),
+        )
+        .route(
+            "/conversations.unarchive",
+            axum::routing::post(conversations_unarchive),
+        )
+        .route(
+            "/conversations.setRole",
+            axum::routing::post(conversations_set_role),
         )
         // Chat
         .route("/chat.postMessage", axum::routing::post(chat_post_message))
