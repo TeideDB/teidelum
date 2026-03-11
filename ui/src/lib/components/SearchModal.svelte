@@ -53,9 +53,17 @@
 		return user?.display_name || user?.username || userId;
 	}
 
+	function parseTimestamp(timestamp: string): Date {
+		const n = parseInt(timestamp, 10);
+		if (!isNaN(n) && String(n) === timestamp) {
+			return new Date(n * 1000);
+		}
+		return new Date(timestamp);
+	}
+
 	function formatTime(timestamp: string): string {
 		try {
-			const date = new Date(timestamp);
+			const date = parseTimestamp(timestamp);
 			return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) +
 				' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 		} catch {

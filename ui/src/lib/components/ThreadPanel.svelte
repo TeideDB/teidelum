@@ -59,9 +59,17 @@
 		return user?.display_name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || '?';
 	}
 
+	function parseTimestamp(timestamp: string): Date {
+		const n = parseInt(timestamp, 10);
+		if (!isNaN(n) && String(n) === timestamp) {
+			return new Date(n * 1000);
+		}
+		return new Date(timestamp);
+	}
+
 	function formatTime(timestamp: string): string {
 		try {
-			const date = new Date(timestamp);
+			const date = parseTimestamp(timestamp);
 			return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 		} catch {
 			return '';
