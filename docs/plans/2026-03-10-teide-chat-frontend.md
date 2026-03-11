@@ -834,7 +834,7 @@ git commit -m "feat(chat-ui): add auth store with JWT persistence and login/regi
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/channels.ts`
 
-- [ ] **Step 1: Implement channels store**
+- [x] **Step 1: Implement channels store**
 
 Create `src/lib/stores/channels.ts`:
 
@@ -923,11 +923,11 @@ export function initChannelWsListeners() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/channels.ts
