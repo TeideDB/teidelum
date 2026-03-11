@@ -9,6 +9,7 @@
 	} from '$lib/stores/channels';
 	import { unreads } from '$lib/stores/unreads';
 	import { auth, doLogout } from '$lib/stores/auth';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import type { Channel } from '$lib/types';
 
 	let showCreateModal = $state(false);
@@ -66,7 +67,7 @@
 				onclick={() => (showUserMenu = !showUserMenu)}
 				class="flex w-full items-center gap-2 rounded px-1 py-1 text-left text-sm text-primary-lighter hover:bg-primary-darker/60"
 			>
-				<span class="h-2 w-2 rounded-full bg-green-400"></span>
+				<Avatar url={$auth.user.avatar_url ?? ''} name={$auth.user.display_name || $auth.user.username || ''} size="sm" />
 				<span class="truncate">{$auth.user.display_name || $auth.user.username}</span>
 				<svg class="ml-auto h-3 w-3 text-primary-light/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />

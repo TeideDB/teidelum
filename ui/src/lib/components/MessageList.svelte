@@ -5,6 +5,7 @@
 	import { auth } from '$lib/stores/auth';
 	import { reactionsAdd, reactionsRemove, fileDownloadUrl } from '$lib/api';
 	import { renderMarkdown } from '$lib/markdown';
+	import Avatar from '$lib/components/Avatar.svelte';
 	import type { Message, Id } from '$lib/types';
 
 	interface Props {
@@ -62,9 +63,8 @@
 		return user?.display_name || user?.username || userId;
 	}
 
-	function getUserAvatar(userId: Id): string {
-		const user = $users.get(userId);
-		return user?.display_name?.[0]?.toUpperCase() || user?.username?.[0]?.toUpperCase() || '?';
+	function getUser(userId: Id) {
+		return $users.get(userId);
 	}
 
 	function parseTimestamp(timestamp: string): Date {
@@ -156,8 +156,8 @@
 			<div class="group relative flex gap-3 px-1 py-0.5 hover:bg-navy-light/50 {shouldShowAuthor(idx) ? 'mt-3' : ''}">
 				{#if shouldShowAuthor(idx)}
 					<!-- Avatar -->
-					<div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
-						{getUserAvatar(msg.user_id)}
+					<div class="flex-shrink-0 pt-0.5">
+						<Avatar url={getUser(msg.user_id)?.avatar_url ?? ''} name={getUser(msg.user_id)?.display_name || getUser(msg.user_id)?.username || ''} size="md" />
 					</div>
 				{:else}
 					<!-- Timestamp on hover (aligned with avatar) -->

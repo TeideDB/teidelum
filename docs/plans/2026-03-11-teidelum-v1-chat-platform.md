@@ -791,7 +791,7 @@ git commit -m "feat: add settings page with profile, account, notification, and 
 - Modify: `ui/src/lib/components/MessageList.svelte`
 - Modify: `ui/src/lib/components/Sidebar.svelte`
 
-- [ ] **Step 1: Create Avatar component**
+- [x] **Step 1: Create Avatar component**
 
 Create `ui/src/lib/components/Avatar.svelte`:
 
@@ -827,20 +827,20 @@ Create `ui/src/lib/components/Avatar.svelte`:
 {/if}
 ```
 
-- [ ] **Step 2: Use Avatar in MessageList**
+- [x] **Step 2: Use Avatar in MessageList**
 
 Replace the existing avatar placeholder in `MessageList.svelte` with `<Avatar url={user?.avatar_url} name={user?.display_name || msg.user || ''} size="md" />`.
 
-- [ ] **Step 3: Use Avatar in Sidebar**
+- [x] **Step 3: Use Avatar in Sidebar**
 
 Show the current user's avatar in the sidebar user area.
 
-- [ ] **Step 4: Run type check**
+- [x] **Step 4: Run type check**
 
 Run: `cd ui && npx svelte-check`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ui/src/lib/components/Avatar.svelte ui/src/lib/components/MessageList.svelte ui/src/lib/components/Sidebar.svelte
