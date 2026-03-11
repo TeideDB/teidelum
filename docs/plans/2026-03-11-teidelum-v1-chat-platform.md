@@ -619,7 +619,7 @@ git commit -m "test: add integration tests for user profile and settings endpoin
 - Modify: `ui/src/lib/api.ts`
 - Modify: `ui/src/lib/types.ts`
 
-- [ ] **Step 1: Add types**
+- [x] **Step 1: Add types**
 
 In `ui/src/lib/types.ts`, add:
 
@@ -654,7 +654,7 @@ export interface User {
 }
 ```
 
-- [ ] **Step 2: Add API functions**
+- [x] **Step 2: Add API functions**
 
 In `ui/src/lib/api.ts`, add:
 
@@ -686,12 +686,12 @@ export function usersUpdateSettings(settings: {
 }
 ```
 
-- [ ] **Step 3: Run type check**
+- [x] **Step 3: Run type check**
 
 Run: `cd ui && npx svelte-check`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add ui/src/lib/api.ts ui/src/lib/types.ts

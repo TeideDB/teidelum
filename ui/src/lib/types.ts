@@ -123,6 +123,18 @@ export interface OkResponse {
 	error?: string;
 }
 
+export interface UserSettings {
+	theme: 'dark' | 'light';
+	notification_default: 'all' | 'mentions' | 'none';
+	timezone: string;
+}
+
+export interface UserSettingsResponse {
+	ok: boolean;
+	settings?: UserSettings;
+	error?: string;
+}
+
 /** WebSocket event types sent by server */
 export type WsEventType =
 	| 'hello'

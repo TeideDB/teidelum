@@ -11,6 +11,7 @@ import type {
 	OkResponse,
 	SearchResponse,
 	UserInfoResponse,
+	UserSettingsResponse,
 	UsersListResponse
 } from './types';
 
@@ -176,6 +177,32 @@ export function usersInfo(user: Id): Promise<UserInfoResponse> {
 
 export function usersSetPresence(presence: string): Promise<OkResponse> {
 	return call('users.setPresence', { presence });
+}
+
+export function usersUpdateProfile(profile: {
+	display_name?: string;
+	avatar_url?: string;
+	email?: string;
+	status_text?: string;
+	status_emoji?: string;
+}): Promise<OkResponse> {
+	return call('users.updateProfile', profile);
+}
+
+export function usersChangePassword(old_password: string, new_password: string): Promise<OkResponse> {
+	return call('users.changePassword', { old_password, new_password });
+}
+
+export function usersGetSettings(): Promise<UserSettingsResponse> {
+	return call('users.getSettings', {});
+}
+
+export function usersUpdateSettings(settings: {
+	theme?: string;
+	notification_default?: string;
+	timezone?: string;
+}): Promise<OkResponse> {
+	return call('users.updateSettings', settings);
 }
 
 // === Reactions ===
