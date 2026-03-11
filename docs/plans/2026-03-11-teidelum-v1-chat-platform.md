@@ -1406,7 +1406,7 @@ Add `'message_pinned' | 'message_unpinned'` to `WsEventType`.
 **Files:**
 - Modify: `src/chat/handlers.rs`
 
-- [ ] **Step 1: Write users_search handler**
+- [x] **Step 1: Write users_search handler**
 
 ```rust
 #[derive(Deserialize)]
@@ -1454,18 +1454,18 @@ pub async fn users_search(
 }
 ```
 
-- [ ] **Step 2: Write conversations_autocomplete handler**
+- [x] **Step 2: Write conversations_autocomplete handler**
 
 Same pattern but searches channels by name prefix.
 
-- [ ] **Step 3: Register routes**
+- [x] **Step 3: Register routes**
 
 ```rust
 .route("/users.search", axum::routing::post(users_search))
 .route("/conversations.autocomplete", axum::routing::post(conversations_autocomplete))
 ```
 
-- [ ] **Step 4: Run `cargo check`, commit**
+- [x] **Step 4: Run `cargo check`, commit**
 
 ---
 

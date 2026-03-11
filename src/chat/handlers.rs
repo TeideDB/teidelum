@@ -661,6 +661,98 @@ pub async fn users_update_settings(
     slack::ok(json!({}))
 }
 
+// ── Search / Autocomplete ──
+
+#[derive(Deserialize)]
+pub struct UsersSearchRequest {
+    pub query: String,
+    #[serde(default = "default_search_limit")]
+    pub limit: usize,
+}
+
+pub async fn users_search(
+    State(state): State<AppState>,
+    Extension(_claims): Extension<Claims>,
+    Json(req): Json<UsersSearchRequest>,
+) -> Response {
+    let query_lower = req.query.to_lowercase();
+    let sql = "SELECT id, username, display_name, avatar_url FROM users";
+    let result = match state.api.query_router().query_sync(sql) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("users search failed: {e}");
+            return slack::err("internal_error");
+        }
+    };
+
+    let mut matches: Vec<serde_json::Value> = result
+        .rows
+        .iter()
+        .filter_map(|row| {
+            let username = row[1].to_json().as_str().unwrap_or("").to_string();
+            let display_name = row[2].to_json().as_str().unwrap_or("").to_string();
+            if username.to_lowercase().contains(&query_lower)
+                || display_name.to_lowercase().contains(&query_lower)
+            {
+                Some(json!({
+                    "id": row[0].to_json(),
+                    "username": username,
+                    "display_name": display_name,
+                    "avatar_url": row[3].to_json(),
+                }))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    matches.truncate(req.limit);
+    slack::ok(json!({"users": matches}))
+}
+
+#[derive(Deserialize)]
+pub struct ConversationsAutocompleteRequest {
+    pub query: String,
+    #[serde(default = "default_search_limit")]
+    pub limit: usize,
+}
+
+pub async fn conversations_autocomplete(
+    State(state): State<AppState>,
+    Extension(_claims): Extension<Claims>,
+    Json(req): Json<ConversationsAutocompleteRequest>,
+) -> Response {
+    let query_lower = req.query.to_lowercase();
+    let sql = "SELECT id, name, topic FROM channels";
+    let result = match state.api.query_router().query_sync(sql) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("conversations autocomplete failed: {e}");
+            return slack::err("internal_error");
+        }
+    };
+
+    let mut matches: Vec<serde_json::Value> = result
+        .rows
+        .iter()
+        .filter_map(|row| {
+            let name = row[1].to_json().as_str().unwrap_or("").to_string();
+            if name.to_lowercase().starts_with(&query_lower) {
+                Some(json!({
+                    "id": row[0].to_json(),
+                    "name": name,
+                    "topic": row[2].to_json(),
+                }))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    matches.truncate(req.limit);
+    slack::ok(json!({"channels": matches}))
+}
+
 // ── Conversations ──
 
 #[derive(Deserialize)]
@@ -2582,6 +2674,12 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/users.updateSettings",
             axum::routing::post(users_update_settings),
+        )
+        // Search / Autocomplete
+        .route("/users.search", axum::routing::post(users_search))
+        .route(
+            "/conversations.autocomplete",
+            axum::routing::post(conversations_autocomplete),
         )
         // Reactions
         .route("/reactions.add", axum::routing::post(reactions_add))
