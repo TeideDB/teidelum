@@ -93,6 +93,8 @@ pub struct ChatState {
     pub channel_join_lock: Mutex<()>,
     /// Serializes pin add to prevent duplicate pins from TOCTOU races.
     pub pin_lock: Mutex<()>,
+    /// Serializes reaction add to prevent duplicate reactions from TOCTOU races.
+    pub reaction_lock: Mutex<()>,
 }
 
 // ── Auth ──
@@ -2355,6 +2357,9 @@ pub async fn reactions_add(
     if !is_channel_member(&state, channel_id, claims.user_id) {
         return slack::err("channel_not_found");
     }
+
+    // Hold lock for check-then-insert to prevent duplicate reactions from TOCTOU races
+    let _reaction_guard = state.reaction_lock.lock().await;
 
     // Check uniqueness
     let dup_check = format!(

@@ -47,6 +47,7 @@ async fn setup() -> (Router, tempfile::TempDir) {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
     (app, tmp)
@@ -110,6 +111,7 @@ async fn test_chat_flow() {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
 
     let app = teidelum::chat::handlers::chat_routes(state);
@@ -243,6 +245,7 @@ async fn test_unread_tracking() {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -379,6 +382,7 @@ async fn test_conversations_mark_read() {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -470,6 +474,7 @@ async fn test_thread_metadata() {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -576,6 +581,7 @@ async fn test_dm_conversation() {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -682,6 +688,7 @@ async fn test_presence_update() {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -755,6 +762,7 @@ async fn test_mention_extraction() {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state.clone());
 
@@ -850,6 +858,7 @@ async fn test_reaction_lifecycle() {
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
+        reaction_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
