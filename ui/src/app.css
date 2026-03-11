@@ -62,3 +62,34 @@ body {
 	background-color: rgba(75, 103, 119, 0.25);
 	color: var(--color-primary-lighter);
 }
+
+/* Code block wrapper with copy button */
+.code-block-wrapper {
+	@apply relative my-1;
+}
+.code-block-wrapper .shiki {
+	@apply overflow-x-auto rounded p-3;
+	font-family: 'JetBrains Mono', 'SF Mono', SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
+	font-size: 0.8rem;
+	line-height: 1.5;
+}
+.code-block-wrapper .shiki code {
+	@apply bg-transparent p-0;
+}
+.code-block-lang {
+	@apply absolute top-1 left-2 text-xs;
+	color: #64748b;
+	pointer-events: none;
+}
+.code-copy-btn {
+	@apply absolute top-1 right-1 rounded px-2 py-0.5 text-xs cursor-pointer opacity-0 transition-opacity;
+	background-color: var(--color-navy-mid);
+	color: #94a3b8;
+}
+.code-block-wrapper:hover .code-copy-btn {
+	opacity: 1;
+}
+.code-copy-btn:hover {
+	background-color: var(--color-primary-dark);
+	color: #e2e8f0;
+}

@@ -258,7 +258,21 @@
 	</div>
 
 	<!-- Replies -->
-	<div class="flex-1 overflow-y-auto px-4 py-2">
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="flex-1 overflow-y-auto px-4 py-2" onclick={(e: MouseEvent) => {
+		const btn = (e.target as HTMLElement).closest('.code-copy-btn') as HTMLElement | null;
+		if (btn) {
+			const code = btn.getAttribute('data-code');
+			if (code) {
+				const decoded = code.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+				navigator.clipboard.writeText(decoded);
+				const prev = btn.textContent;
+				btn.textContent = 'Copied!';
+				setTimeout(() => { btn.textContent = prev; }, 2000);
+			}
+		}
+	}}>
 		{#if loading}
 			<div class="py-4 text-center text-sm text-primary-light/50">Loading replies...</div>
 		{:else if replies.length === 0}

@@ -1795,17 +1795,17 @@ For files where `mime_type` starts with `image/`: render `<img>` with `max-w-[40
 - Modify: `ui/package.json`
 - Modify: `ui/src/lib/markdown.ts`
 
-- [ ] **Step 1: Install Shiki**
+- [x] **Step 1: Install Shiki**
 
 ```bash
 cd ui && npm install shiki
 ```
 
-- [ ] **Step 2: Integrate Shiki into markdown renderer**
+- [x] **Step 2: Integrate Shiki into markdown renderer**
 
 In `ui/src/lib/markdown.ts`, configure marked with a custom renderer for code blocks that uses Shiki's `codeToHtml()`. Load Shiki asynchronously on first use. Add a "Copy" button wrapper around code blocks.
 
-- [ ] **Step 3: Type check, commit**
+- [x] **Step 3: Type check, commit**
 
 ---
 
