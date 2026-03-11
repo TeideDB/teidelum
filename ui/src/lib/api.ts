@@ -19,10 +19,6 @@ export function setToken(t: string | null) {
 	token = t;
 }
 
-export function getToken(): string | null {
-	return token;
-}
-
 async function call<T>(method: string, body: Record<string, unknown> = {}): Promise<T> {
 	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 	if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -182,8 +178,4 @@ export async function filesUpload(
 	}
 
 	return res.json();
-}
-
-export function fileDownloadUrl(fileId: Id, filename: string): string {
-	return `/files/${fileId}/${filename}`;
 }

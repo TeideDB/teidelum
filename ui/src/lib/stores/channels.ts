@@ -11,7 +11,7 @@ export const activeChannel = derived(
 	([$channels, $activeChannelId]) => $channels.find((c) => c.id === $activeChannelId) ?? null
 );
 
-export const publicChannels = derived(channels, ($channels) =>
+export const nonDmChannels = derived(channels, ($channels) =>
 	$channels.filter((c) => c.kind === 'public' || c.kind === 'private')
 );
 
@@ -72,11 +72,17 @@ export function setActiveChannel(channelId: Id) {
 }
 
 // WebSocket: update channel list when membership changes
-export function initChannelWsListeners() {
-	ws.on('member_joined_channel', () => {
-		loadChannels();
-	});
-	ws.on('member_left_channel', () => {
-		loadChannels();
-	});
+export function initChannelWsListeners(): () => void {
+	const unsubs: (() => void)[] = [];
+	unsubs.push(
+		ws.on('member_joined_channel', () => {
+			loadChannels();
+		})
+	);
+	unsubs.push(
+		ws.on('member_left_channel', () => {
+			loadChannels();
+		})
+	);
+	return () => unsubs.forEach((fn) => fn());
 }

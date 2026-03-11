@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import {
-		publicChannels,
+		nonDmChannels,
 		dmChannels,
 		activeChannelId,
 		setActiveChannel,
@@ -86,7 +86,7 @@
 				</button>
 			</div>
 
-			{#each $publicChannels as channel}
+			{#each $nonDmChannels as channel}
 				<button
 					onclick={() => navigateToChannel(channel)}
 					class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)

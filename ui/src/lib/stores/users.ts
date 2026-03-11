@@ -29,15 +29,18 @@ export function getUserPresence(userId: Id): string {
 	return get(presence).get(userId) ?? 'away';
 }
 
-export function initUserWsListeners() {
-	ws.on('presence_change', (event: WsEvent) => {
+export function initUserWsListeners(): () => void {
+	// Backend sends presence: "online" / "offline", map to "active" / "away"
+	const unsub = ws.on('presence_change', (event: WsEvent) => {
 		const data = event as unknown as { user: Id; presence: string };
 		if (data.user) {
+			const mapped = data.presence === 'online' ? 'active' : 'away';
 			presence.update((map) => {
 				const newMap = new Map(map);
-				newMap.set(data.user, data.presence);
+				newMap.set(data.user, mapped);
 				return newMap;
 			});
 		}
 	});
+	return unsub;
 }

@@ -4,6 +4,7 @@
 	import { users } from '$lib/stores/users';
 	import { sendMessage } from '$lib/stores/messages';
 	import { sendTyping } from '$lib/ws';
+	import { renderMarkdown } from '$lib/markdown';
 	import type { Message, Id } from '$lib/types';
 
 	interface Props {
@@ -102,7 +103,7 @@
 					<span class="text-sm font-bold text-gray-200">{getUserName(parentMessage.user_id)}</span>
 					<span class="text-xs text-gray-600">{formatTime(parentMessage.created_at)}</span>
 				</div>
-				<div class="text-sm text-gray-300">{parentMessage.text}</div>
+				<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMarkdown(parentMessage.text)}</div>
 			</div>
 		</div>
 	</div>
@@ -124,7 +125,7 @@
 							<span class="text-sm font-bold text-gray-200">{getUserName(reply.user_id)}</span>
 							<span class="text-xs text-gray-600">{formatTime(reply.created_at)}</span>
 						</div>
-						<div class="text-sm text-gray-300">{reply.text}</div>
+						<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMarkdown(reply.text)}</div>
 					</div>
 				</div>
 			{/each}

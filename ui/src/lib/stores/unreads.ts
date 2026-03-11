@@ -25,16 +25,14 @@ export function incrementUnread(channelId: Id) {
 	});
 }
 
-export function getUnreadCount(channelId: Id): number {
-	return get(unreads).get(channelId) ?? 0;
-}
-
-export function initUnreadsWsListeners() {
-	ws.on('message', (event: WsEvent) => {
-		const data = event as unknown as { channel_id?: Id; channel?: Id };
-		const channelId = data.channel_id || data.channel;
+export function initUnreadsWsListeners(): () => void {
+	const unsub = ws.on('message', (event: WsEvent) => {
+		// Backend sends channel as `channel` field
+		const data = event as unknown as { channel?: Id };
+		const channelId = data.channel;
 		if (channelId) {
 			incrementUnread(channelId);
 		}
 	});
+	return unsub;
 }

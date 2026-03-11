@@ -4,10 +4,13 @@
 	import { onMount } from 'svelte';
 
 	onMount(() => {
+		let navigated = false;
 		const unsub = channels.subscribe(($channels) => {
-			if ($channels.length > 0) {
+			if (!navigated && $channels.length > 0) {
+				navigated = true;
 				goto(`/${$channels[0].id}`);
-				unsub();
+				// Defer unsubscribe to avoid calling it during the synchronous callback
+				setTimeout(() => unsub(), 0);
 			}
 		});
 		return unsub;

@@ -7,7 +7,7 @@
 	import { markRead } from '$lib/stores/unreads';
 	import type { Message } from '$lib/types';
 
-	const channelId = $derived(page.params.channel);
+	const channelId = $derived(page.params.channel ?? '');
 
 	let threadMessage = $state<Message | null>(null);
 

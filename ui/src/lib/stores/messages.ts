@@ -40,7 +40,9 @@ export async function loadMessages(channelId: Id) {
 			loading: false
 		});
 	} else {
-		setChannelState(channelId, { ...state, loading: false });
+		// Re-read current state to preserve any WS messages received during fetch
+		const current = getChannelState(channelId);
+		setChannelState(channelId, { ...current, loading: false });
 	}
 }
 
@@ -56,13 +58,16 @@ export async function loadOlderMessages(channelId: Id) {
 
 	const res = await api.conversationsHistory(channelId, 50, before);
 	if (res.ok && res.messages) {
+		// Re-read current state to preserve any WS messages received during fetch
+		const current = getChannelState(channelId);
 		setChannelState(channelId, {
-			messages: [...res.messages.reverse(), ...state.messages],
+			messages: [...res.messages.reverse(), ...current.messages],
 			hasMore: res.has_more ?? false,
 			loading: false
 		});
 	} else {
-		setChannelState(channelId, { ...state, loading: false });
+		const current = getChannelState(channelId);
+		setChannelState(channelId, { ...current, loading: false });
 	}
 }
 
@@ -132,61 +137,103 @@ function removeMessage(messageId: Id) {
 	});
 }
 
-/** Initialize WebSocket listeners for real-time message updates */
-export function initMessageWsListeners() {
-	ws.on('message', (event: WsEvent) => {
-		const msg = event as unknown as { channel: Id } & Message;
-		if (msg.channel_id || msg.channel) {
-			appendMessage(msg.channel_id || (msg.channel as Id), msg as Message);
-		}
-	});
+/** Initialize WebSocket listeners for real-time message updates. Returns cleanup function. */
+export function initMessageWsListeners(): () => void {
+	const unsubs: (() => void)[] = [];
 
-	ws.on('message_changed', (event: WsEvent) => {
-		const data = event as unknown as { message: Message };
-		if (data.message) {
-			updateMessage(data.message.id || data.message.ts, () => data.message);
-		}
-	});
+	unsubs.push(
+		ws.on('message', (event: WsEvent) => {
+			// Backend sends: { type, channel, user, text, ts, thread_ts? }
+			// Map to Message shape for the store
+			const data = event as unknown as {
+				channel: Id;
+				user: Id;
+				text: string;
+				ts: Id;
+				thread_ts?: Id;
+			};
+			if (data.channel) {
+				const message: Message = {
+					id: data.ts,
+					channel_id: data.channel,
+					user_id: data.user,
+					text: data.text,
+					ts: data.ts,
+					created_at: new Date().toISOString(),
+					thread_ts: data.thread_ts
+				};
+				appendMessage(data.channel, message);
+			}
+		})
+	);
 
-	ws.on('message_deleted', (event: WsEvent) => {
-		const data = event as unknown as { ts: Id };
-		if (data.ts) {
-			removeMessage(data.ts);
-		}
-	});
+	unsubs.push(
+		ws.on('message_changed', (event: WsEvent) => {
+			// Backend sends: { type, channel, message: { user, text, ts, edited_ts } }
+			const data = event as unknown as {
+				message: { user: string; text: string; ts: Id; edited_ts: string };
+			};
+			if (data.message) {
+				updateMessage(data.message.ts, (msg) => ({
+					...msg,
+					text: data.message.text,
+					edited_at: data.message.edited_ts
+				}));
+			}
+		})
+	);
 
-	ws.on('reaction_added', (event: WsEvent) => {
-		const data = event as unknown as { item: { ts: Id }; reaction: string; user: Id };
-		if (data.item?.ts) {
-			updateMessage(data.item.ts, (msg) => {
-				const reactions = [...(msg.reactions || [])];
-				const existing = reactions.find((r) => r.name === data.reaction);
-				if (existing) {
-					existing.count++;
-					existing.users = [...existing.users, data.user];
-				} else {
-					reactions.push({ name: data.reaction, count: 1, users: [data.user] });
-				}
-				return { ...msg, reactions };
-			});
-		}
-	});
+	unsubs.push(
+		ws.on('message_deleted', (event: WsEvent) => {
+			const data = event as unknown as { ts: Id };
+			if (data.ts) {
+				removeMessage(data.ts);
+			}
+		})
+	);
 
-	ws.on('reaction_removed', (event: WsEvent) => {
-		const data = event as unknown as { item: { ts: Id }; reaction: string; user: Id };
-		if (data.item?.ts) {
-			updateMessage(data.item.ts, (msg) => {
-				let reactions = [...(msg.reactions || [])];
-				const existing = reactions.find((r) => r.name === data.reaction);
-				if (existing) {
-					existing.count--;
-					existing.users = existing.users.filter((u) => u !== data.user);
-					if (existing.count <= 0) {
-						reactions = reactions.filter((r) => r.name !== data.reaction);
+	unsubs.push(
+		ws.on('reaction_added', (event: WsEvent) => {
+			// Backend sends flat: { type, channel, user, reaction, item_ts }
+			const data = event as unknown as { item_ts: Id; reaction: string; user: Id };
+			if (data.item_ts) {
+				updateMessage(data.item_ts, (msg) => {
+					const reactions = (msg.reactions || []).map((r) =>
+						r.name === data.reaction
+							? { ...r, count: r.count + 1, users: [...r.users, data.user] }
+							: r
+					);
+					const existing = reactions.find((r) => r.name === data.reaction);
+					if (!existing) {
+						reactions.push({ name: data.reaction, count: 1, users: [data.user] });
 					}
-				}
-				return { ...msg, reactions };
-			});
-		}
-	});
+					return { ...msg, reactions };
+				});
+			}
+		})
+	);
+
+	unsubs.push(
+		ws.on('reaction_removed', (event: WsEvent) => {
+			// Backend sends flat: { type, channel, user, reaction, item_ts }
+			const data = event as unknown as { item_ts: Id; reaction: string; user: Id };
+			if (data.item_ts) {
+				updateMessage(data.item_ts, (msg) => {
+					let reactions = (msg.reactions || []).map((r) =>
+						r.name === data.reaction
+							? {
+									...r,
+									count: r.count - 1,
+									users: r.users.filter((u) => u !== data.user)
+								}
+							: r
+					);
+					reactions = reactions.filter((r) => r.count > 0);
+					return { ...msg, reactions };
+				});
+			}
+		})
+	);
+
+	return () => unsubs.forEach((fn) => fn());
 }

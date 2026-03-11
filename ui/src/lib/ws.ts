@@ -29,6 +29,7 @@ export function disconnect() {
 		ws.close();
 		ws = null;
 	}
+	listeners.clear();
 }
 
 function doConnect() {
@@ -98,13 +99,6 @@ export function on(type: WsEventType | '*', callback: EventCallback): () => void
 /** Send typing indicator to a channel */
 export function sendTyping(channel: string) {
 	if (ws && ws.readyState === WebSocket.OPEN) {
-		ws.send(`typing ${channel}`);
-	}
-}
-
-/** Send ping to keep connection alive */
-export function sendPing() {
-	if (ws && ws.readyState === WebSocket.OPEN) {
-		ws.send('ping');
+		ws.send(JSON.stringify({ type: 'typing', channel }));
 	}
 }

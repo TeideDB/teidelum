@@ -10,12 +10,15 @@
 	let { children } = $props();
 	let showSearch = $state(false);
 
-	onMount(async () => {
-		await Promise.all([loadChannels(), loadUsers()]);
-		initChannelWsListeners();
-		initUserWsListeners();
-		initMessageWsListeners();
-		initUnreadsWsListeners();
+	onMount(() => {
+		Promise.all([loadChannels(), loadUsers()]);
+		const cleanups = [
+			initChannelWsListeners(),
+			initUserWsListeners(),
+			initMessageWsListeners(),
+			initUnreadsWsListeners()
+		];
+		return () => cleanups.forEach((fn) => fn());
 	});
 
 	function handleGlobalKeydown(e: KeyboardEvent) {
