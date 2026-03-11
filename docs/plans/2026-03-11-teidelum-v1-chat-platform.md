@@ -1964,7 +1964,7 @@ onMount(() => {
 - Modify: `src/chat/models.rs`
 - Modify: `src/chat/handlers.rs`
 
-- [ ] **Step 1: Add channel_settings table**
+- [x] **Step 1: Add channel_settings table**
 
 ```rust
 "CREATE TABLE channel_settings (
@@ -1974,17 +1974,17 @@ onMount(() => {
 
 Add FK relationships.
 
-- [ ] **Step 2: Write conversations_mute/unmute handlers**
+- [x] **Step 2: Write conversations_mute/unmute handlers**
 
 Use SELECT-before-INSERT upsert pattern for `(channel_id, user_id)`.
 
-- [ ] **Step 3: Write conversations_set_notification handler**
+- [x] **Step 3: Write conversations_set_notification handler**
 
-- [ ] **Step 4: Update conversations_list to include muted/notification_level**
+- [x] **Step 4: Update conversations_list to include muted/notification_level**
 
 For each channel, query channel_settings to get muted/notification_level (default to "false"/"all" if no row).
 
-- [ ] **Step 5: Register routes, run `cargo check`, commit**
+- [x] **Step 5: Register routes, run `cargo check`, commit**
 
 ---
 

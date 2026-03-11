@@ -892,6 +892,19 @@ pub async fn conversations_list(
                 .and_then(|v| v.as_str().and_then(|s| s.parse::<i64>().ok()))
                 .unwrap_or(0);
 
+            // Get channel_settings (muted, notification_level) for this user
+            let settings_sql = format!(
+                "SELECT muted, notification_level FROM channel_settings WHERE channel_id = {} AND user_id = {}",
+                ch_id_str, claims.user_id
+            );
+            let (muted, notification_level) = state.api.query_router().query_sync(&settings_sql).ok()
+                .and_then(|r| r.rows.first().map(|row| {
+                    let m = row[0].to_json().as_str().unwrap_or("false").to_string();
+                    let n = row[1].to_json().as_str().unwrap_or("all").to_string();
+                    (m, n)
+                }))
+                .unwrap_or_else(|| ("false".to_string(), "all".to_string()));
+
             json!({
                 "id": row[0].to_json(),
                 "name": row[1].to_json(),
@@ -899,6 +912,8 @@ pub async fn conversations_list(
                 "topic": row[3].to_json(),
                 "created_at": row[4].to_json(),
                 "unread_count": unread_count,
+                "muted": muted,
+                "notification_level": notification_level,
             })
         })
         .collect();
@@ -1795,6 +1810,130 @@ pub async fn conversations_set_role(
     );
     if let Err(e) = state.api.query_router().query_sync(&sql) {
         tracing::error!("set role failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    slack::ok(json!({}))
+}
+
+// ── Channel Settings (Mute / Notification) ──
+
+#[derive(Deserialize)]
+pub struct MuteRequest {
+    #[serde(deserialize_with = "deserialize_id")]
+    pub channel: i64,
+}
+
+/// Upsert channel_settings row for (channel_id, user_id).
+fn upsert_channel_setting(
+    state: &AppState,
+    channel_id: i64,
+    user_id: i64,
+    field: &str,
+    value: &str,
+) -> Result<(), String> {
+    let now = now_timestamp();
+    let check_sql = format!(
+        "SELECT channel_id FROM channel_settings WHERE channel_id = {} AND user_id = {}",
+        channel_id, user_id
+    );
+    let has_existing = state
+        .api
+        .query_router()
+        .query_sync(&check_sql)
+        .map(|r| !r.rows.is_empty())
+        .unwrap_or(false);
+
+    if has_existing {
+        let sql = format!(
+            "UPDATE channel_settings SET {} = '{}' WHERE channel_id = {} AND user_id = {}",
+            field,
+            escape_sql(value),
+            channel_id,
+            user_id
+        );
+        state
+            .api
+            .query_router()
+            .query_sync(&sql)
+            .map_err(|e| e.to_string())?;
+    } else {
+        let (muted, notification_level) = if field == "muted" {
+            (value, "all")
+        } else {
+            ("false", value)
+        };
+        let sql = format!(
+            "INSERT INTO channel_settings (channel_id, user_id, muted, notification_level, created_at) VALUES ({}, {}, '{}', '{}', '{}')",
+            channel_id, user_id, escape_sql(muted), escape_sql(notification_level), now
+        );
+        state
+            .api
+            .query_router()
+            .query_sync(&sql)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+pub async fn conversations_mute(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<MuteRequest>,
+) -> Response {
+    if !is_channel_member(&state, req.channel, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
+    if let Err(e) = upsert_channel_setting(&state, req.channel, claims.user_id, "muted", "true") {
+        tracing::error!("mute failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    slack::ok(json!({}))
+}
+
+pub async fn conversations_unmute(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<MuteRequest>,
+) -> Response {
+    if !is_channel_member(&state, req.channel, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
+    if let Err(e) = upsert_channel_setting(&state, req.channel, claims.user_id, "muted", "false") {
+        tracing::error!("unmute failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    slack::ok(json!({}))
+}
+
+#[derive(Deserialize)]
+pub struct SetNotificationRequest {
+    #[serde(deserialize_with = "deserialize_id")]
+    pub channel: i64,
+    pub level: String,
+}
+
+pub async fn conversations_set_notification(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<SetNotificationRequest>,
+) -> Response {
+    if !["all", "mentions", "none"].contains(&req.level.as_str()) {
+        return slack::err("invalid_level");
+    }
+
+    if !is_channel_member(&state, req.channel, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
+    if let Err(e) =
+        upsert_channel_setting(&state, req.channel, claims.user_id, "notification_level", &req.level)
+    {
+        tracing::error!("set notification failed: {e}");
         return slack::err("internal_error");
     }
 
@@ -2760,6 +2899,18 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/conversations.setRole",
             axum::routing::post(conversations_set_role),
+        )
+        .route(
+            "/conversations.mute",
+            axum::routing::post(conversations_mute),
+        )
+        .route(
+            "/conversations.unmute",
+            axum::routing::post(conversations_unmute),
+        )
+        .route(
+            "/conversations.setNotification",
+            axum::routing::post(conversations_set_notification),
         )
         // Chat
         .route("/chat.postMessage", axum::routing::post(chat_post_message))
