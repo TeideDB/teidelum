@@ -105,6 +105,16 @@ export async function doRegister(
 	}
 }
 
+export async function refreshCurrentUser() {
+	const state = get(auth);
+	if (state.userId) {
+		const res = await api.usersInfo(state.userId);
+		if (res.ok && res.user) {
+			auth.update((s) => ({ ...s, user: res.user! }));
+		}
+	}
+}
+
 export function doLogout() {
 	localStorage.removeItem('teide_token');
 	localStorage.removeItem('teide_user_id');

@@ -14,6 +14,7 @@
 	let showCreateModal = $state(false);
 	let newChannelName = $state('');
 	let newChannelTopic = $state('');
+	let showUserMenu = $state(false);
 
 	function navigateToChannel(channel: Channel) {
 		setActiveChannel(channel.id);
@@ -56,19 +57,44 @@
 			<img src="/teide-logo.svg" alt="Teidelum" class="h-6 w-auto" />
 			<h2 class="font-[Oswald] text-lg font-semibold tracking-wide text-white">Teidelum</h2>
 		</div>
-		<button
-			onclick={handleLogout}
-			class="text-xs text-primary-light/60 hover:text-primary-lighter"
-			title="Sign out"
-		>
-			Sign out
-		</button>
 	</div>
 
-	<!-- User info -->
+	<!-- User area with menu -->
 	{#if $auth.user}
-		<div class="border-b border-primary-dark/40 px-4 py-2">
-			<span class="text-sm text-primary-lighter">{$auth.user.display_name || $auth.user.username}</span>
+		<div class="relative border-b border-primary-dark/40 px-4 py-2">
+			<button
+				onclick={() => (showUserMenu = !showUserMenu)}
+				class="flex w-full items-center gap-2 rounded px-1 py-1 text-left text-sm text-primary-lighter hover:bg-primary-darker/60"
+			>
+				<span class="h-2 w-2 rounded-full bg-green-400"></span>
+				<span class="truncate">{$auth.user.display_name || $auth.user.username}</span>
+				<svg class="ml-auto h-3 w-3 text-primary-light/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+				</svg>
+			</button>
+
+			{#if showUserMenu}
+				<div class="absolute bottom-full left-2 right-2 mb-1 rounded-md bg-navy-light shadow-lg ring-1 ring-primary-dark/60 z-50">
+					<button
+						onclick={() => {
+							showUserMenu = false;
+							goto('/settings');
+						}}
+						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white rounded-t-md"
+					>
+						Settings
+					</button>
+					<button
+						onclick={() => {
+							showUserMenu = false;
+							handleLogout();
+						}}
+						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white rounded-b-md"
+					>
+						Sign out
+					</button>
+				</div>
+			{/if}
 		</div>
 	{/if}
 

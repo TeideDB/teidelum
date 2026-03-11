@@ -706,7 +706,7 @@ git commit -m "feat: add API client functions for user profile and settings"
 - Create: `ui/src/routes/(app)/settings/+page.svelte`
 - Modify: `ui/src/lib/stores/auth.ts`
 
-- [ ] **Step 1: Add settings store helper to auth**
+- [x] **Step 1: Add settings store helper to auth**
 
 In `ui/src/lib/stores/auth.ts`, add function to refresh current user:
 
@@ -722,7 +722,7 @@ export async function refreshCurrentUser() {
 }
 ```
 
-- [ ] **Step 2: Create settings page**
+- [x] **Step 2: Create settings page**
 
 Create `ui/src/routes/(app)/settings/+page.svelte` with tab navigation (Profile, Account, Notifications, Appearance). Each tab is a section within the same page, switched by a local `activeTab` variable.
 
@@ -735,14 +735,14 @@ The component should:
 - After successful profile update, call `refreshCurrentUser()` to update the auth store
 - Show success/error messages for each action
 
-- [ ] **Step 3: Add settings link to sidebar**
+- [x] **Step 3: Add settings link to sidebar**
 
 Modify `ui/src/lib/components/Sidebar.svelte`:
 - Replace the simple logout button at the bottom with a user menu
 - Clicking the user area shows a dropdown with "Settings", "Set status" (placeholder for WS6), "Sign out"
 - "Settings" navigates to `/settings`
 
-- [ ] **Step 4: Add user_profile_updated WS listener**
+- [x] **Step 4: Add user_profile_updated WS listener**
 
 In `ui/src/lib/stores/users.ts`, add listener for `user_profile_updated` events:
 
@@ -770,12 +770,12 @@ unsubs.push(
 
 Update `initUserWsListeners` to include this new listener (change from single unsub to array pattern matching `initMessageWsListeners`).
 
-- [ ] **Step 5: Run type check**
+- [x] **Step 5: Run type check**
 
 Run: `cd ui && npx svelte-check`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ui/src/routes/\(app\)/settings/+page.svelte ui/src/lib/components/Sidebar.svelte ui/src/lib/stores/auth.ts ui/src/lib/stores/users.ts
