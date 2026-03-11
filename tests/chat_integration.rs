@@ -1631,3 +1631,134 @@ async fn test_conversations_autocomplete() {
         "autocomplete 'ran' should return 1 channel"
     );
 }
+
+#[tokio::test]
+async fn test_links_unfurl() {
+    let (app, _tmp) = setup().await;
+
+    let token = register_and_login(&app, "alice", "pass1234", "alice@example.com").await;
+
+    // Test 1: Invalid URL — should return error
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "not-a-url"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "invalid URL should fail");
+    assert_eq!(body["error"], "invalid_url");
+
+    // Test 2: Non-http scheme — should return error
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "ftp://example.com/file"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "ftp scheme should be rejected");
+    assert_eq!(body["error"], "invalid_url");
+
+    // Test 3: Blocked URL — localhost
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "http://localhost:8080/secret"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "localhost should be blocked");
+    assert_eq!(body["error"], "blocked_url");
+
+    // Test 4: Blocked URL — private IP 10.x.x.x
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "http://10.0.0.1/internal"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "10.x.x.x should be blocked");
+    assert_eq!(body["error"], "blocked_url");
+
+    // Test 5: Blocked URL — private IP 192.168.x.x
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "http://192.168.1.1/admin"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "192.168.x.x should be blocked");
+    assert_eq!(body["error"], "blocked_url");
+
+    // Test 6: Blocked URL — loopback 127.0.0.1
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "http://127.0.0.1/secret"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "127.0.0.1 should be blocked");
+    assert_eq!(body["error"], "blocked_url");
+
+    // Test 7: Blocked URL — private IP 172.16.x.x
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "http://172.16.0.1/internal"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "172.16.x.x should be blocked");
+    assert_eq!(body["error"], "blocked_url");
+
+    // Test 8: Blocked URL — link-local 169.254.x.x
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "http://169.254.169.254/metadata"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "169.254.x.x should be blocked");
+    assert_eq!(body["error"], "blocked_url");
+
+    // Test 9: Unauthenticated request — should fail
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/links.unfurl",
+            json!({"url": "https://example.com"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}

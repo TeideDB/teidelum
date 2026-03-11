@@ -1847,11 +1847,11 @@ After rendering message text, detect URLs with regex. For each URL (max 3), rend
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Write test for links.unfurl**
+- [x] **Step 1: Write test for links.unfurl**
 
 Test with a blocked URL (localhost) — should return error. Test with an invalid URL — should return error. (Can't easily test a real URL in CI, so test the safety checks.)
 
-- [ ] **Step 2: Run tests, commit**
+- [x] **Step 2: Run tests, commit**
 
 ---
 
