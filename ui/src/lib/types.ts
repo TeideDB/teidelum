@@ -25,6 +25,8 @@ export interface Channel {
 	created_at: string;
 	member_count?: number;
 	unread_count?: number;
+	muted?: string;
+	notification_level?: string;
 }
 
 export interface Message {

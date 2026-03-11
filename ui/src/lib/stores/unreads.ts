@@ -2,6 +2,8 @@ import { writable, get } from 'svelte/store';
 import * as ws from '$lib/ws';
 import { activeChannelId } from './channels';
 import { auth } from './auth';
+import { showNotification } from '$lib/notifications';
+import { users } from './users';
 import type { Id, WsEvent } from '$lib/types';
 
 /** Map of channelId -> unread count */
@@ -33,11 +35,17 @@ export function incrementUnread(channelId: Id) {
 export function initUnreadsWsListeners(): () => void {
 	const unsub = ws.on('message', (event: WsEvent) => {
 		// Backend sends channel as `channel` field
-		const data = event as unknown as { channel?: Id; user?: Id };
+		const data = event as unknown as { channel?: Id; user?: Id; text?: string };
 		const channelId = data.channel;
 		// Don't increment unreads for own messages
 		if (channelId && data.user !== get(auth).userId) {
 			incrementUnread(channelId);
+			// Desktop notification when tab not focused
+			const senderUser = data.user
+				? get(users).get(data.user)
+				: undefined;
+			const senderName = senderUser?.display_name || senderUser?.username || 'Someone';
+			showNotification(senderName, data.text || 'New message', channelId);
 		}
 	});
 	return unsub;

@@ -1996,7 +1996,7 @@ For each channel, query channel_settings to get muted/notification_level (defaul
 - Modify: `ui/src/lib/components/Sidebar.svelte`
 - Create: `ui/src/lib/notifications.ts`
 
-- [ ] **Step 1: Add API functions**
+- [x] **Step 1: Add API functions**
 
 ```typescript
 export function conversationsMute(channel: Id): Promise<OkResponse> { return call('conversations.mute', { channel }); }
@@ -2006,24 +2006,24 @@ export function conversationsSetNotification(channel: Id, level: string): Promis
 }
 ```
 
-- [ ] **Step 2: Add muted/notification_level to Channel type**
+- [x] **Step 2: Add muted/notification_level to Channel type**
 
-- [ ] **Step 3: Add context menu to sidebar channels**
+- [x] **Step 3: Add context menu to sidebar channels**
 
 Right-click on channel → "Mute" / "Unmute". Muted channels: dimmed + mute icon, no unread badge.
 
-- [ ] **Step 4: Create notifications module**
+- [x] **Step 4: Create notifications module**
 
 `ui/src/lib/notifications.ts`:
 - `requestPermission()` — ask browser for notification permission
 - `showNotification(title, body, channelId)` — show desktop notification when tab is not focused, respect mute/DND
 - Call `requestPermission()` after first login
 
-- [ ] **Step 5: Wire notifications to WS message events**
+- [x] **Step 5: Wire notifications to WS message events**
 
 In unreads store or a new listener: when a message arrives and tab is hidden, call `showNotification()`.
 
-- [ ] **Step 6: Type check, commit**
+- [x] **Step 6: Type check, commit**
 
 ---
 

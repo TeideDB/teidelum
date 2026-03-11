@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import * as api from '$lib/api';
 import * as ws from '$lib/ws';
+import { requestPermission } from '$lib/notifications';
 import { resetChannels } from './channels';
 import { resetMessages } from './messages';
 import { resetUsers } from './users';
@@ -64,6 +65,7 @@ export async function doLogin(username: string, password: string): Promise<strin
 				user: userRes.ok ? userRes.user! : null,
 				loading: false
 			});
+			requestPermission();
 			return null;
 		}
 		auth.update((s) => ({ ...s, loading: false }));

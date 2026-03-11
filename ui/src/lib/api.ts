@@ -160,6 +160,18 @@ export function conversationsSetRole(channel: Id, user: Id, role: string): Promi
 	return call('conversations.setRole', { channel, user, role });
 }
 
+export function conversationsMute(channel: Id): Promise<OkResponse> {
+	return call('conversations.mute', { channel });
+}
+
+export function conversationsUnmute(channel: Id): Promise<OkResponse> {
+	return call('conversations.unmute', { channel });
+}
+
+export function conversationsSetNotification(channel: Id, level: string): Promise<OkResponse> {
+	return call('conversations.setNotification', { channel, level });
+}
+
 // === Chat ===
 
 export async function chatPostMessage(

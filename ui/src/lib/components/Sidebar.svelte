@@ -5,11 +5,12 @@
 		dmChannels,
 		activeChannelId,
 		setActiveChannel,
-		createChannel
+		createChannel,
+		loadChannels
 	} from '$lib/stores/channels';
 	import { unreads } from '$lib/stores/unreads';
 	import { auth, doLogout } from '$lib/stores/auth';
-	import { usersUpdateProfile } from '$lib/api';
+	import { usersUpdateProfile, conversationsMute, conversationsUnmute } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 	import type { Channel } from '$lib/types';
@@ -22,6 +23,7 @@
 	let statusText = $state('');
 	let statusEmoji = $state('');
 	let showStatusEmojiPicker = $state(false);
+	let contextMenu = $state<{ x: number; y: number; channel: Channel } | null>(null);
 
 	// Map short names back to native emoji
 	const nameToEmoji: Record<string, string> = {
@@ -47,6 +49,29 @@
 		{ emoji: '\u{1F334}', text: 'On vacation' },
 		{ emoji: '\u{1F912}', text: 'Out sick' }
 	];
+
+	function handleContextMenu(e: MouseEvent, channel: Channel) {
+		e.preventDefault();
+		contextMenu = { x: e.clientX, y: e.clientY, channel };
+	}
+
+	function closeContextMenu() {
+		contextMenu = null;
+	}
+
+	async function toggleMute(channel: Channel) {
+		if (channel.muted === 'true') {
+			await conversationsUnmute(channel.id);
+		} else {
+			await conversationsMute(channel.id);
+		}
+		await loadChannels();
+		contextMenu = null;
+	}
+
+	function isMuted(channel: Channel): boolean {
+		return channel.muted === 'true';
+	}
 
 	function openStatusModal() {
 		showUserMenu = false;
@@ -122,7 +147,8 @@
 	}
 </script>
 
-<div class="flex h-full flex-col">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="flex h-full flex-col" onclick={closeContextMenu} onkeydown={closeContextMenu}>
 	<!-- Header -->
 	<div class="flex items-center justify-between border-b border-primary-dark/40 px-4 py-3">
 		<div class="flex items-center gap-2">
@@ -203,23 +229,31 @@
 			{#each $nonDmChannels as channel}
 				<button
 					onclick={() => navigateToChannel(channel)}
+					oncontextmenu={(e) => handleContextMenu(e, channel)}
 					class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
 						? 'bg-primary text-white'
 						: channel.archived_at
 							? 'text-primary-light/30 hover:bg-primary-darker/60 hover:text-primary-lighter/60'
-							: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white'}"
+							: isMuted(channel)
+								? 'text-primary-light/40 hover:bg-primary-darker/60 hover:text-primary-lighter/60'
+								: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white'}"
 				>
 					<span class="flex items-center truncate">
 						{#if channel.archived_at}
 							<svg class="mr-1 h-3 w-3 text-primary-light/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
 							</svg>
+						{:else if isMuted(channel)}
+							<svg class="mr-1 h-3 w-3 text-primary-light/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+							</svg>
 						{:else}
 							<span class="mr-1 text-primary-light/40">#</span>
 						{/if}
 						{channel.name}
 					</span>
-					{#if getUnreadCount(channel.id) > 0}
+					{#if !isMuted(channel) && getUnreadCount(channel.id) > 0}
 						<span class="ml-1 rounded-full bg-primary-light px-1.5 text-xs font-bold text-white">
 							{getUnreadCount(channel.id)}
 						</span>
@@ -252,6 +286,39 @@
 		</div>
 	</div>
 </div>
+
+<!-- Context menu for channels -->
+{#if contextMenu}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50"
+		onclick={closeContextMenu}
+		onkeydown={closeContextMenu}
+	>
+		<div
+			class="absolute rounded-md bg-navy-light py-1 shadow-lg ring-1 ring-primary-dark/60"
+			style="left: {contextMenu.x}px; top: {contextMenu.y}px;"
+		>
+			<button
+				onclick={() => contextMenu && toggleMute(contextMenu.channel)}
+				class="flex w-full items-center gap-2 px-4 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white"
+			>
+				{#if isMuted(contextMenu.channel)}
+					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+					</svg>
+					Unmute channel
+				{:else}
+					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+					</svg>
+					Mute channel
+				{/if}
+			</button>
+		</div>
+	</div>
+{/if}
 
 <!-- Create channel modal -->
 {#if showCreateModal}
