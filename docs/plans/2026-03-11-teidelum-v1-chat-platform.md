@@ -2051,11 +2051,11 @@ Set notification level to "mentions", verify returned in `conversations.list`.
 **Files:**
 - Modify: `src/chat/handlers.rs`
 
-- [ ] **Step 1: Extend search.messages with filters**
+- [x] **Step 1: Extend search.messages with filters**
 
 Add optional fields to `SearchMessagesRequest`: `user_id`, `channel_id`, `date_from`, `date_to`. Apply as post-query filters after tantivy search results are retrieved.
 
-- [ ] **Step 2: Write conversations_directory handler**
+- [x] **Step 2: Write conversations_directory handler**
 
 Returns all public channels with member counts. Supports `query`, `limit`, `cursor` params.
 
@@ -2075,7 +2075,7 @@ pub async fn conversations_directory(
 }
 ```
 
-- [ ] **Step 3: Register route, run `cargo check`, commit**
+- [x] **Step 3: Register route, run `cargo check`, commit**
 
 ---
 

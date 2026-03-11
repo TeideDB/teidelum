@@ -2379,6 +2379,14 @@ pub struct SearchMessagesRequest {
     pub query: String,
     #[serde(default = "default_search_limit")]
     pub limit: usize,
+    #[serde(default, deserialize_with = "deserialize_opt_id")]
+    pub user_id: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_opt_id")]
+    pub channel_id: Option<i64>,
+    #[serde(default)]
+    pub date_from: Option<String>,
+    #[serde(default)]
+    pub date_to: Option<String>,
 }
 
 fn default_search_limit() -> usize {
@@ -2395,6 +2403,10 @@ pub async fn search_messages(
     }
 
     let limit = req.limit.min(100);
+    let filter_user_id = req.user_id;
+    let filter_channel_id = req.channel_id;
+    let filter_date_from = req.date_from.clone();
+    let filter_date_to = req.date_to.clone();
 
     // Get the set of channel IDs the user is a member of for filtering
     let member_channel_ids: std::collections::HashSet<i64> = {
@@ -2493,13 +2505,36 @@ pub async fn search_messages(
         }
     };
 
-    // Filter results to only channels the user is a member of (by channel ID)
+    // Filter results: membership + optional user/channel/date filters
     let filtered: Vec<_> = results
         .iter()
         .filter(|r| {
-            msg_meta_map
-                .get(&r.id)
-                .is_some_and(|meta| member_channel_ids.contains(&meta.channel_id))
+            msg_meta_map.get(&r.id).is_some_and(|meta| {
+                if !member_channel_ids.contains(&meta.channel_id) {
+                    return false;
+                }
+                if let Some(uid) = filter_user_id {
+                    if meta.user_id != uid {
+                        return false;
+                    }
+                }
+                if let Some(cid) = filter_channel_id {
+                    if meta.channel_id != cid {
+                        return false;
+                    }
+                }
+                if let Some(ref from) = filter_date_from {
+                    if meta.created_at.as_str() < from.as_str() {
+                        return false;
+                    }
+                }
+                if let Some(ref to) = filter_date_to {
+                    if meta.created_at.as_str() > to.as_str() {
+                        return false;
+                    }
+                }
+                true
+            })
         })
         .collect();
     let total = filtered.len();
@@ -2525,6 +2560,100 @@ pub async fn search_messages(
             "total": total,
         }
     }))
+}
+
+// ── Directory ──
+
+#[derive(Deserialize)]
+pub struct DirectoryRequest {
+    #[serde(default)]
+    pub query: Option<String>,
+    #[serde(default = "default_search_limit")]
+    pub limit: usize,
+    #[serde(default, deserialize_with = "deserialize_opt_id")]
+    pub cursor: Option<i64>,
+    #[serde(default)]
+    pub archived: bool,
+}
+
+pub async fn conversations_directory(
+    State(state): State<AppState>,
+    Extension(_claims): Extension<Claims>,
+    Json(req): Json<DirectoryRequest>,
+) -> Response {
+    let limit = req.limit.min(100);
+
+    let mut sql =
+        "SELECT id, name, kind, topic, description, created_at FROM channels WHERE kind = 'public'"
+            .to_string();
+
+    if !req.archived {
+        sql.push_str(" AND archived_at = ''");
+    }
+
+    if let Some(ref q) = req.query {
+        if !q.is_empty() {
+            sql.push_str(&format!(
+                " AND name LIKE '%{}%'",
+                escape_sql(q)
+            ));
+        }
+    }
+
+    if let Some(cursor) = req.cursor {
+        sql.push_str(&format!(" AND id > {cursor}"));
+    }
+
+    sql.push_str(&format!(" ORDER BY name LIMIT {limit}"));
+
+    let rows = match state.api.query_router().query_sync(&sql) {
+        Ok(r) => r.rows,
+        Err(e) => {
+            tracing::error!("conversations.directory failed: {e}");
+            return slack::err("internal_error");
+        }
+    };
+
+    let mut channels = Vec::new();
+    for row in &rows {
+        let id = match &row[0] {
+            crate::connector::Value::Int(v) => *v,
+            _ => continue,
+        };
+        let name = row[1].to_json().as_str().unwrap_or("").to_string();
+        let kind = row[2].to_json().as_str().unwrap_or("").to_string();
+        let topic = row[3].to_json().as_str().unwrap_or("").to_string();
+        let description = row[4].to_json().as_str().unwrap_or("").to_string();
+        let created_at = row[5].to_json().as_str().unwrap_or("").to_string();
+
+        // Compute member count
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM channel_members WHERE channel_id = {id}"
+        );
+        let member_count = match state.api.query_router().query_sync(&count_sql) {
+            Ok(r) => r
+                .rows
+                .first()
+                .and_then(|r| match &r[0] {
+                    crate::connector::Value::Int(v) => Some(*v),
+                    _ => None,
+                })
+                .unwrap_or(0),
+            Err(_) => 0,
+        };
+
+        channels.push(json!({
+            "id": id.to_string(),
+            "name": name,
+            "kind": kind,
+            "topic": topic,
+            "description": description,
+            "created_at": created_at,
+            "member_count": member_count,
+        }));
+    }
+
+    slack::ok(json!({ "channels": channels }))
 }
 
 // ── Helpers ──
@@ -2956,6 +3085,11 @@ pub fn chat_routes(state: AppState) -> Router {
         .route("/links.unfurl", axum::routing::post(links_unfurl))
         // Search
         .route("/search.messages", axum::routing::post(search_messages))
+        // Directory
+        .route(
+            "/conversations.directory",
+            axum::routing::post(conversations_directory),
+        )
         // Files
         .route(
             "/files.upload",
