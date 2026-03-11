@@ -8,7 +8,7 @@
 	import ChannelInfoPanel from '$lib/components/ChannelInfoPanel.svelte';
 	import { setActiveChannel, activeChannel } from '$lib/stores/channels';
 	import { markRead } from '$lib/stores/unreads';
-	import { pinsList, pinsRemove } from '$lib/api';
+	import { pinsList, pinsRemove, filesUpload } from '$lib/api';
 	import { renderMarkdown } from '$lib/markdown';
 	import { users } from '$lib/stores/users';
 	import * as ws from '$lib/ws';
@@ -90,13 +90,64 @@
 	}
 
 	const isArchived = $derived(!!$activeChannel?.archived_at);
+
+	// Drag-and-drop file upload
+	let dragOver = $state(false);
+	let dragCounter = $state(0);
+
+	function handleDragEnter(e: DragEvent) {
+		e.preventDefault();
+		dragCounter++;
+		if (e.dataTransfer?.types.includes('Files')) {
+			dragOver = true;
+		}
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		dragCounter--;
+		if (dragCounter <= 0) {
+			dragCounter = 0;
+			dragOver = false;
+		}
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) {
+			e.dataTransfer.dropEffect = 'copy';
+		}
+	}
+
+	async function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		dragCounter = 0;
+		dragOver = false;
+		const files = e.dataTransfer?.files;
+		if (!files || files.length === 0 || !channelId) return;
+		for (const file of files) {
+			await filesUpload(channelId, file);
+		}
+	}
 </script>
 
 <svelte:head>
 	<title>{$activeChannel ? `#${$activeChannel.name}` : 'Teidelum'} - Teidelum</title>
 </svelte:head>
 
-<div class="flex flex-1 overflow-hidden">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="relative flex flex-1 overflow-hidden"
+	ondragenter={handleDragEnter}
+	ondragleave={handleDragLeave}
+	ondragover={handleDragOver}
+	ondrop={handleDrop}
+>
+	{#if dragOver}
+		<div class="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-lg border-2 border-dashed border-blue-400 bg-blue-900/30">
+			<p class="text-lg font-semibold text-blue-200">Drop files to upload</p>
+		</div>
+	{/if}
 	<!-- Main message area -->
 	<div class="flex flex-1 flex-col overflow-hidden">
 		<!-- Channel header -->

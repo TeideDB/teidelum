@@ -2265,11 +2265,11 @@ Simple modal listing all keyboard shortcuts.
 **Files:**
 - Modify: `ui/src/routes/(app)/[channel]/+page.svelte`
 
-- [ ] **Step 1: Add drop zone**
+- [x] **Step 1: Add drop zone**
 
 Listen for `dragover`/`dragleave`/`drop` events on the message area. Show overlay "Drop files to upload" on drag. On drop, call `filesUpload()` for each file.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ---
 
