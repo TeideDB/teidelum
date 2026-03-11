@@ -63,7 +63,7 @@ teidelum/ui/
 **Files:**
 - Create: `teidelum/ui/` (entire scaffold)
 
-- [ ] **Step 1: Create SvelteKit project**
+- [x] **Step 1: Create SvelteKit project**
 
 Run from `/Users/antonkundenko/data/work/teidedb`:
 
@@ -80,7 +80,7 @@ npm create svelte@latest teidelum/ui
 
 Select: Skeleton project, TypeScript, no additional options.
 
-- [ ] **Step 2: Install dependencies**
+- [x] **Step 2: Install dependencies**
 
 ```bash
 cd /Users/antonkundenko/data/work/teidedb/teidelum/ui
@@ -90,7 +90,7 @@ npm install marked dompurify
 npm install -D @types/dompurify
 ```
 
-- [ ] **Step 3: Configure Tailwind CSS**
+- [x] **Step 3: Configure Tailwind CSS**
 
 Add the Tailwind Vite plugin to `vite.config.ts`:
 
@@ -133,7 +133,7 @@ Import it in `src/routes/+layout.svelte`:
 {@render children()}
 ```
 
-- [ ] **Step 4: Disable SSR (SPA mode)**
+- [x] **Step 4: Disable SSR (SPA mode)**
 
 Create `src/routes/+layout.ts`:
 
@@ -142,7 +142,7 @@ export const ssr = false;
 export const prerender = false;
 ```
 
-- [ ] **Step 5: Configure API proxy for development**
+- [x] **Step 5: Configure API proxy for development**
 
 Add proxy config to `vite.config.ts` so `/api` and `/ws` requests go to the backend at `localhost:3000`:
 
@@ -162,12 +162,12 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 6: Verify build**
+- [x] **Step 6: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 Expected: builds with no errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd /Users/antonkundenko/data/work/teidedb
