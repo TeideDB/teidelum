@@ -403,12 +403,46 @@ pub async fn conversations_list(
         .rows
         .iter()
         .map(|row| {
+            let ch_id_val = &row[0];
+            let ch_id_str = match ch_id_val {
+                crate::connector::Value::Int(n) => n.to_string(),
+                _ => ch_id_val.to_json().as_str().unwrap_or("0").to_string(),
+            };
+
+            // Get last_read_ts for this channel
+            let read_sql = format!(
+                "SELECT last_read_ts FROM channel_reads WHERE channel_id = {} AND user_id = {}",
+                ch_id_str, claims.user_id
+            );
+            let last_read_ts = state.api.query_router().query_sync(&read_sql).ok()
+                .and_then(|r| r.rows.first().map(|row| row[0].to_json()))
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_default();
+
+            // Count unread messages
+            let unread_sql = if last_read_ts.is_empty() {
+                format!(
+                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND deleted_at = ''",
+                    ch_id_str
+                )
+            } else {
+                format!(
+                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND created_at > '{}' AND deleted_at = ''",
+                    ch_id_str, escape_sql(&last_read_ts)
+                )
+            };
+            let unread_count = state.api.query_router().query_sync(&unread_sql).ok()
+                .and_then(|r| r.rows.first().map(|row| row[0].to_json()))
+                .and_then(|v| v.as_str().and_then(|s| s.parse::<i64>().ok()))
+                .unwrap_or(0);
+
             json!({
                 "id": row[0].to_json(),
                 "name": row[1].to_json(),
                 "kind": row[2].to_json(),
                 "topic": row[3].to_json(),
                 "created_at": row[4].to_json(),
+                "unread_count": unread_count,
             })
         })
         .collect();
@@ -502,7 +536,7 @@ pub async fn conversations_history(
         }
     };
 
-    let messages: Vec<serde_json::Value> = result
+    let mut messages: Vec<serde_json::Value> = result
         .rows
         .iter()
         .map(|row| {
@@ -523,6 +557,71 @@ pub async fn conversations_history(
             })
         })
         .collect();
+
+    // Enrich parent messages with reply metadata
+    for msg in messages.iter_mut() {
+        let msg_id_str = msg["ts"].as_str().unwrap_or("0");
+        let msg_id: i64 = msg_id_str.parse().unwrap_or(0);
+        if msg_id == 0 {
+            continue;
+        }
+        let reply_sql = format!(
+            "SELECT COUNT(*) AS cnt FROM messages WHERE thread_id = {} AND deleted_at = ''",
+            msg_id
+        );
+        if let Ok(reply_result) = state.api.query_router().query_sync(&reply_sql) {
+            if let Some(row) = reply_result.rows.first() {
+                let count_str = row[0].to_json();
+                let count: i64 = count_str.as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
+                if count > 0 {
+                    msg.as_object_mut()
+                        .unwrap()
+                        .insert("reply_count".to_string(), serde_json::json!(count));
+                    // Get last reply timestamp
+                    let last_sql = format!(
+                        "SELECT MAX(created_at) AS last_reply FROM messages WHERE thread_id = {} AND deleted_at = ''",
+                        msg_id
+                    );
+                    if let Ok(last_result) = state.api.query_router().query_sync(&last_sql) {
+                        if let Some(last_row) = last_result.rows.first() {
+                            msg.as_object_mut()
+                                .unwrap()
+                                .insert("last_reply_ts".to_string(), last_row[0].to_json());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update channel_reads for this user
+    let now = now_timestamp();
+    let read_check = format!(
+        "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    let has_existing = state
+        .api
+        .query_router()
+        .query_sync(&read_check)
+        .map(|r| !r.rows.is_empty())
+        .unwrap_or(false);
+
+    if has_existing {
+        let update_sql =
+            format!(
+            "UPDATE channel_reads SET last_read_ts = '{}' WHERE channel_id = {} AND user_id = {}",
+            escape_sql(&now), req.channel, claims.user_id
+        );
+        let _ = state.api.query_router().query_sync(&update_sql);
+    } else {
+        let insert_sql =
+            format!(
+            "INSERT INTO channel_reads (channel_id, user_id, last_read_ts) VALUES ({}, {}, '{}')",
+            req.channel, claims.user_id, escape_sql(&now)
+        );
+        let _ = state.api.query_router().query_sync(&insert_sql);
+    }
 
     slack::ok(json!({"messages": messages, "has_more": messages.len() == limit}))
 }
@@ -783,12 +882,15 @@ pub async fn conversations_open(
     }
 
     // Look for existing DM between these two users
+    // Use subquery instead of double-JOIN (TeideDB doesn't support multiple JOINs on same table)
+    let dm_name = format!(
+        "dm-{}-{}",
+        claims.user_id.min(other_user),
+        claims.user_id.max(other_user)
+    );
     let sql = format!(
-        "SELECT c.id, c.name FROM channels c \
-         JOIN channel_members cm1 ON c.id = cm1.channel_id \
-         JOIN channel_members cm2 ON c.id = cm2.channel_id \
-         WHERE c.kind = 'dm' AND cm1.user_id = {} AND cm2.user_id = {}",
-        claims.user_id, other_user
+        "SELECT id, name FROM channels WHERE kind = 'dm' AND name = '{}'",
+        escape_sql(&dm_name)
     );
 
     match state.api.query_router().query_sync(&sql) {
@@ -866,6 +968,63 @@ pub struct ConversationsOpenRequest {
 #[derive(Deserialize)]
 pub struct ChannelIdRequest {
     pub channel: i64,
+}
+
+// ── Mark Read ──
+
+#[derive(Deserialize)]
+pub struct MarkReadRequest {
+    pub channel: i64,
+    #[serde(default)]
+    pub ts: Option<String>,
+}
+
+pub async fn conversations_mark_read(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<MarkReadRequest>,
+) -> Response {
+    if !is_channel_member(&state, req.channel, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
+    let ts = req.ts.unwrap_or_else(now_timestamp);
+
+    // Upsert channel_reads
+    let check_sql = format!(
+        "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    let has_existing = state
+        .api
+        .query_router()
+        .query_sync(&check_sql)
+        .map(|r| !r.rows.is_empty())
+        .unwrap_or(false);
+
+    if has_existing {
+        let sql =
+            format!(
+            "UPDATE channel_reads SET last_read_ts = '{}' WHERE channel_id = {} AND user_id = {}",
+            escape_sql(&ts), req.channel, claims.user_id
+        );
+        if let Err(e) = state.api.query_router().query_sync(&sql) {
+            tracing::error!("mark read update failed: {e}");
+            return slack::err("internal_error");
+        }
+    } else {
+        let sql =
+            format!(
+            "INSERT INTO channel_reads (channel_id, user_id, last_read_ts) VALUES ({}, {}, '{}')",
+            req.channel, claims.user_id, escape_sql(&ts)
+        );
+        if let Err(e) = state.api.query_router().query_sync(&sql) {
+            tracing::error!("mark read insert failed: {e}");
+            return slack::err("internal_error");
+        }
+    }
+
+    slack::ok(json!({}))
 }
 
 // ── Messaging ──
@@ -1261,15 +1420,17 @@ pub async fn reactions_remove(
         })
         .unwrap_or(false);
 
-    if actually_deleted {
-        let event = crate::chat::events::ServerEvent::ReactionRemoved {
-            channel: channel_id.to_string(),
-            user: claims.user_id.to_string(),
-            reaction: req.name,
-            item_ts: req.timestamp.to_string(),
-        };
-        state.hub.broadcast_to_channel(channel_id, &event).await;
+    if !actually_deleted {
+        return slack::err("no_reaction");
     }
+
+    let event = crate::chat::events::ServerEvent::ReactionRemoved {
+        channel: channel_id.to_string(),
+        user: claims.user_id.to_string(),
+        reaction: req.name,
+        item_ts: req.timestamp.to_string(),
+    };
+    state.hub.broadcast_to_channel(channel_id, &event).await;
 
     slack::ok(json!({}))
 }
@@ -1357,7 +1518,9 @@ pub async fn search_messages(
             .map(|id| id.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        let sql = format!("SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at IS NULL");
+        let sql = format!(
+            "SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at IS NULL"
+        );
         match state.api.query_router().query_sync(&sql) {
             Ok(r) => r
                 .rows
@@ -1391,9 +1554,10 @@ pub async fn search_messages(
         })
         .take(limit)
         .map(|r| {
+            let ch_id = msg_channel_map.get(&r.id).copied().unwrap_or(0);
             json!({
                 "ts": r.id,
-                "channel": r.title,
+                "channel": ch_id,
                 "text": r.snippet,
                 "score": r.score,
             })
@@ -1467,6 +1631,10 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/conversations.open",
             axum::routing::post(conversations_open),
+        )
+        .route(
+            "/conversations.markRead",
+            axum::routing::post(conversations_mark_read),
         )
         // Chat
         .route("/chat.postMessage", axum::routing::post(chat_post_message))

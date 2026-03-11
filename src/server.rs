@@ -12,6 +12,7 @@ use rmcp::transport::streamable_http_server::{
 };
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::CorsLayer;
+use tower_http::services::{ServeDir, ServeFile};
 
 use crate::api::TeidelumApi;
 use crate::chat::handlers::{chat_routes, ChatState};
@@ -40,6 +41,14 @@ pub fn build_router(
         )
         .route("/ws", axum::routing::get(ws_upgrade).with_state(chat_state))
         .layer(CorsLayer::permissive());
+
+    // Serve SvelteKit static build — fallback after API routes
+    let ui_dir = std::path::Path::new("ui/build");
+    if ui_dir.exists() {
+        let serve_dir =
+            ServeDir::new(ui_dir).not_found_service(ServeFile::new(ui_dir.join("index.html")));
+        app = app.fallback_service(serve_dir);
+    }
 
     // If TEIDELUM_API_KEY is set, capture it once and wrap all routes with auth middleware
     if let Ok(key) = std::env::var("TEIDELUM_API_KEY") {

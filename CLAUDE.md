@@ -8,6 +8,8 @@ Teidelum is a compact, local-first MCP server that syncs work tools (Notion, Zul
 
 ## Build & Development Commands
 
+### Backend (Rust)
+
 ```bash
 cargo build                 # build
 cargo run                   # run (serves MCP over stdio)
@@ -17,6 +19,23 @@ cargo check                 # type-check only
 cargo clippy -- -D warnings # lint
 cargo fmt --check           # format check
 cargo fmt                   # format apply
+```
+
+### Frontend (ui/)
+
+```bash
+cd ui && npm install          # install frontend dependencies
+cd ui && npm run dev          # dev server (proxies /api, /ws, /files to localhost:3000)
+cd ui && npm run build        # production build
+cd ui && npx svelte-check     # type checking
+```
+
+### Production Build
+
+```bash
+cd ui && npm run build          # builds SPA to ui/build/
+cargo build --release           # builds server binary
+TEIDE_CHAT_SECRET=<secret> ./target/release/teidelum  # serves frontend + API on :3000
 ```
 
 ## Architecture
@@ -46,6 +65,19 @@ Single crate, modules under `src/`:
 | `chat/models.rs` | Chat schema DDL, FK relationships, SQL helpers |
 | `chat/events.rs` | Server/client event types for WebSocket protocol |
 
+### Frontend (`ui/`)
+
+SvelteKit SPA (SSR disabled) with TypeScript and Tailwind CSS.
+
+| Module | Role |
+|--------|------|
+| `ui/src/lib/api.ts` | Typed API client, all calls via `POST /api/slack/<method>` with Bearer token |
+| `ui/src/lib/ws.ts` | WebSocket client with auto-reconnect and event dispatch to stores |
+| `ui/src/lib/types.ts` | Shared TypeScript types (User, Channel, Message, WsEvent, API responses) |
+| `ui/src/lib/markdown.ts` | Markdown rendering (marked + DOMPurify) with @mention highlighting |
+| `ui/src/lib/stores/` | Svelte stores: auth (JWT), channels, messages (per-channel cache), users, unreads |
+| `ui/src/lib/components/` | UI components: Sidebar, MessageList, MessageInput, ThreadPanel, SearchModal, etc. |
+
 ### Key Design Patterns
 
 - **Query Router** (`router.rs`): Routes queries through the metadata catalog — local tables go to libteide, remote tables go through connectors.
@@ -57,6 +89,11 @@ Single crate, modules under `src/`:
 - **MCP via rmcp**: Tools are defined with `#[tool]` macro on `Teidelum` struct methods. Parameters use `schemars::JsonSchema` for auto-generated schemas. Tracing goes to stderr (stdout is the MCP transport).
 - **Search Auth Filtering**: Both the `chat_search` MCP tool and `search.messages` REST endpoint filter results to only channels the caller is a member of. Results are over-fetched (3x limit) from tantivy then filtered post-query, since tantivy has no per-user access control.
 - **MIME Hardening** (`chat/files.rs`): MIME type is always derived from file extension, never from client-supplied headers or DB values. Downloads include `X-Content-Type-Options: nosniff` and `Content-Disposition: attachment`.
+- **SPA Mode** (`ui/`): SvelteKit with SSR disabled. Vite dev server proxies `/api`, `/ws`, and `/files` to the Rust backend at `localhost:3000`.
+- **Store-Driven UI**: Svelte writable stores manage auth, channels, messages, users, and unreads. WebSocket events update stores in real time. All WS listener init functions return cleanup callbacks.
+- **Unread Tracking** (`chat/handlers.rs`): `channel_reads` table stores `last_read_ts` per user per channel. Updated on `conversations.history` fetch and `conversations.markRead`. Unread count computed in `conversations.list` by counting messages after `last_read_ts`.
+- **Thread Metadata**: `conversations.history` enriches parent messages with `reply_count` and `last_reply_ts` computed from the messages table. No denormalized columns — always computed fresh.
+- **Static Frontend Serving** (`server.rs`): When `ui/build/` exists, Axum serves it as a fallback after API routes. SPA routing handled via `index.html` fallback. In dev, use Vite proxy instead.
 
 ### MCP Tools
 

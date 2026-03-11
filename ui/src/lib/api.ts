@@ -1,0 +1,228 @@
+import type {
+	AuthResponse,
+	ChannelListResponse,
+	ChannelResponse,
+	FileUploadResponse,
+	HistoryResponse,
+	Id,
+	MembersResponse,
+	Message,
+	MessageResponse,
+	OkResponse,
+	SearchResponse,
+	UserInfoResponse,
+	UsersListResponse
+} from './types';
+
+/**
+ * Map a backend message object (ts/channel/user) to the frontend Message shape (id/channel_id/user_id).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapMessage(raw: any): Message {
+	return {
+		id: String(raw.ts ?? raw.id ?? ''),
+		ts: String(raw.ts ?? raw.id ?? ''),
+		channel_id: String(raw.channel ?? raw.channel_id ?? ''),
+		user_id: String(raw.user ?? raw.user_id ?? ''),
+		user: raw.username ?? raw.user_name,
+		text: raw.text ?? '',
+		thread_ts: raw.thread_ts ? String(raw.thread_ts) : undefined,
+		reply_count: raw.reply_count,
+		reactions: raw.reactions,
+		files: raw.files,
+		edited_at: raw.edited_ts ?? raw.edited_at,
+		created_at: raw.created_at ?? new Date().toISOString()
+	};
+}
+
+let token: string | null = null;
+
+export function setToken(t: string | null) {
+	token = t;
+}
+
+async function call<T>(method: string, body: Record<string, unknown> = {}): Promise<T> {
+	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+	if (token) headers['Authorization'] = `Bearer ${token}`;
+
+	const res = await fetch(`/api/slack/${method}`, {
+		method: 'POST',
+		headers,
+		body: JSON.stringify(body)
+	});
+
+	if (!res.ok) {
+		throw new Error(`API ${method}: HTTP ${res.status}`);
+	}
+
+	return res.json();
+}
+
+// === Auth ===
+
+export function register(username: string, password: string, email: string): Promise<AuthResponse> {
+	return call('auth.register', { username, password, email });
+}
+
+export function login(username: string, password: string): Promise<AuthResponse> {
+	return call('auth.login', { username, password });
+}
+
+// === Conversations ===
+
+export function conversationsCreate(name: string, kind?: string, topic?: string): Promise<ChannelResponse> {
+	return call('conversations.create', { name, kind, topic });
+}
+
+export function conversationsList(): Promise<ChannelListResponse> {
+	return call('conversations.list', {});
+}
+
+export function conversationsInfo(channel: Id): Promise<ChannelResponse> {
+	return call('conversations.info', { channel });
+}
+
+export async function conversationsHistory(
+	channel: Id,
+	limit?: number,
+	before?: Id
+): Promise<HistoryResponse> {
+	const body: Record<string, unknown> = { channel };
+	if (limit !== undefined) body.limit = limit;
+	if (before !== undefined) body.before = before;
+	const res = await call<HistoryResponse>('conversations.history', body);
+	if (res.ok && res.messages) {
+		res.messages = res.messages.map(mapMessage);
+	}
+	return res;
+}
+
+export async function conversationsReplies(channel: Id, ts: Id): Promise<HistoryResponse> {
+	const res = await call<HistoryResponse>('conversations.replies', { channel, ts });
+	if (res.ok && res.messages) {
+		res.messages = res.messages.map(mapMessage);
+	}
+	return res;
+}
+
+export function conversationsJoin(channel: Id): Promise<OkResponse> {
+	return call('conversations.join', { channel });
+}
+
+export function conversationsLeave(channel: Id): Promise<OkResponse> {
+	return call('conversations.leave', { channel });
+}
+
+export function conversationsInvite(channel: Id, user: Id): Promise<OkResponse> {
+	return call('conversations.invite', { channel, user });
+}
+
+export function conversationsMembers(channel: Id): Promise<MembersResponse> {
+	return call('conversations.members', { channel });
+}
+
+export function conversationsOpen(users: Id[]): Promise<ChannelResponse> {
+	return call('conversations.open', { users });
+}
+
+// === Chat ===
+
+export async function chatPostMessage(
+	channel: Id,
+	text: string,
+	thread_ts?: Id
+): Promise<MessageResponse> {
+	const body: Record<string, unknown> = { channel, text };
+	if (thread_ts !== undefined) body.thread_ts = thread_ts;
+	const res = await call<MessageResponse>('chat.postMessage', body);
+	if (res.ok && res.message) {
+		res.message = mapMessage(res.message);
+	}
+	return res;
+}
+
+export function chatUpdate(ts: Id, text: string): Promise<MessageResponse> {
+	return call('chat.update', { ts, text });
+}
+
+export function chatDelete(ts: Id): Promise<OkResponse> {
+	return call('chat.delete', { ts });
+}
+
+// === Users ===
+
+export function usersList(): Promise<UsersListResponse> {
+	return call('users.list', {});
+}
+
+export function usersInfo(user: Id): Promise<UserInfoResponse> {
+	return call('users.info', { user });
+}
+
+export function usersSetPresence(presence: string): Promise<OkResponse> {
+	return call('users.setPresence', { presence });
+}
+
+// === Reactions ===
+
+export function reactionsAdd(name: string, timestamp: Id): Promise<OkResponse> {
+	return call('reactions.add', { name, timestamp });
+}
+
+export function reactionsRemove(name: string, timestamp: Id): Promise<OkResponse> {
+	return call('reactions.remove', { name, timestamp });
+}
+
+// === Search ===
+
+export async function searchMessages(
+	query: string,
+	channel?: Id,
+	limit?: number
+): Promise<SearchResponse> {
+	const body: Record<string, unknown> = { query };
+	if (channel !== undefined) body.channel = channel;
+	if (limit !== undefined) body.limit = limit;
+	// Backend returns { messages: { matches: [...], total: N } }
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const res = await call<any>('search.messages', body);
+	const matches = res?.messages?.matches ?? [];
+	return {
+		ok: res.ok ?? false,
+		messages: matches.map(mapMessage),
+		error: res.error
+	};
+}
+
+// === Files ===
+
+export function fileDownloadUrl(fileId: Id, filename: string): string {
+	const url = `/files/${fileId}/${filename}`;
+	return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+}
+
+export async function filesUpload(
+	channel: Id,
+	file: File,
+	thread_ts?: Id
+): Promise<FileUploadResponse> {
+	const formData = new FormData();
+	formData.append('file', file);
+	formData.append('channel', channel);
+	if (thread_ts) formData.append('thread_ts', thread_ts);
+
+	const headers: Record<string, string> = {};
+	if (token) headers['Authorization'] = `Bearer ${token}`;
+
+	const res = await fetch('/api/slack/files.upload', {
+		method: 'POST',
+		headers,
+		body: formData
+	});
+
+	if (!res.ok) {
+		throw new Error(`API files.upload: HTTP ${res.status}`);
+	}
+
+	return res.json();
+}

@@ -28,7 +28,7 @@ tantivy = "0.22"
 teide = { path = "../teide-rs" }
 axum = { version = "0.8", features = ["multipart", "ws"] }
 futures-util = "0.3"
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
 clap = { version = "4", features = ["derive", "env"] }
 rand = "0.8"
 tokio-util = "0.7"

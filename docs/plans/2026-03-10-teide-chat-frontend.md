@@ -63,7 +63,7 @@ teidelum/ui/
 **Files:**
 - Create: `teidelum/ui/` (entire scaffold)
 
-- [ ] **Step 1: Create SvelteKit project**
+- [x] **Step 1: Create SvelteKit project**
 
 Run from `/Users/antonkundenko/data/work/teidedb`:
 
@@ -80,7 +80,7 @@ npm create svelte@latest teidelum/ui
 
 Select: Skeleton project, TypeScript, no additional options.
 
-- [ ] **Step 2: Install dependencies**
+- [x] **Step 2: Install dependencies**
 
 ```bash
 cd /Users/antonkundenko/data/work/teidedb/teidelum/ui
@@ -90,7 +90,7 @@ npm install marked dompurify
 npm install -D @types/dompurify
 ```
 
-- [ ] **Step 3: Configure Tailwind CSS**
+- [x] **Step 3: Configure Tailwind CSS**
 
 Add the Tailwind Vite plugin to `vite.config.ts`:
 
@@ -133,7 +133,7 @@ Import it in `src/routes/+layout.svelte`:
 {@render children()}
 ```
 
-- [ ] **Step 4: Disable SSR (SPA mode)**
+- [x] **Step 4: Disable SSR (SPA mode)**
 
 Create `src/routes/+layout.ts`:
 
@@ -142,7 +142,7 @@ export const ssr = false;
 export const prerender = false;
 ```
 
-- [ ] **Step 5: Configure API proxy for development**
+- [x] **Step 5: Configure API proxy for development**
 
 Add proxy config to `vite.config.ts` so `/api` and `/ws` requests go to the backend at `localhost:3000`:
 
@@ -162,12 +162,12 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 6: Verify build**
+- [x] **Step 6: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 Expected: builds with no errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 cd /Users/antonkundenko/data/work/teidedb
@@ -182,7 +182,7 @@ git commit -m "feat(chat-ui): scaffold SvelteKit project with TypeScript and Tai
 **Files:**
 - Create: `teidelum/ui/src/lib/types.ts`
 
-- [ ] **Step 1: Define all shared TypeScript types**
+- [x] **Step 1: Define all shared TypeScript types**
 
 Create `src/lib/types.ts`:
 
@@ -327,12 +327,12 @@ export interface WsEvent {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 Expected: compiles with no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/types.ts
@@ -346,7 +346,7 @@ git commit -m "feat(chat-ui): add shared TypeScript types for API and WebSocket"
 **Files:**
 - Create: `teidelum/ui/src/lib/api.ts`
 
-- [ ] **Step 1: Implement typed API client**
+- [x] **Step 1: Implement typed API client**
 
 Create `src/lib/api.ts`. This is the single entry point for all API calls. Every method calls `POST /api/slack/<method>` with JSON body and Bearer token.
 
@@ -542,12 +542,12 @@ export function fileDownloadUrl(fileId: Id, filename: string): string {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 Expected: compiles with no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/api.ts
@@ -561,7 +561,7 @@ git commit -m "feat(chat-ui): add typed API client for all Slack-compatible endp
 **Files:**
 - Create: `teidelum/ui/src/lib/ws.ts`
 
-- [ ] **Step 1: Implement WebSocket client with reconnect and event dispatch**
+- [x] **Step 1: Implement WebSocket client with reconnect and event dispatch**
 
 Create `src/lib/ws.ts`:
 
@@ -678,12 +678,12 @@ export function sendPing() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 Expected: compiles with no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/ws.ts
@@ -699,7 +699,7 @@ git commit -m "feat(chat-ui): add WebSocket client with auto-reconnect and event
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/auth.ts`
 
-- [ ] **Step 1: Implement auth store**
+- [x] **Step 1: Implement auth store**
 
 Create `src/lib/stores/auth.ts`:
 
@@ -816,11 +816,11 @@ export function doLogout() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/auth.ts
@@ -834,7 +834,7 @@ git commit -m "feat(chat-ui): add auth store with JWT persistence and login/regi
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/channels.ts`
 
-- [ ] **Step 1: Implement channels store**
+- [x] **Step 1: Implement channels store**
 
 Create `src/lib/stores/channels.ts`:
 
@@ -923,11 +923,11 @@ export function initChannelWsListeners() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/channels.ts
@@ -941,7 +941,7 @@ git commit -m "feat(chat-ui): add channels store with CRUD and WebSocket listene
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/messages.ts`
 
-- [ ] **Step 1: Implement messages store**
+- [x] **Step 1: Implement messages store**
 
 Create `src/lib/stores/messages.ts`:
 
@@ -1140,11 +1140,11 @@ export function initMessageWsListeners() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/messages.ts
@@ -1158,7 +1158,8 @@ git commit -m "feat(chat-ui): add messages store with pagination, optimistic sen
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/users.ts`
 
-- [ ] **Step 1: Implement users store**
+- [x] **Step 1: Implement users store**
+
 
 Create `src/lib/stores/users.ts`:
 
@@ -1208,11 +1209,11 @@ export function initUserWsListeners() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/users.ts
@@ -1226,7 +1227,7 @@ git commit -m "feat(chat-ui): add users store with presence tracking"
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/unreads.ts`
 
-- [ ] **Step 1: Implement unreads store**
+- [x] **Step 1: Implement unreads store**
 
 Create `src/lib/stores/unreads.ts`:
 
@@ -1273,11 +1274,11 @@ export function initUnreadsWsListeners() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/unreads.ts
@@ -1293,7 +1294,7 @@ git commit -m "feat(chat-ui): add unreads store with per-channel unread counts"
 **Files:**
 - Create: `teidelum/ui/src/routes/login/+page.svelte`
 
-- [ ] **Step 1: Implement login page**
+- [x] **Step 1: Implement login page**
 
 Create `src/routes/login/+page.svelte`:
 
@@ -1381,11 +1382,11 @@ Create `src/routes/login/+page.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/login/+page.svelte
@@ -1399,7 +1400,7 @@ git commit -m "feat(chat-ui): add login page"
 **Files:**
 - Create: `teidelum/ui/src/routes/register/+page.svelte`
 
-- [ ] **Step 1: Implement register page**
+- [x] **Step 1: Implement register page**
 
 Create `src/routes/register/+page.svelte`:
 
@@ -1520,11 +1521,11 @@ Create `src/routes/register/+page.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/register/+page.svelte
@@ -1538,7 +1539,7 @@ git commit -m "feat(chat-ui): add register page"
 **Files:**
 - Modify: `teidelum/ui/src/routes/+layout.svelte`
 
-- [ ] **Step 1: Add auth guard to root layout**
+- [x] **Step 1: Add auth guard to root layout**
 
 Update `src/routes/+layout.svelte` to check auth state and redirect unauthenticated users to `/login`:
 
@@ -1581,11 +1582,11 @@ Update `src/routes/+layout.svelte` to check auth state and redirect unauthentica
 {/if}
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/+layout.svelte
@@ -1602,7 +1603,7 @@ git commit -m "feat(chat-ui): add auth guard to root layout with redirect logic"
 - Create: `teidelum/ui/src/routes/(app)/+layout.svelte`
 - Create: `teidelum/ui/src/routes/(app)/+page.svelte` (redirect to first channel)
 
-- [ ] **Step 1: Create app layout with sidebar + main area**
+- [x] **Step 1: Create app layout with sidebar + main area**
 
 Create `src/routes/(app)/+layout.svelte`:
 
@@ -1665,11 +1666,11 @@ Create `src/routes/(app)/+page.svelte` (landing redirect):
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/\(app\)/
@@ -1683,7 +1684,7 @@ git commit -m "feat(chat-ui): add app layout shell with sidebar and main content
 **Files:**
 - Create: `teidelum/ui/src/lib/components/Sidebar.svelte`
 
-- [ ] **Step 1: Implement sidebar with channel list, DM list, unread badges, create channel**
+- [x] **Step 1: Implement sidebar with channel list, DM list, unread badges, create channel**
 
 Create `src/lib/components/Sidebar.svelte`:
 
@@ -1881,11 +1882,11 @@ Create `src/lib/components/Sidebar.svelte`:
 {/if}
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/Sidebar.svelte
@@ -1899,7 +1900,7 @@ git commit -m "feat(chat-ui): add Sidebar component with channel list, DMs, unre
 **Files:**
 - Create: `teidelum/ui/src/lib/components/MessageList.svelte`
 
-- [ ] **Step 1: Implement message list with infinite scroll and auto-scroll**
+- [x] **Step 1: Implement message list with infinite scroll and auto-scroll**
 
 Create `src/lib/components/MessageList.svelte`:
 
@@ -2131,11 +2132,11 @@ Create `src/lib/components/MessageList.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/MessageList.svelte
@@ -2149,7 +2150,7 @@ git commit -m "feat(chat-ui): add MessageList component with infinite scroll, re
 **Files:**
 - Create: `teidelum/ui/src/lib/components/MessageInput.svelte`
 
-- [ ] **Step 1: Implement message input with send on Enter and typing indicator**
+- [x] **Step 1: Implement message input with send on Enter and typing indicator**
 
 Create `src/lib/components/MessageInput.svelte`:
 
@@ -2232,11 +2233,11 @@ Create `src/lib/components/MessageInput.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/MessageInput.svelte
@@ -2250,7 +2251,7 @@ git commit -m "feat(chat-ui): add MessageInput component with typing indicator a
 **Files:**
 - Create: `teidelum/ui/src/routes/(app)/[channel]/+page.svelte`
 
-- [ ] **Step 1: Implement channel page combining MessageList and MessageInput**
+- [x] **Step 1: Implement channel page combining MessageList and MessageInput**
 
 Create `src/routes/(app)/[channel]/+page.svelte`:
 
@@ -2336,11 +2337,11 @@ Create `src/routes/(app)/[channel]/+page.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/\(app\)/\[channel\]/+page.svelte
@@ -2356,7 +2357,7 @@ git commit -m "feat(chat-ui): add channel page with message list, input, and thr
 **Files:**
 - Create: `teidelum/ui/src/lib/components/ThreadPanel.svelte`
 
-- [ ] **Step 1: Implement thread panel**
+- [x] **Step 1: Implement thread panel**
 
 Create `src/lib/components/ThreadPanel.svelte`:
 
@@ -2519,11 +2520,11 @@ Create `src/lib/components/ThreadPanel.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/ThreadPanel.svelte
@@ -2537,7 +2538,7 @@ git commit -m "feat(chat-ui): add ThreadPanel component for threaded replies"
 **Files:**
 - Create: `teidelum/ui/src/lib/components/ReactionPicker.svelte`
 
-- [ ] **Step 1: Implement simple reaction picker**
+- [x] **Step 1: Implement simple reaction picker**
 
 Create `src/lib/components/ReactionPicker.svelte`. A minimal picker with common reactions (no full emoji picker for MVP):
 
@@ -2589,11 +2590,11 @@ Create `src/lib/components/ReactionPicker.svelte`. A minimal picker with common 
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/ReactionPicker.svelte
@@ -2607,7 +2608,7 @@ git commit -m "feat(chat-ui): add ReactionPicker component with common emoji rea
 **Files:**
 - Create: `teidelum/ui/src/lib/components/SearchModal.svelte`
 
-- [ ] **Step 1: Implement search modal**
+- [x] **Step 1: Implement search modal**
 
 Create `src/lib/components/SearchModal.svelte`:
 
@@ -2729,7 +2730,7 @@ Create `src/lib/components/SearchModal.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Add search button to Sidebar**
+- [x] **Step 2: Add search button to Sidebar**
 
 Update `src/lib/components/Sidebar.svelte` to include a search trigger. Add a search button in the header area (next to the "Sign out" button). When clicked, it should emit an event or use a shared state. For simplicity, add a global search modal toggle.
 
@@ -2810,11 +2811,11 @@ The full updated `src/routes/(app)/+layout.svelte`:
 {/if}
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/SearchModal.svelte teidelum/ui/src/routes/\(app\)/+layout.svelte
@@ -2828,7 +2829,7 @@ git commit -m "feat(chat-ui): add SearchModal component with Cmd+K shortcut"
 **Files:**
 - Create: `teidelum/ui/src/lib/components/UserPresence.svelte`
 
-- [ ] **Step 1: Implement presence indicator**
+- [x] **Step 1: Implement presence indicator**
 
 Create `src/lib/components/UserPresence.svelte`:
 
@@ -2858,11 +2859,11 @@ Create `src/lib/components/UserPresence.svelte`:
 ></span>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/UserPresence.svelte
@@ -2876,7 +2877,7 @@ git commit -m "feat(chat-ui): add UserPresence component with active/away indica
 **Files:**
 - Create: `teidelum/ui/src/lib/components/FileUpload.svelte`
 
-- [ ] **Step 1: Implement file upload button**
+- [x] **Step 1: Implement file upload button**
 
 Create `src/lib/components/FileUpload.svelte`:
 
@@ -2943,7 +2944,7 @@ Create `src/lib/components/FileUpload.svelte`:
 </button>
 ```
 
-- [ ] **Step 2: Add FileUpload to MessageInput**
+- [x] **Step 2: Add FileUpload to MessageInput**
 
 Update `src/lib/components/MessageInput.svelte` to include the FileUpload button. Add the import and place the component before the textarea in the input area:
 
@@ -3046,11 +3047,11 @@ The full updated `src/lib/components/MessageInput.svelte`:
 </div>
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/FileUpload.svelte teidelum/ui/src/lib/components/MessageInput.svelte
@@ -3066,7 +3067,7 @@ git commit -m "feat(chat-ui): add FileUpload component and integrate into Messag
 **Files:**
 - Modify: `teidelum/ui/src/lib/components/MessageList.svelte`
 
-- [ ] **Step 1: Add markdown rendering utility**
+- [x] **Step 1: Add markdown rendering utility**
 
 Create `src/lib/markdown.ts`:
 
@@ -3093,7 +3094,7 @@ export function renderMarkdown(text: string): string {
 }
 ```
 
-- [ ] **Step 2: Update MessageList to use markdown rendering**
+- [x] **Step 2: Update MessageList to use markdown rendering**
 
 In `src/lib/components/MessageList.svelte`, replace the plain text display `{msg.text}` with rendered markdown. Import the utility:
 
@@ -3111,7 +3112,7 @@ Replace the message text line:
 <div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMarkdown(msg.text)}</div>
 ```
 
-- [ ] **Step 3: Add prose-chat styles to app.css**
+- [x] **Step 3: Add prose-chat styles to app.css**
 
 Add to `src/app.css`:
 
@@ -3142,11 +3143,11 @@ Add to `src/app.css`:
 }
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/markdown.ts teidelum/ui/src/lib/components/MessageList.svelte teidelum/ui/src/app.css
@@ -3160,7 +3161,7 @@ git commit -m "feat(chat-ui): add markdown rendering for messages with sanitizat
 **Files:**
 - Modify: `teidelum/ui/src/lib/markdown.ts`
 
-- [ ] **Step 1: Add mention highlighting to markdown processing**
+- [x] **Step 1: Add mention highlighting to markdown processing**
 
 Update `src/lib/markdown.ts` to detect `@username` patterns and wrap them in a highlight span before markdown rendering:
 
@@ -3196,7 +3197,7 @@ export function renderMarkdown(text: string): string {
 }
 ```
 
-- [ ] **Step 2: Add mention styles to app.css**
+- [x] **Step 2: Add mention styles to app.css**
 
 Add to `src/app.css`:
 
@@ -3206,11 +3207,11 @@ Add to `src/app.css`:
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/markdown.ts teidelum/ui/src/app.css
@@ -3221,7 +3222,7 @@ git commit -m "feat(chat-ui): add @mention highlighting in messages"
 
 ### Task 25: Final integration test
 
-- [ ] **Step 1: Verify complete build**
+- [x] **Step 1: Verify complete build**
 
 ```bash
 cd /Users/antonkundenko/data/work/teidedb/teidelum/ui
@@ -3230,7 +3231,7 @@ npm run build
 
 Expected: no errors, clean build.
 
-- [ ] **Step 2: Manual smoke test checklist**
+- [x] **Step 2: Manual smoke test checklist**
 
 Start the backend and frontend:
 
@@ -3263,7 +3264,7 @@ Open `http://localhost:5173` in browser and verify:
 17. Sign out returns to login page
 18. Page refresh preserves auth (token in localStorage)
 
-- [ ] **Step 3: Final commit**
+- [x] **Step 3: Final commit**
 
 ```bash
 git add -A teidelum/ui/
