@@ -2357,7 +2357,7 @@ git commit -m "feat(chat-ui): add channel page with message list, input, and thr
 **Files:**
 - Create: `teidelum/ui/src/lib/components/ThreadPanel.svelte`
 
-- [ ] **Step 1: Implement thread panel**
+- [x] **Step 1: Implement thread panel**
 
 Create `src/lib/components/ThreadPanel.svelte`:
 
@@ -2520,11 +2520,11 @@ Create `src/lib/components/ThreadPanel.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/ThreadPanel.svelte
