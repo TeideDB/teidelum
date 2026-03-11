@@ -881,12 +881,15 @@ pub async fn conversations_open(
     }
 
     // Look for existing DM between these two users
+    // Use subquery instead of double-JOIN (TeideDB doesn't support multiple JOINs on same table)
+    let dm_name = format!(
+        "dm-{}-{}",
+        claims.user_id.min(other_user),
+        claims.user_id.max(other_user)
+    );
     let sql = format!(
-        "SELECT c.id, c.name FROM channels c \
-         JOIN channel_members cm1 ON c.id = cm1.channel_id \
-         JOIN channel_members cm2 ON c.id = cm2.channel_id \
-         WHERE c.kind = 'dm' AND cm1.user_id = {} AND cm2.user_id = {}",
-        claims.user_id, other_user
+        "SELECT id, name FROM channels WHERE kind = 'dm' AND name = '{}'",
+        escape_sql(&dm_name)
     );
 
     match state.api.query_router().query_sync(&sql) {

@@ -369,3 +369,131 @@ async fn test_thread_metadata() {
     assert_eq!(parent["reply_count"].as_i64().unwrap(), 3, "expected 3 replies");
     assert!(parent["last_reply_ts"].is_string(), "expected last_reply_ts to be set");
 }
+
+#[tokio::test]
+async fn test_dm_conversation() {
+    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-12345");
+    let tmp = tempfile::tempdir().unwrap();
+    let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
+    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    let api = std::sync::Arc::new(api);
+    let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
+    let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
+        api: api.clone(),
+        hub: hub.clone(),
+    });
+    let app = teidelum::chat::handlers::chat_routes(state);
+
+    // Register alice
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "alice_dm", "password": "secret123", "email": "alice_dm@test.com"}),
+        None,
+    )).await.unwrap();
+    let body_a = body_json(resp).await;
+    let token_a = body_a["token"].as_str().unwrap().to_string();
+
+    // Register bob
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "bob_dm", "password": "secret123", "email": "bob_dm@test.com"}),
+        None,
+    )).await.unwrap();
+    let body_b = body_json(resp).await;
+    let token_b = body_b["token"].as_str().unwrap().to_string();
+    let user_b: i64 = body_b["user_id"].as_str().unwrap().parse().unwrap();
+
+    // Open DM — alice opens DM with bob (pass only the other user)
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.open",
+        json!({"users": [user_b]}),
+        Some(&token_a),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let dm_id: i64 = body["channel"]["id"].as_str().unwrap().parse().unwrap();
+
+    // Alice posts in DM
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/chat.postMessage",
+        json!({"channel": dm_id, "text": "hey bob, DM!"}),
+        Some(&token_a),
+    )).await.unwrap();
+    assert_eq!(body_json(resp).await["ok"], true);
+
+    // Bob reads DM history
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.history",
+        json!({"channel": dm_id}),
+        Some(&token_b),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let messages = body["messages"].as_array().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0]["text"], "hey bob, DM!");
+
+    // Open again — should return same channel
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.open",
+        json!({"users": [user_b]}),
+        Some(&token_a),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    // Re-opening a DM should succeed and return the same channel
+    assert_eq!(body["ok"], true, "second open failed: {body}");
+    let dm_id_2: i64 = body["channel"]["id"].as_str().unwrap().parse().unwrap();
+    assert_eq!(dm_id, dm_id_2, "should return same DM channel");
+}
+
+#[tokio::test]
+async fn test_presence_update() {
+    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-12345");
+    let tmp = tempfile::tempdir().unwrap();
+    let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
+    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    let api = std::sync::Arc::new(api);
+    let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
+    let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
+        api: api.clone(),
+        hub: hub.clone(),
+    });
+    let app = teidelum::chat::handlers::chat_routes(state);
+
+    // Register
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "eve", "password": "secret123", "email": "eve@test.com"}),
+        None,
+    )).await.unwrap();
+    let token = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Set presence to away
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/users.setPresence",
+        json!({"presence": "away"}),
+        Some(&token),
+    )).await.unwrap();
+    assert_eq!(body_json(resp).await["ok"], true);
+
+    // Verify via users.list
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/users.list",
+        json!({}),
+        Some(&token),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    let users = body["members"].as_array().unwrap();
+    let eve = users.iter().find(|u| u["username"].as_str() == Some("eve")).unwrap();
+    assert_eq!(eve["status"].as_str(), Some("away"));
+
+    // Set invalid presence — should error
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/users.setPresence",
+        json!({"presence": "invisible"}),
+        Some(&token),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "invalid_presence");
+}

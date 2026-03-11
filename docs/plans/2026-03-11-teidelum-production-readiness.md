@@ -716,7 +716,7 @@ git commit -m "feat(chat): add reply_count and last_reply_ts to message history"
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Add DM (conversations.open) test**
+- [x] **Step 1: Add DM (conversations.open) test**
 
 ```rust
 #[tokio::test]
@@ -797,7 +797,7 @@ async fn test_dm_conversation() {
 }
 ```
 
-- [ ] **Step 2: Add presence test**
+- [x] **Step 2: Add presence test**
 
 ```rust
 #[tokio::test]
@@ -853,7 +853,7 @@ async fn test_presence_update() {
 }
 ```
 
-- [ ] **Step 3: Run all tests**
+- [x] **Step 3: Run all tests**
 
 ```bash
 cargo test -- --nocapture
@@ -861,7 +861,7 @@ cargo test -- --nocapture
 
 Expected: All tests pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/chat_integration.rs
