@@ -17,8 +17,12 @@ fn deserialize_id<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
         fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             f.write_str("an integer or string-encoded integer")
         }
-        fn visit_i64<E: de::Error>(self, v: i64) -> Result<i64, E> { Ok(v) }
-        fn visit_u64<E: de::Error>(self, v: u64) -> Result<i64, E> { Ok(v as i64) }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<i64, E> {
+            Ok(v)
+        }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<i64, E> {
+            Ok(v as i64)
+        }
         fn visit_str<E: de::Error>(self, v: &str) -> Result<i64, E> {
             v.parse().map_err(de::Error::custom)
         }
@@ -33,7 +37,9 @@ fn deserialize_id_vec<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<i64>, D::Er
     values
         .into_iter()
         .map(|v| match v {
-            serde_json::Value::Number(n) => n.as_i64().ok_or_else(|| de::Error::custom("invalid id")),
+            serde_json::Value::Number(n) => {
+                n.as_i64().ok_or_else(|| de::Error::custom("invalid id"))
+            }
             serde_json::Value::String(s) => s.parse().map_err(de::Error::custom),
             _ => Err(de::Error::custom("expected number or string")),
         })
@@ -49,10 +55,18 @@ fn deserialize_opt_id<'de, D: Deserializer<'de>>(d: D) -> Result<Option<i64>, D:
         fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             f.write_str("an integer, string-encoded integer, or null")
         }
-        fn visit_none<E: de::Error>(self) -> Result<Option<i64>, E> { Ok(None) }
-        fn visit_unit<E: de::Error>(self) -> Result<Option<i64>, E> { Ok(None) }
-        fn visit_i64<E: de::Error>(self, v: i64) -> Result<Option<i64>, E> { Ok(Some(v)) }
-        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Option<i64>, E> { Ok(Some(v as i64)) }
+        fn visit_none<E: de::Error>(self) -> Result<Option<i64>, E> {
+            Ok(None)
+        }
+        fn visit_unit<E: de::Error>(self) -> Result<Option<i64>, E> {
+            Ok(None)
+        }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<Option<i64>, E> {
+            Ok(Some(v))
+        }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Option<i64>, E> {
+            Ok(Some(v as i64))
+        }
         fn visit_str<E: de::Error>(self, v: &str) -> Result<Option<i64>, E> {
             v.parse().map(Some).map_err(de::Error::custom)
         }
@@ -77,6 +91,8 @@ pub struct ChatState {
     pub channel_create_lock: Mutex<()>,
     /// Serializes channel join to prevent duplicate membership from TOCTOU races.
     pub channel_join_lock: Mutex<()>,
+    /// Serializes pin add to prevent duplicate pins from TOCTOU races.
+    pub pin_lock: Mutex<()>,
 }
 
 // ── Auth ──
@@ -357,7 +373,10 @@ pub async fn users_set_presence(
         Ok(r) if !r.rows.is_empty() => {
             let st = r.rows[0][0].to_json().as_str().unwrap_or("").to_string();
             let se = r.rows[0][1].to_json().as_str().unwrap_or("").to_string();
-            (Some(st).filter(|s| !s.is_empty()), Some(se).filter(|s| !s.is_empty()))
+            (
+                Some(st).filter(|s| !s.is_empty()),
+                Some(se).filter(|s| !s.is_empty()),
+            )
         }
         _ => (None, None),
     };
@@ -641,10 +660,7 @@ pub async fn users_update_settings(
         if !["all", "mentions", "none"].contains(&notif.as_str()) {
             return slack::err("invalid_notification_default");
         }
-        sets.push(format!(
-            "notification_default = '{}'",
-            escape_sql(notif)
-        ));
+        sets.push(format!("notification_default = '{}'", escape_sql(notif)));
     }
     if let Some(ref tz) = req.timezone {
         sets.push(format!("timezone = '{}'", escape_sql(tz)));
@@ -1572,7 +1588,11 @@ pub async fn conversations_mark_read(
             if t.parse::<u64>().is_err() {
                 return slack::err("invalid_arguments");
             }
-            if t.parse::<u64>().unwrap() > now.parse::<u64>().unwrap() { now.clone() } else { t }
+            if t.parse::<u64>().unwrap() > now.parse::<u64>().unwrap() {
+                now.clone()
+            } else {
+                t
+            }
         }
         None => now,
     };
@@ -1640,9 +1660,11 @@ pub async fn conversations_update(
         req.channel, claims.user_id
     );
     let role = match state.api.query_router().query_sync(&role_sql) {
-        Ok(r) if !r.rows.is_empty() => {
-            r.rows[0][0].to_json().as_str().unwrap_or("member").to_string()
-        }
+        Ok(r) if !r.rows.is_empty() => r.rows[0][0]
+            .to_json()
+            .as_str()
+            .unwrap_or("member")
+            .to_string(),
         _ => return slack::err("not_in_channel"),
     };
     if role != "owner" && role != "admin" {
@@ -1654,7 +1676,8 @@ pub async fn conversations_update(
         // Check name uniqueness
         let check = format!(
             "SELECT id FROM channels WHERE name = '{}' AND id != {}",
-            escape_sql(name), req.channel
+            escape_sql(name),
+            req.channel
         );
         match state.api.query_router().query_sync(&check) {
             Ok(r) if !r.rows.is_empty() => return slack::err("name_taken"),
@@ -1970,9 +1993,13 @@ pub async fn conversations_set_notification(
     }
 
     let _guard = state.settings_lock.lock().await;
-    if let Err(e) =
-        upsert_channel_setting(&state, req.channel, claims.user_id, "notification_level", &req.level)
-    {
+    if let Err(e) = upsert_channel_setting(
+        &state,
+        req.channel,
+        claims.user_id,
+        "notification_level",
+        &req.level,
+    ) {
         tracing::error!("set notification failed: {e}");
         return slack::err("internal_error");
     }
@@ -2445,8 +2472,42 @@ pub async fn search_messages(
     let limit = req.limit.min(100);
     let filter_user_id = req.user_id;
     let filter_channel_id = req.channel_id;
-    let filter_date_from = req.date_from.clone();
-    let filter_date_to = req.date_to.clone();
+    // Convert date filter value to epoch seconds. Accepts either a plain epoch-second
+    // string (sent by the UI after local-timezone conversion) or a YYYY-MM-DD date string
+    // (interpreted as UTC for backwards compatibility with direct API callers).
+    fn date_str_to_epoch(d: &str, end_of_day: bool) -> Option<i64> {
+        // Try plain epoch seconds first (no dashes)
+        if !d.contains('-') {
+            return d.parse::<i64>().ok();
+        }
+        let parts: Vec<&str> = d.split('-').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+        let y: i64 = parts[0].parse().ok()?;
+        let m: i64 = parts[1].parse().ok()?;
+        let day: i64 = parts[2].parse().ok()?;
+        // Days from year 0 to Unix epoch (1970-01-01)
+        fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+            let y = if m <= 2 { y - 1 } else { y };
+            let era = y / 400;
+            let yoe = y - era * 400;
+            let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+            let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+            era * 146097 + doe - 719468
+        }
+        let epoch_days = days_from_civil(y, m, day);
+        let secs = epoch_days * 86400 + if end_of_day { 86399 } else { 0 };
+        Some(secs)
+    }
+    let filter_date_from_epoch = req
+        .date_from
+        .as_ref()
+        .and_then(|d| date_str_to_epoch(d, false));
+    let filter_date_to_epoch = req
+        .date_to
+        .as_ref()
+        .and_then(|d| date_str_to_epoch(d, true));
 
     // Get the set of channel IDs the user is a member of for filtering
     let member_channel_ids: std::collections::HashSet<i64> = {
@@ -2563,14 +2624,18 @@ pub async fn search_messages(
                         return false;
                     }
                 }
-                if let Some(ref from) = filter_date_from {
-                    if meta.created_at.as_str() < from.as_str() {
-                        return false;
+                if let Some(ref from_epoch) = filter_date_from_epoch {
+                    if let Ok(ts) = meta.created_at.parse::<i64>() {
+                        if ts < *from_epoch {
+                            return false;
+                        }
                     }
                 }
-                if let Some(ref to) = filter_date_to {
-                    if meta.created_at.as_str() > to.as_str() {
-                        return false;
+                if let Some(ref to_epoch) = filter_date_to_epoch {
+                    if let Ok(ts) = meta.created_at.parse::<i64>() {
+                        if ts > *to_epoch {
+                            return false;
+                        }
                     }
                 }
                 true
@@ -2633,10 +2698,7 @@ pub async fn conversations_directory(
 
     if let Some(ref q) = req.query {
         if !q.is_empty() {
-            sql.push_str(&format!(
-                " AND name LIKE '%{}%'",
-                escape_sql(q)
-            ));
+            sql.push_str(&format!(" AND name LIKE '%{}%'", escape_sql(q)));
         }
     }
 
@@ -2667,9 +2729,7 @@ pub async fn conversations_directory(
         let created_at = row[5].to_json().as_str().unwrap_or("").to_string();
 
         // Compute member count
-        let count_sql = format!(
-            "SELECT COUNT(*) FROM channel_members WHERE channel_id = {id}"
-        );
+        let count_sql = format!("SELECT COUNT(*) FROM channel_members WHERE channel_id = {id}");
         let member_count = match state.api.query_router().query_sync(&count_sql) {
             Ok(r) => r
                 .rows
@@ -2730,6 +2790,9 @@ pub async fn pins_add(
         }
         _ => {}
     }
+
+    // Serialize pin creation to prevent TOCTOU duplicate pins
+    let _pin_guard = state.pin_lock.lock().await;
 
     // Idempotent: check if already pinned
     let dup = format!(
@@ -2841,9 +2904,9 @@ pub async fn pins_list(
             _ => continue,
         };
 
-        // Fetch the message content
+        // Fetch the message content (skip deleted messages)
         let msg_sql = format!(
-            "SELECT id, user_id, content, created_at FROM messages WHERE id = {}",
+            "SELECT id, user_id, content, created_at FROM messages WHERE id = {} AND deleted_at = ''",
             message_id
         );
         if let Ok(msg_r) = state.api.query_router().query_sync(&msg_sql) {
@@ -2973,6 +3036,7 @@ pub async fn links_unfurl(
             || octets[0] == 127
             || octets[0] == 0
             || (octets[0] == 169 && octets[1] == 254)
+            || (octets[0] == 100 && (64..=127).contains(&octets[1])) // 100.64.0.0/10 shared/CGNAT
     }
 
     fn is_blocked_ipv6(ip: &std::net::Ipv6Addr) -> bool {
@@ -2980,7 +3044,8 @@ pub async fn links_unfurl(
             || ip.is_unspecified()
             || { let s = ip.segments(); s[0] & 0xfe00 == 0xfc00 } // unique local (fc00::/7)
             || { let s = ip.segments(); s[0] & 0xffc0 == 0xfe80 } // link-local (fe80::/10)
-            || { let s = ip.segments(); s[0] == 0 && s[1] == 0 && s[2] == 0 && s[3] == 0 && s[4] == 0 && s[5] == 0xffff } // IPv4-mapped
+            || { let s = ip.segments(); s[0] == 0 && s[1] == 0 && s[2] == 0 && s[3] == 0 && s[4] == 0 && s[5] == 0xffff }
+        // IPv4-mapped
     }
 
     let mut resolved: Vec<std::net::SocketAddr> = Vec::new();
@@ -3000,12 +3065,17 @@ pub async fn links_unfurl(
             }
         }
         // Resolve hostname and check resolved IPs to prevent DNS rebinding
-        let port = url.port().unwrap_or(if url.scheme() == "https" { 443 } else { 80 });
+        let port = url
+            .port()
+            .unwrap_or(if url.scheme() == "https" { 443 } else { 80 });
         let addr_str = format!("{}:{}", host_trimmed, port);
-        resolved = tokio::net::lookup_host(&addr_str)
-            .await
-            .map(|addrs| addrs.collect())
-            .unwrap_or_default();
+        resolved = match tokio::net::lookup_host(&addr_str).await {
+            Ok(addrs) => addrs.collect(),
+            Err(_) => return slack::err("fetch_failed"),
+        };
+        if resolved.is_empty() {
+            return slack::err("fetch_failed");
+        }
         for addr in &resolved {
             match addr.ip() {
                 std::net::IpAddr::V4(ip) if is_blocked_ipv4(&ip) => {
@@ -3029,51 +3099,98 @@ pub async fn links_unfurl(
         }
     }
 
-    // Fetch with timeout; custom redirect policy to block redirects to internal IPs
-    let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
-        if attempt.previous().len() >= 3 {
-            return attempt.error("too many redirects");
+    // Fetch with timeout; disable automatic redirects and follow manually so we can
+    // resolve each redirect target's DNS and block redirects to internal/private IPs.
+    // This prevents SSRF via DNS rebinding (e.g. redirect to a hostname that resolves
+    // to 127.0.0.1 or 10.x.x.x).
+    async fn resolve_and_check_url(
+        target: &url::Url,
+        is_blocked_v4: fn(&std::net::Ipv4Addr) -> bool,
+        is_blocked_v6: fn(&std::net::Ipv6Addr) -> bool,
+    ) -> Result<Vec<std::net::SocketAddr>, &'static str> {
+        let host = target.host_str().ok_or("no_host")?;
+        let h = host.trim_matches(|c| c == '[' || c == ']');
+        if h == "localhost" || h == "::1" || h == "0.0.0.0" {
+            return Err("blocked_url");
         }
-        if let Some(host) = attempt.url().host_str() {
-            let host_trimmed = host.trim_matches(|c| c == '[' || c == ']');
-            if host_trimmed == "localhost" || host_trimmed == "::1" || host_trimmed == "0.0.0.0" {
-                return attempt.error("redirect to blocked host");
-            }
-            if let Ok(ip) = host_trimmed.parse::<std::net::Ipv4Addr>() {
-                if ip.is_loopback() || ip.is_private() || ip.is_link_local()
-                    || ip.is_broadcast() || ip.is_unspecified()
-                    || ip.octets()[0] == 100 && (ip.octets()[1] & 0xC0) == 64
-                    || ip.octets()[0] == 169 && ip.octets()[1] == 254
-                    || ip.octets()[0] == 0
-                {
-                    return attempt.error("redirect to blocked IP");
-                }
-            }
-            if let Ok(ip) = host_trimmed.parse::<std::net::Ipv6Addr>() {
-                if ip.is_loopback() || ip.is_unspecified() {
-                    return attempt.error("redirect to blocked IP");
-                }
-                let s = ip.segments();
-                if (s[0] & 0xfe00) == 0xfc00 || (s[0] & 0xffc0) == 0xfe80 {
-                    return attempt.error("redirect to blocked IP");
-                }
+        if let Ok(ip) = h.parse::<std::net::Ipv4Addr>() {
+            if is_blocked_v4(&ip) {
+                return Err("blocked_url");
             }
         }
-        attempt.follow()
-    });
-    let mut builder = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .redirect(redirect_policy);
-    if let Some(host) = url.host_str() {
-        for addr in &resolved {
-            builder = builder.resolve(host, *addr);
+        if let Ok(ip) = h.parse::<std::net::Ipv6Addr>() {
+            if is_blocked_v6(&ip) {
+                return Err("blocked_url");
+            }
         }
+        let port = target
+            .port()
+            .unwrap_or(if target.scheme() == "https" { 443 } else { 80 });
+        let addr_str = format!("{}:{}", h, port);
+        let addrs: Vec<std::net::SocketAddr> = match tokio::net::lookup_host(&addr_str).await {
+            Ok(a) => a.collect(),
+            Err(_) => return Err("fetch_failed"),
+        };
+        if addrs.is_empty() {
+            return Err("fetch_failed");
+        }
+        for addr in &addrs {
+            match addr.ip() {
+                std::net::IpAddr::V4(ip) if is_blocked_v4(&ip) => return Err("blocked_url"),
+                std::net::IpAddr::V6(ip) if is_blocked_v6(&ip) => return Err("blocked_url"),
+                _ => {}
+            }
+        }
+        Ok(addrs)
     }
-    let client = builder.build().unwrap_or_default();
 
-    let resp = match client.get(req.url.clone()).send().await {
-        Ok(r) => r,
-        Err(_) => return slack::err("fetch_failed"),
+    let mut current_url = url.clone();
+    let mut current_resolved = resolved;
+    let mut resp: Option<reqwest::Response> = None;
+    for _redirect in 0..=3 {
+        let mut builder = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .redirect(reqwest::redirect::Policy::none());
+        if let Some(host) = current_url.host_str() {
+            for addr in &current_resolved {
+                builder = builder.resolve(host, *addr);
+            }
+        }
+        let client = match builder.build() {
+            Ok(c) => c,
+            Err(_) => return slack::err("fetch_failed"),
+        };
+        let r = match client.get(current_url.as_str()).send().await {
+            Ok(r) => r,
+            Err(_) => return slack::err("fetch_failed"),
+        };
+        if r.status().is_redirection() {
+            let location = match r.headers().get("location").and_then(|v| v.to_str().ok()) {
+                Some(loc) => loc,
+                None => return slack::err("fetch_failed"),
+            };
+            let next_url = match current_url.join(location) {
+                Ok(u) => u,
+                Err(_) => return slack::err("fetch_failed"),
+            };
+            if next_url.scheme() != "http" && next_url.scheme() != "https" {
+                return slack::err("blocked_url");
+            }
+            match resolve_and_check_url(&next_url, is_blocked_ipv4, is_blocked_ipv6).await {
+                Ok(addrs) => {
+                    current_resolved = addrs;
+                    current_url = next_url;
+                }
+                Err(_) => return slack::err("blocked_url"),
+            }
+            continue;
+        }
+        resp = Some(r);
+        break;
+    }
+    let resp = match resp {
+        Some(r) => r,
+        None => return slack::err("fetch_failed"),
     };
 
     // Reject responses that declare a large content-length before downloading

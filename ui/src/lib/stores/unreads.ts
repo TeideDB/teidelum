@@ -45,7 +45,11 @@ export function initUnreadsWsListeners(): () => void {
 				? get(users).get(data.user)
 				: undefined;
 			const senderName = senderUser?.display_name || senderUser?.username || 'Someone';
-			showNotification(senderName, data.text || 'New message', channelId);
+			const currentUser = get(auth).user;
+			const currentUsername = currentUser?.username;
+			const escapedUsername = currentUsername?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const isMention = !!(data.text && escapedUsername && new RegExp(`@${escapedUsername}\\b`).test(data.text));
+			showNotification(senderName, data.text || 'New message', channelId, isMention);
 		}
 	});
 	return unsub;

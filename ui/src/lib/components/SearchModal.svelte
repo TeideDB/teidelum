@@ -122,7 +122,17 @@
 		const seq = ++searchSeq;
 		loading = true;
 		try {
-			const res = await api.searchMessages(q, filterChannelId, 20, filterUserId, filterDateFrom || undefined, filterDateTo || undefined);
+			// Convert local date strings to epoch-second strings so the backend
+		// compares against the user's local day boundaries, not UTC midnight.
+		let dfFrom: string | undefined;
+		let dfTo: string | undefined;
+		if (filterDateFrom) {
+			dfFrom = String(Math.floor(new Date(filterDateFrom + 'T00:00:00').getTime() / 1000));
+		}
+		if (filterDateTo) {
+			dfTo = String(Math.floor(new Date(filterDateTo + 'T23:59:59').getTime() / 1000));
+		}
+		const res = await api.searchMessages(q, filterChannelId, 20, filterUserId, dfFrom, dfTo);
 			// Discard stale responses
 			if (seq !== searchSeq) return;
 			if (res.ok && res.messages) {

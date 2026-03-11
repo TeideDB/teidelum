@@ -16,13 +16,20 @@ export async function requestPermission(): Promise<boolean> {
 	return permissionGranted;
 }
 
-export function showNotification(title: string, body: string, channelId?: Id) {
+export function showNotification(
+	title: string,
+	body: string,
+	channelId?: Id,
+	isMention?: boolean
+) {
 	if (!permissionGranted || document.hasFocus()) return;
 
-	// Respect mute: don't notify for muted channels
 	if (channelId) {
 		const ch = get(channels).find((c) => c.id === channelId);
 		if (ch?.muted === 'true') return;
+		// Respect notification_level: "none" suppresses all, "mentions" only notifies on mentions
+		if (ch?.notification_level === 'none') return;
+		if (ch?.notification_level === 'mentions' && !isMention) return;
 	}
 
 	const notification = new Notification(title, {

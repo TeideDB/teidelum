@@ -158,6 +158,23 @@ pub async fn files_upload(
         _ => {}
     }
 
+    // Check if channel is archived
+    let arch_sql = format!("SELECT archived_at FROM channels WHERE id = {}", channel_id);
+    match state.api.query_router().query_sync(&arch_sql) {
+        Ok(r) => {
+            if let Some(row) = r.rows.first() {
+                let archived = row[0].to_json().as_str().unwrap_or("").to_string();
+                if !archived.is_empty() {
+                    return slack::err("channel_archived");
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("archived check failed: {e}");
+            return slack::err("internal_error");
+        }
+    }
+
     // Store file on disk: data/files/<uuid>/<filename>
     let file_uuid = uuid::Uuid::new_v4().to_string();
     let storage_dir = format!("data/files/{file_uuid}");

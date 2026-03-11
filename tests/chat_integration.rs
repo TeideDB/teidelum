@@ -46,6 +46,7 @@ async fn setup() -> (Router, tempfile::TempDir) {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
     (app, tmp)
@@ -108,6 +109,7 @@ async fn test_chat_flow() {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
 
     let app = teidelum::chat::handlers::chat_routes(state);
@@ -240,6 +242,7 @@ async fn test_unread_tracking() {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -375,6 +378,7 @@ async fn test_conversations_mark_read() {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -465,6 +469,7 @@ async fn test_thread_metadata() {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -570,6 +575,7 @@ async fn test_dm_conversation() {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -675,6 +681,7 @@ async fn test_presence_update() {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -747,6 +754,7 @@ async fn test_mention_extraction() {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state.clone());
 
@@ -841,6 +849,7 @@ async fn test_reaction_lifecycle() {
         settings_lock: tokio::sync::Mutex::new(()),
         channel_create_lock: tokio::sync::Mutex::new(()),
         channel_join_lock: tokio::sync::Mutex::new(()),
+        pin_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -1191,7 +1200,8 @@ async fn test_conversations_update() {
 #[tokio::test]
 async fn test_archive_unarchive() {
     let (app, _tmp) = setup().await;
-    let token_owner = register_and_login(&app, "archowner", "secret123", "archowner@test.com").await;
+    let token_owner =
+        register_and_login(&app, "archowner", "secret123", "archowner@test.com").await;
     let token_member =
         register_and_login(&app, "archmember", "secret123", "archmember@test.com").await;
 
@@ -1822,7 +1832,10 @@ async fn test_mute_unmute() {
     let body = body_json(resp).await;
     assert_eq!(body["ok"], true);
     let channels = body["channels"].as_array().unwrap();
-    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
+    let ch = channels
+        .iter()
+        .find(|c| c["id"].as_str().unwrap() == channel_id)
+        .unwrap();
     assert_eq!(ch["muted"], "false", "channel should default to not muted");
 
     // Mute the channel
@@ -1850,8 +1863,14 @@ async fn test_mute_unmute() {
         .unwrap();
     let body = body_json(resp).await;
     let channels = body["channels"].as_array().unwrap();
-    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
-    assert_eq!(ch["muted"], "true", "channel should be muted after mute call");
+    let ch = channels
+        .iter()
+        .find(|c| c["id"].as_str().unwrap() == channel_id)
+        .unwrap();
+    assert_eq!(
+        ch["muted"], "true",
+        "channel should be muted after mute call"
+    );
 
     // Unmute the channel
     let resp = app
@@ -1878,8 +1897,14 @@ async fn test_mute_unmute() {
         .unwrap();
     let body = body_json(resp).await;
     let channels = body["channels"].as_array().unwrap();
-    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
-    assert_eq!(ch["muted"], "false", "channel should be unmuted after unmute call");
+    let ch = channels
+        .iter()
+        .find(|c| c["id"].as_str().unwrap() == channel_id)
+        .unwrap();
+    assert_eq!(
+        ch["muted"], "false",
+        "channel should be unmuted after unmute call"
+    );
 }
 
 #[tokio::test]
@@ -1913,8 +1938,14 @@ async fn test_set_notification_level() {
         .unwrap();
     let body = body_json(resp).await;
     let channels = body["channels"].as_array().unwrap();
-    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
-    assert_eq!(ch["notification_level"], "all", "default notification level should be 'all'");
+    let ch = channels
+        .iter()
+        .find(|c| c["id"].as_str().unwrap() == channel_id)
+        .unwrap();
+    assert_eq!(
+        ch["notification_level"], "all",
+        "default notification level should be 'all'"
+    );
 
     // Set notification level to "mentions"
     let resp = app
@@ -1941,8 +1972,14 @@ async fn test_set_notification_level() {
         .unwrap();
     let body = body_json(resp).await;
     let channels = body["channels"].as_array().unwrap();
-    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
-    assert_eq!(ch["notification_level"], "mentions", "notification level should be 'mentions'");
+    let ch = channels
+        .iter()
+        .find(|c| c["id"].as_str().unwrap() == channel_id)
+        .unwrap();
+    assert_eq!(
+        ch["notification_level"], "mentions",
+        "notification level should be 'mentions'"
+    );
 
     // Set to "none"
     let resp = app
@@ -1969,8 +2006,14 @@ async fn test_set_notification_level() {
         .unwrap();
     let body = body_json(resp).await;
     let channels = body["channels"].as_array().unwrap();
-    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
-    assert_eq!(ch["notification_level"], "none", "notification level should be 'none'");
+    let ch = channels
+        .iter()
+        .find(|c| c["id"].as_str().unwrap() == channel_id)
+        .unwrap();
+    assert_eq!(
+        ch["notification_level"], "none",
+        "notification level should be 'none'"
+    );
 
     // Invalid level should fail
     let resp = app
@@ -2098,7 +2141,11 @@ async fn test_search_messages_with_filters() {
     let body = body_json(resp).await;
     assert_eq!(body["ok"], true);
     let matches = body["messages"]["matches"].as_array().unwrap();
-    assert_eq!(matches.len(), 1, "should find only user1's message with user_id filter");
+    assert_eq!(
+        matches.len(),
+        1,
+        "should find only user1's message with user_id filter"
+    );
     assert_eq!(
         matches[0]["user"].as_i64().unwrap().to_string(),
         user1_id,
@@ -2118,7 +2165,11 @@ async fn test_search_messages_with_filters() {
     let body = body_json(resp).await;
     assert_eq!(body["ok"], true);
     let matches = body["messages"]["matches"].as_array().unwrap();
-    assert_eq!(matches.len(), 2, "should find both messages with channel_id filter");
+    assert_eq!(
+        matches.len(),
+        2,
+        "should find both messages with channel_id filter"
+    );
 
     // Empty query should fail
     let resp = app
@@ -2194,14 +2245,32 @@ async fn test_conversations_directory() {
     assert_eq!(body["ok"], true);
     let channels = body["channels"].as_array().unwrap();
     // Should contain only public channels (may include "general" if auto-created)
-    let names: Vec<&str> = channels.iter().map(|c| c["name"].as_str().unwrap()).collect();
-    assert!(names.contains(&"public-alpha"), "directory should contain public-alpha");
-    assert!(names.contains(&"public-beta"), "directory should contain public-beta");
-    assert!(!names.contains(&"private-gamma"), "directory should NOT contain private channel");
+    let names: Vec<&str> = channels
+        .iter()
+        .map(|c| c["name"].as_str().unwrap())
+        .collect();
+    assert!(
+        names.contains(&"public-alpha"),
+        "directory should contain public-alpha"
+    );
+    assert!(
+        names.contains(&"public-beta"),
+        "directory should contain public-beta"
+    );
+    assert!(
+        !names.contains(&"private-gamma"),
+        "directory should NOT contain private channel"
+    );
 
     // Each channel should have member_count
-    let alpha = channels.iter().find(|c| c["name"].as_str().unwrap() == "public-alpha").unwrap();
-    assert!(alpha["member_count"].as_i64().unwrap() >= 1, "public-alpha should have at least 1 member");
+    let alpha = channels
+        .iter()
+        .find(|c| c["name"].as_str().unwrap() == "public-alpha")
+        .unwrap();
+    assert!(
+        alpha["member_count"].as_i64().unwrap() >= 1,
+        "public-alpha should have at least 1 member"
+    );
 
     // Test query filter
     let resp = app
@@ -2216,6 +2285,10 @@ async fn test_conversations_directory() {
     let body = body_json(resp).await;
     assert_eq!(body["ok"], true);
     let channels = body["channels"].as_array().unwrap();
-    assert_eq!(channels.len(), 1, "query filter should match only one channel");
+    assert_eq!(
+        channels.len(),
+        1,
+        "query filter should match only one channel"
+    );
     assert_eq!(channels[0]["name"].as_str().unwrap(), "public-alpha");
 }
