@@ -1105,7 +1105,7 @@ git commit -m "docs: update CLAUDE.md with production build and new features"
 
 **Files:** None (git operations only)
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 ```bash
 cargo test
@@ -1116,14 +1116,14 @@ cd ui && npm run build && npx svelte-check
 
 All must pass.
 
-- [ ] **Step 2: Merge teide-chat-frontend into master**
+- [x] **Step 2: Merge teide-chat-frontend into master**
 
 ```bash
 git checkout master
 git merge teide-chat-frontend --no-ff -m "merge: teidelum production readiness — frontend build, unread tracking, thread metadata, tests"
 ```
 
-- [ ] **Step 3: Verify post-merge**
+- [x] **Step 3: Verify post-merge**
 
 ```bash
 cargo test
@@ -1131,13 +1131,13 @@ cargo test
 
 Expected: All tests pass.
 
-- [ ] **Step 4: Push**
+- [x] **Step 4: Push**
 
 ```bash
 git push origin master
 ```
 
-- [ ] **Step 5: Clean up feature branches**
+- [x] **Step 5: Clean up feature branches**
 
 ```bash
 git branch -d teide-chat-frontend
