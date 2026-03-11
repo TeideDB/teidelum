@@ -2150,7 +2150,7 @@ git commit -m "feat(chat-ui): add MessageList component with infinite scroll, re
 **Files:**
 - Create: `teidelum/ui/src/lib/components/MessageInput.svelte`
 
-- [ ] **Step 1: Implement message input with send on Enter and typing indicator**
+- [x] **Step 1: Implement message input with send on Enter and typing indicator**
 
 Create `src/lib/components/MessageInput.svelte`:
 
@@ -2233,11 +2233,11 @@ Create `src/lib/components/MessageInput.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/MessageInput.svelte
