@@ -1294,7 +1294,7 @@ git commit -m "feat(chat-ui): add unreads store with per-channel unread counts"
 **Files:**
 - Create: `teidelum/ui/src/routes/login/+page.svelte`
 
-- [ ] **Step 1: Implement login page**
+- [x] **Step 1: Implement login page**
 
 Create `src/routes/login/+page.svelte`:
 
@@ -1382,11 +1382,11 @@ Create `src/routes/login/+page.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/login/+page.svelte
