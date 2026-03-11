@@ -1158,7 +1158,8 @@ git commit -m "feat(chat-ui): add messages store with pagination, optimistic sen
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/users.ts`
 
-- [ ] **Step 1: Implement users store**
+- [x] **Step 1: Implement users store**
+
 
 Create `src/lib/stores/users.ts`:
 
@@ -1208,11 +1209,11 @@ export function initUserWsListeners() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/users.ts
