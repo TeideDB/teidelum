@@ -179,7 +179,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-20">
+<div class="fixed inset-0 z-50 flex items-start justify-center bg-overlay pt-20">
 	<div class="w-full max-w-2xl rounded-lg bg-navy-light shadow-2xl">
 		<!-- Search input -->
 		<div class="border-b border-primary-dark/40 p-4">
@@ -221,7 +221,7 @@
 						{#if selectedUserName}
 							<div class="flex items-center gap-1 rounded bg-navy px-2 py-1.5 text-sm text-white">
 								<span class="truncate">From: {selectedUserName}</span>
-								<button onclick={clearUserFilter} class="ml-1 text-primary-light/50 hover:text-white">
+								<button onclick={clearUserFilter} class="ml-1 text-primary-light/50 hover:text-heading">
 									<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
 								</button>
 							</div>
@@ -238,7 +238,7 @@
 									{#each userResults as user}
 										<button
 											onclick={() => selectUser(user)}
-											class="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white"
+											class="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading"
 										>
 											{user.display_name || user.username}
 										</button>
@@ -253,7 +253,7 @@
 						{#if selectedChannelName}
 							<div class="flex items-center gap-1 rounded bg-navy px-2 py-1.5 text-sm text-white">
 								<span class="truncate">In: #{selectedChannelName}</span>
-								<button onclick={clearChannelFilter} class="ml-1 text-primary-light/50 hover:text-white">
+								<button onclick={clearChannelFilter} class="ml-1 text-primary-light/50 hover:text-heading">
 									<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
 								</button>
 							</div>
@@ -270,7 +270,7 @@
 									{#each channelResults as ch}
 										<button
 											onclick={() => selectChannel(ch)}
-											class="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white"
+											class="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading"
 										>
 											#{ch.name}
 										</button>

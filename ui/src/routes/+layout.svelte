@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { auth, isAuthenticated, initAuth } from '$lib/stores/auth';
+	import '$lib/stores/theme';
 	import { onMount } from 'svelte';
 
 	let { children } = $props();

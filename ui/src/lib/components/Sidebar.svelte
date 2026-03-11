@@ -10,6 +10,7 @@
 	} from '$lib/stores/channels';
 	import { unreads } from '$lib/stores/unreads';
 	import { auth, doLogout } from '$lib/stores/auth';
+	import { theme, toggleTheme } from '$lib/stores/theme';
 	import { usersUpdateProfile, conversationsMute, conversationsUnmute } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
@@ -155,8 +156,23 @@
 	<div class="flex items-center justify-between border-b border-primary-dark/40 px-4 py-3">
 		<div class="flex items-center gap-2">
 			<img src="/teide-logo.svg" alt="Teidelum" class="h-6 w-auto" />
-			<h2 class="font-[Oswald] text-lg font-semibold tracking-wide text-white">Teidelum</h2>
+			<h2 class="font-[Oswald] text-lg font-semibold tracking-wide text-heading">Teidelum</h2>
 		</div>
+		<button
+			onclick={toggleTheme}
+			class="rounded p-1 text-primary-light/50 hover:text-primary-lighter"
+			title="Toggle theme"
+		>
+			{#if $theme === 'dark'}
+				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+				</svg>
+			{:else}
+				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+				</svg>
+			{/if}
+		</button>
 	</div>
 
 	<!-- User area with menu -->
@@ -177,7 +193,7 @@
 				<div class="absolute bottom-full left-2 right-2 mb-1 rounded-md bg-navy-light shadow-lg ring-1 ring-primary-dark/60 z-50">
 					<button
 						onclick={openStatusModal}
-						class="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white rounded-t-md"
+						class="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading rounded-t-md"
 					>
 						{#if $auth.user?.status_emoji}
 							<span>{$auth.user.status_emoji}</span>
@@ -193,7 +209,7 @@
 							showUserMenu = false;
 							goto('/settings');
 						}}
-						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white"
+						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading"
 					>
 						Settings
 					</button>
@@ -202,7 +218,7 @@
 							showUserMenu = false;
 							handleLogout();
 						}}
-						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white rounded-b-md"
+						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading rounded-b-md"
 					>
 						Sign out
 					</button>
@@ -249,7 +265,7 @@
 							? 'text-primary-light/30 hover:bg-primary-darker/60 hover:text-primary-lighter/60'
 							: isMuted(channel)
 								? 'text-primary-light/40 hover:bg-primary-darker/60 hover:text-primary-lighter/60'
-								: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white'}"
+								: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading'}"
 				>
 					<span class="flex items-center truncate">
 						{#if channel.archived_at}
@@ -286,7 +302,7 @@
 					onclick={() => navigateToChannel(channel)}
 					class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
 						? 'bg-primary text-white'
-						: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white'}"
+						: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading'}"
 				>
 					<span class="truncate">{getDmDisplayName(channel)}</span>
 					{#if getUnreadCount(channel.id) > 0}
@@ -314,7 +330,7 @@
 		>
 			<button
 				onclick={() => contextMenu && toggleMute(contextMenu.channel)}
-				class="flex w-full items-center gap-2 px-4 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white"
+				class="flex w-full items-center gap-2 px-4 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading"
 			>
 				{#if isMuted(contextMenu.channel)}
 					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,9 +351,9 @@
 
 <!-- Create channel modal -->
 {#if showCreateModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
 		<div class="w-full max-w-md rounded-lg bg-navy-light p-6 shadow-xl">
-			<h3 class="mb-4 font-[Oswald] text-lg font-semibold text-white">Create Channel</h3>
+			<h3 class="mb-4 font-[Oswald] text-lg font-semibold text-heading">Create Channel</h3>
 
 			<form
 				onsubmit={(e) => {
@@ -373,7 +389,7 @@
 					<button
 						type="button"
 						onclick={() => (showCreateModal = false)}
-						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-white"
+						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-heading"
 					>
 						Cancel
 					</button>
@@ -391,9 +407,9 @@
 
 <!-- Set status modal -->
 {#if showStatusModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
 		<div class="w-full max-w-sm rounded-lg bg-navy-light p-6 shadow-xl">
-			<h3 class="mb-4 font-[Oswald] text-lg font-semibold text-white">Set a status</h3>
+			<h3 class="mb-4 font-[Oswald] text-lg font-semibold text-heading">Set a status</h3>
 
 			<div class="mb-3 flex items-center gap-2">
 				<div class="relative">
@@ -424,7 +440,7 @@
 				{#each quickStatuses as qs}
 					<button
 						onclick={() => applyQuickStatus(qs.emoji, qs.text)}
-						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white"
+						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading"
 					>
 						<span>{qs.emoji}</span>
 						<span>{qs.text}</span>
@@ -435,14 +451,14 @@
 			<div class="flex justify-between pt-2">
 				<button
 					onclick={clearStatus}
-					class="rounded px-3 py-2 text-sm text-primary-lighter/70 hover:text-white"
+					class="rounded px-3 py-2 text-sm text-primary-lighter/70 hover:text-heading"
 				>
 					Clear status
 				</button>
 				<div class="flex gap-2">
 					<button
 						onclick={() => (showStatusModal = false)}
-						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-white"
+						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-heading"
 					>
 						Cancel
 					</button>

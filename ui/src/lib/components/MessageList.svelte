@@ -300,7 +300,7 @@
 								</button>
 								<button
 									onclick={cancelEdit}
-									class="rounded px-3 py-1 text-xs text-primary-lighter/70 hover:text-white"
+									class="rounded px-3 py-1 text-xs text-primary-lighter/70 hover:text-heading"
 								>
 									Cancel
 								</button>
@@ -399,9 +399,9 @@
 
 <!-- Delete confirmation dialog -->
 {#if deletingMessage}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
 		<div class="w-full max-w-sm rounded-lg bg-navy-light p-6 shadow-xl">
-			<h3 class="mb-2 text-lg font-semibold text-white">Delete Message</h3>
+			<h3 class="mb-2 text-lg font-semibold text-heading">Delete Message</h3>
 			<p class="mb-4 text-sm text-primary-lighter/70">
 				Delete this message? This can't be undone.
 			</p>
@@ -411,7 +411,7 @@
 			<div class="flex justify-end gap-2">
 				<button
 					onclick={() => (deletingMessage = null)}
-					class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-white"
+					class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-heading"
 				>
 					Cancel
 				</button>

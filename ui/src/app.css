@@ -1,24 +1,67 @@
 @import 'tailwindcss';
 
-@theme {
-	--color-navy: #0e1b24;
-	--color-navy-light: #162a36;
-	--color-navy-mid: #1d3545;
-	--color-primary: #4b6777;
-	--color-primary-light: #6b8a9e;
-	--color-primary-lighter: #8ba8b8;
-	--color-primary-pale: #dce8ee;
-	--color-primary-dark: #3a5261;
-	--color-primary-darker: #2a3e4b;
-}
-
-:root {
+/* Dark theme (default) */
+:root,
+.dark {
+	--th-navy: #0e1b24;
+	--th-navy-light: #162a36;
+	--th-navy-mid: #1d3545;
+	--th-primary: #4b6777;
+	--th-primary-light: #6b8a9e;
+	--th-primary-lighter: #8ba8b8;
+	--th-primary-pale: #dce8ee;
+	--th-primary-dark: #3a5261;
+	--th-primary-darker: #2a3e4b;
+	--th-text-body: #e2e8f0;
+	--th-text-code: #c4b5fd;
+	--th-text-code-block: #cbd5e1;
+	--th-text-muted: #94a3b8;
+	--th-text-dim: #64748b;
+	--th-mention-bg: rgba(75, 103, 119, 0.25);
+	--th-text-heading: #ffffff;
+	--th-overlay: rgba(0, 0, 0, 0.5);
 	color-scheme: dark;
 }
 
+/* Light theme */
+.light {
+	--th-navy: #ffffff;
+	--th-navy-light: #f1f5f9;
+	--th-navy-mid: #e2e8f0;
+	--th-primary: #4b6777;
+	--th-primary-light: #5a7d91;
+	--th-primary-lighter: #3a5261;
+	--th-primary-pale: #1e3a4a;
+	--th-primary-dark: #cbd5e1;
+	--th-primary-darker: #e2e8f0;
+	--th-text-body: #1e293b;
+	--th-text-code: #7c3aed;
+	--th-text-code-block: #334155;
+	--th-text-muted: #64748b;
+	--th-text-dim: #94a3b8;
+	--th-mention-bg: rgba(75, 103, 119, 0.15);
+	--th-text-heading: #0f172a;
+	--th-overlay: rgba(0, 0, 0, 0.3);
+	color-scheme: light;
+}
+
+@theme {
+	--color-navy: var(--th-navy);
+	--color-navy-light: var(--th-navy-light);
+	--color-navy-mid: var(--th-navy-mid);
+	--color-primary: var(--th-primary);
+	--color-primary-light: var(--th-primary-light);
+	--color-primary-lighter: var(--th-primary-lighter);
+	--color-primary-pale: var(--th-primary-pale);
+	--color-primary-dark: var(--th-primary-dark);
+	--color-primary-darker: var(--th-primary-darker);
+	--color-heading: var(--th-text-heading);
+	--color-overlay: var(--th-overlay);
+}
+
 body {
-	background-color: var(--color-navy);
-	color: #e2e8f0;
+	background-color: var(--th-navy);
+	color: var(--th-text-body);
 	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	margin: 0;
 	height: 100vh;
@@ -30,26 +73,26 @@ body {
 .prose-chat p + p { margin-top: 0.25rem; }
 .prose-chat code {
 	@apply rounded px-1 py-0.5 text-xs;
-	background-color: var(--color-navy-mid);
-	color: #c4b5fd;
+	background-color: var(--th-navy-mid);
+	color: var(--th-text-code);
 	font-family: 'JetBrains Mono', 'SF Mono', SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
 }
 .prose-chat pre {
 	@apply my-1 overflow-x-auto rounded p-2;
-	background-color: var(--color-navy);
+	background-color: var(--th-navy);
 }
 .prose-chat pre code {
 	@apply bg-transparent p-0;
-	color: #cbd5e1;
+	color: var(--th-text-code-block);
 }
 .prose-chat a {
-	color: var(--color-primary-lighter);
+	color: var(--th-primary-lighter);
 	text-decoration: underline;
 }
 .prose-chat blockquote {
 	@apply my-1 pl-3;
-	border-left: 4px solid var(--color-primary-dark);
-	color: #94a3b8;
+	border-left: 4px solid var(--th-primary-dark);
+	color: var(--th-text-muted);
 }
 .prose-chat ul, .prose-chat ol {
 	@apply my-1 pl-5;
@@ -59,8 +102,8 @@ body {
 }
 .mention {
 	@apply rounded px-0.5;
-	background-color: rgba(75, 103, 119, 0.25);
-	color: var(--color-primary-lighter);
+	background-color: var(--th-mention-bg);
+	color: var(--th-primary-lighter);
 }
 
 /* Code block wrapper with copy button */
@@ -78,18 +121,18 @@ body {
 }
 .code-block-lang {
 	@apply absolute top-1 left-2 text-xs;
-	color: #64748b;
+	color: var(--th-text-dim);
 	pointer-events: none;
 }
 .code-copy-btn {
 	@apply absolute top-1 right-1 rounded px-2 py-0.5 text-xs cursor-pointer opacity-0 transition-opacity;
-	background-color: var(--color-navy-mid);
-	color: #94a3b8;
+	background-color: var(--th-navy-mid);
+	color: var(--th-text-muted);
 }
 .code-block-wrapper:hover .code-copy-btn {
 	opacity: 1;
 }
 .code-copy-btn:hover {
-	background-color: var(--color-primary-dark);
-	color: #e2e8f0;
+	background-color: var(--th-primary-dark);
+	color: var(--th-text-body);
 }

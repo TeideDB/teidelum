@@ -74,7 +74,7 @@
 				></span>
 			</div>
 			<div class="min-w-0">
-				<p class="truncate font-bold text-white">{user?.display_name || user?.username || userId}</p>
+				<p class="truncate font-bold text-heading">{user?.display_name || user?.username || userId}</p>
 				{#if user?.display_name && user.username !== user.display_name}
 					<p class="truncate text-xs text-primary-light/50">@{user.username}</p>
 				{/if}

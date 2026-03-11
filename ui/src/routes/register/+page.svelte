@@ -40,7 +40,7 @@
 	<div class="w-full max-w-sm rounded-lg bg-navy-light p-8 shadow-xl">
 		<div class="mb-6 flex flex-col items-center gap-2">
 			<img src="/teide-logo.svg" alt="Teidelum" class="h-10 w-auto" />
-			<h1 class="font-[Oswald] text-2xl font-semibold tracking-wide text-white">Create Account</h1>
+			<h1 class="font-[Oswald] text-2xl font-semibold tracking-wide text-heading">Create Account</h1>
 		</div>
 
 		<form onsubmit={handleSubmit} class="space-y-4">

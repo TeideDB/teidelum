@@ -215,7 +215,7 @@
 <div class="flex h-full flex-col">
 	<!-- Thread header -->
 	<div class="flex items-center justify-between border-b border-primary-dark/40 px-4 py-3">
-		<h3 class="font-bold text-white">Thread</h3>
+		<h3 class="font-bold text-heading">Thread</h3>
 		<button onclick={onClose} aria-label="Close thread" class="text-primary-light/50 hover:text-primary-lighter">
 			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

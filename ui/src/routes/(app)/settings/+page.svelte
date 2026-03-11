@@ -113,7 +113,7 @@
 
 <div class="flex h-full flex-col overflow-y-auto">
 	<div class="border-b border-primary-dark/40 px-6 py-4">
-		<h1 class="font-[Oswald] text-xl font-semibold text-white">Settings</h1>
+		<h1 class="font-[Oswald] text-xl font-semibold text-heading">Settings</h1>
 	</div>
 
 	<div class="flex flex-1">
@@ -128,7 +128,7 @@
 					}}
 					class="w-full rounded px-3 py-2 text-left text-sm transition {activeTab === tab.key
 						? 'bg-primary text-white'
-						: 'text-primary-lighter/70 hover:bg-primary-darker/60 hover:text-white'}"
+						: 'text-primary-lighter/70 hover:bg-primary-darker/60 hover:text-heading'}"
 				>
 					{tab.label}
 				</button>
@@ -139,7 +139,7 @@
 		<div class="flex-1 p-6">
 			{#if activeTab === 'profile'}
 				<div class="max-w-md space-y-4">
-					<h2 class="text-lg font-semibold text-white">Profile</h2>
+					<h2 class="text-lg font-semibold text-heading">Profile</h2>
 
 					<div>
 						<label for="displayName" class="mb-1 block text-sm text-primary-lighter/70">Display Name</label>
@@ -177,7 +177,7 @@
 				</div>
 			{:else if activeTab === 'account'}
 				<div class="max-w-md space-y-4">
-					<h2 class="text-lg font-semibold text-white">Change Password</h2>
+					<h2 class="text-lg font-semibold text-heading">Change Password</h2>
 
 					<div>
 						<label for="oldPassword" class="mb-1 block text-sm text-primary-lighter/70">Current Password</label>
@@ -225,7 +225,7 @@
 				</div>
 			{:else if activeTab === 'notifications'}
 				<div class="max-w-md space-y-4">
-					<h2 class="text-lg font-semibold text-white">Notifications</h2>
+					<h2 class="text-lg font-semibold text-heading">Notifications</h2>
 
 					<div>
 						<label for="notifDefault" class="mb-1 block text-sm text-primary-lighter/70">Default Notification Level</label>
@@ -256,7 +256,7 @@
 				</div>
 			{:else if activeTab === 'appearance'}
 				<div class="max-w-md space-y-4">
-					<h2 class="text-lg font-semibold text-white">Appearance</h2>
+					<h2 class="text-lg font-semibold text-heading">Appearance</h2>
 
 					<div>
 						<span class="mb-2 block text-sm text-primary-lighter/70">Theme</span>
@@ -265,7 +265,7 @@
 								onclick={() => (theme = 'dark')}
 								class="rounded px-4 py-2 text-sm transition {theme === 'dark'
 									? 'bg-primary text-white'
-									: 'bg-navy text-primary-lighter/70 hover:text-white'}"
+									: 'bg-navy text-primary-lighter/70 hover:text-heading'}"
 							>
 								Dark
 							</button>
@@ -273,7 +273,7 @@
 								onclick={() => (theme = 'light')}
 								class="rounded px-4 py-2 text-sm transition {theme === 'light'
 									? 'bg-primary text-white'
-									: 'bg-navy text-primary-lighter/70 hover:text-white'}"
+									: 'bg-navy text-primary-lighter/70 hover:text-heading'}"
 							>
 								Light
 							</button>

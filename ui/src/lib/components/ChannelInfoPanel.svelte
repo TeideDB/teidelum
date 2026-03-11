@@ -146,7 +146,7 @@
 <div class="flex h-full flex-col">
 	<!-- Header -->
 	<div class="flex items-center justify-between border-b border-primary-dark/40 px-4 py-3">
-		<h3 class="font-bold text-white">Channel Details</h3>
+		<h3 class="font-bold text-heading">Channel Details</h3>
 		<button onclick={onClose} aria-label="Close panel" class="text-primary-light/50 hover:text-primary-lighter">
 			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -197,7 +197,7 @@
 					</button>
 					<button
 						onclick={() => (editing = false)}
-						class="rounded px-3 py-1.5 text-sm text-primary-lighter/70 hover:text-white"
+						class="rounded px-3 py-1.5 text-sm text-primary-lighter/70 hover:text-heading"
 					>
 						Cancel
 					</button>
@@ -207,7 +207,7 @@
 			<!-- Channel info display -->
 			<div>
 				<div class="flex items-center gap-2">
-					<h4 class="text-lg font-bold text-white">
+					<h4 class="text-lg font-bold text-heading">
 						{#if channel.kind === 'dm'}
 							{channel.name}
 						{:else}
@@ -243,7 +243,7 @@
 					{#if isOwner && !isArchived}
 						<button
 							onclick={startEdit}
-							class="rounded bg-primary-darker/60 px-3 py-1.5 text-xs text-primary-lighter hover:bg-primary-darker hover:text-white"
+							class="rounded bg-primary-darker/60 px-3 py-1.5 text-xs text-primary-lighter hover:bg-primary-darker hover:text-heading"
 						>
 							Edit
 						</button>
@@ -251,7 +251,7 @@
 					{#if !isArchived}
 						<button
 							onclick={() => (showInviteModal = true)}
-							class="rounded bg-primary-darker/60 px-3 py-1.5 text-xs text-primary-lighter hover:bg-primary-darker hover:text-white"
+							class="rounded bg-primary-darker/60 px-3 py-1.5 text-xs text-primary-lighter hover:bg-primary-darker hover:text-heading"
 						>
 							Add people
 						</button>
@@ -260,7 +260,7 @@
 						{#if isArchived}
 							<button
 								onclick={handleUnarchive}
-								class="rounded bg-primary-darker/60 px-3 py-1.5 text-xs text-primary-lighter hover:bg-primary-darker hover:text-white"
+								class="rounded bg-primary-darker/60 px-3 py-1.5 text-xs text-primary-lighter hover:bg-primary-darker hover:text-heading"
 							>
 								Unarchive
 							</button>
@@ -307,16 +307,16 @@
 
 <!-- Archive confirm dialog -->
 {#if showArchiveConfirm}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
 		<div class="w-full max-w-sm rounded-lg bg-navy-light p-6 shadow-xl">
-			<h3 class="mb-2 text-lg font-semibold text-white">Archive Channel</h3>
+			<h3 class="mb-2 text-lg font-semibold text-heading">Archive Channel</h3>
 			<p class="mb-4 text-sm text-primary-lighter/70">
 				Are you sure you want to archive #{channel.name}? No new messages can be posted.
 			</p>
 			<div class="flex justify-end gap-2">
 				<button
 					onclick={() => (showArchiveConfirm = false)}
-					class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-white"
+					class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-heading"
 				>
 					Cancel
 				</button>
@@ -333,9 +333,9 @@
 
 <!-- Invite modal -->
 {#if showInviteModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
 		<div class="w-full max-w-sm rounded-lg bg-navy-light p-6 shadow-xl">
-			<h3 class="mb-4 text-lg font-semibold text-white">Add People</h3>
+			<h3 class="mb-4 text-lg font-semibold text-heading">Add People</h3>
 			<form
 				onsubmit={(e) => {
 					e.preventDefault();
@@ -352,7 +352,7 @@
 					<button
 						type="button"
 						onclick={() => (showInviteModal = false)}
-						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-white"
+						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-heading"
 					>
 						Cancel
 					</button>

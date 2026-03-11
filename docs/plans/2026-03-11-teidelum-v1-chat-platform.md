@@ -2140,7 +2140,7 @@ Create public and private channels. Directory should return only public channels
 - Create: `ui/src/lib/stores/theme.ts`
 - Modify: `ui/src/routes/+layout.svelte`
 
-- [ ] **Step 1: Create theme store**
+- [x] **Step 1: Create theme store**
 
 ```typescript
 import { writable } from 'svelte/store';
@@ -2165,13 +2165,13 @@ theme.subscribe((value) => {
 });
 ```
 
-- [ ] **Step 2: Extract colors to CSS custom properties**
+- [x] **Step 2: Extract colors to CSS custom properties**
 
 In `app.css`, define `--bg-primary`, `--bg-secondary`, `--text-primary`, `--text-secondary`, `--accent`, etc. under `.dark` and `.light` classes. Replace hardcoded colors throughout components.
 
-- [ ] **Step 3: Add theme toggle to sidebar and settings**
+- [x] **Step 3: Add theme toggle to sidebar and settings**
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ---
 

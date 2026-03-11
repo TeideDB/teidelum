@@ -59,11 +59,11 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
 	<div class="w-full max-w-lg rounded-lg bg-navy-light shadow-2xl">
 		<!-- Header -->
 		<div class="flex items-center justify-between border-b border-primary-dark/40 p-4">
-			<h3 class="font-[Oswald] text-lg font-semibold text-white">Browse Channels</h3>
+			<h3 class="font-[Oswald] text-lg font-semibold text-heading">Browse Channels</h3>
 			<button onclick={onClose} aria-label="Close" class="text-primary-light/50 hover:text-primary-lighter">
 				<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -95,7 +95,7 @@
 						<div class="min-w-0 flex-1">
 							<div class="flex items-center gap-2">
 								<span class="text-primary-light/40">#</span>
-								<span class="text-sm font-medium text-white">{channel.name}</span>
+								<span class="text-sm font-medium text-heading">{channel.name}</span>
 								{#if channel.member_count !== undefined}
 									<span class="text-xs text-primary-light/40">{channel.member_count} members</span>
 								{/if}

@@ -101,7 +101,7 @@
 		<!-- Channel header -->
 		<div class="flex items-center border-b border-primary-dark/40 px-4 py-3">
 			<button onclick={toggleChannelInfo} class="text-left hover:opacity-80">
-				<h2 class="text-lg font-bold text-white">
+				<h2 class="text-lg font-bold text-heading">
 					{#if $activeChannel}
 						{#if $activeChannel.kind === 'dm'}
 							{$activeChannel.name}
@@ -141,7 +141,7 @@
 							onkeydown={(e) => e.key === 'Escape' && (showPinnedDropdown = false)}
 						>
 							<div class="border-b border-primary-dark/40 px-4 py-2">
-								<h4 class="text-sm font-semibold text-white">Pinned Messages</h4>
+								<h4 class="text-sm font-semibold text-heading">Pinned Messages</h4>
 							</div>
 							<div class="max-h-80 overflow-y-auto">
 								{#each pinnedMessages as pin}
