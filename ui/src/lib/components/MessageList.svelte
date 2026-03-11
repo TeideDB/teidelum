@@ -8,7 +8,10 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import MessageContextMenu from '$lib/components/MessageContextMenu.svelte';
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
+	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import type { Message, Id } from '$lib/types';
+
+	const URL_REGEX = /https?:\/\/[^\s<>"')\]]+/g;
 
 	interface Props {
 		channelId: Id;
@@ -180,6 +183,13 @@
 		await pinsRemove(channelId, msg.id);
 	}
 
+	function extractUrls(text: string): string[] {
+		const matches = text.match(URL_REGEX);
+		if (!matches) return [];
+		// Deduplicate, max 3
+		return [...new Set(matches)].slice(0, 3);
+	}
+
 	onMount(() => {
 		tick().then(scrollToBottom);
 	});
@@ -276,6 +286,13 @@
 						</div>
 					{:else}
 						<div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMarkdown(msg.text)}</div>
+					{/if}
+
+					<!-- Link previews -->
+					{#if !editingMessageId || editingMessageId !== msg.id}
+						{#each extractUrls(msg.text) as linkUrl}
+							<LinkPreview url={linkUrl} />
+						{/each}
 					{/if}
 
 					<!-- File attachments -->

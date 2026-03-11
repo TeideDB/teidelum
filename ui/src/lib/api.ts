@@ -291,6 +291,19 @@ export async function pinsList(channel: Id): Promise<{ ok: boolean; pins?: Messa
 	return res;
 }
 
+// === Links ===
+
+export function linksUnfurl(url: string): Promise<{
+	ok: boolean;
+	title?: string;
+	description?: string;
+	image?: string;
+	site_name?: string;
+	error?: string;
+}> {
+	return call('links.unfurl', { url });
+}
+
 // === Files ===
 
 export function fileDownloadUrl(fileId: Id, filename: string): string {

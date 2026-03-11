@@ -1816,7 +1816,7 @@ In `ui/src/lib/markdown.ts`, configure marked with a custom renderer for code bl
 - Modify: `ui/src/lib/components/MessageList.svelte`
 - Modify: `ui/src/lib/api.ts`
 
-- [ ] **Step 1: Add API function**
+- [x] **Step 1: Add API function**
 
 ```typescript
 export function linksUnfurl(url: string): Promise<{
@@ -1830,15 +1830,15 @@ export function linksUnfurl(url: string): Promise<{
 }
 ```
 
-- [ ] **Step 2: Create LinkPreview component**
+- [x] **Step 2: Create LinkPreview component**
 
 Takes a URL prop. Calls `api.linksUnfurl()` on mount. Renders a card with title, description, thumbnail. Caches results in a module-level Map.
 
-- [ ] **Step 3: Integrate into MessageList**
+- [x] **Step 3: Integrate into MessageList**
 
 After rendering message text, detect URLs with regex. For each URL (max 3), render a `<LinkPreview>` component below the message.
 
-- [ ] **Step 4: Type check, commit**
+- [x] **Step 4: Type check, commit**
 
 ---
 
