@@ -71,6 +71,8 @@ pub struct ChatState {
     pub dm_create_lock: Mutex<()>,
     /// Serializes channel_reads upserts to prevent TOCTOU races.
     pub reads_lock: Mutex<()>,
+    /// Serializes channel_settings upserts to prevent TOCTOU races.
+    pub settings_lock: Mutex<()>,
 }
 
 // ── Auth ──
@@ -563,7 +565,8 @@ pub async fn users_get_settings(
             }))
         }
         Ok(_) => {
-            // Create default settings
+            // Create default settings (hold lock to prevent TOCTOU race)
+            let _guard = state.settings_lock.lock().await;
             let now = now_timestamp();
             let insert = format!(
                 "INSERT INTO user_settings (user_id, theme, notification_default, timezone, created_at) \
@@ -601,7 +604,8 @@ pub async fn users_update_settings(
     Extension(claims): Extension<Claims>,
     Json(req): Json<UpdateSettingsRequest>,
 ) -> Response {
-    // Ensure settings row exists (upsert pattern)
+    // Ensure settings row exists (upsert pattern, hold lock to prevent TOCTOU race)
+    let _guard = state.settings_lock.lock().await;
     let check = format!(
         "SELECT user_id FROM user_settings WHERE user_id = {}",
         claims.user_id
@@ -622,6 +626,7 @@ pub async fn users_update_settings(
         );
         let _ = state.api.query_router().query_sync(&insert);
     }
+    drop(_guard);
 
     let mut sets = Vec::new();
     if let Some(ref theme) = req.theme {
@@ -723,7 +728,7 @@ pub async fn conversations_autocomplete(
     Json(req): Json<ConversationsAutocompleteRequest>,
 ) -> Response {
     let query_lower = req.query.to_lowercase();
-    let sql = "SELECT id, name, topic FROM channels";
+    let sql = "SELECT id, name, topic FROM channels WHERE kind = 'public'";
     let result = match state.api.query_router().query_sync(sql) {
         Ok(r) => r,
         Err(e) => {
@@ -1164,8 +1169,11 @@ pub async fn conversations_join(
     Extension(claims): Extension<Claims>,
     Json(req): Json<ChannelIdRequest>,
 ) -> Response {
-    // Check channel exists and is public
-    let sql = format!("SELECT kind FROM channels WHERE id = {}", req.channel);
+    // Check channel exists, is public, and not archived
+    let sql = format!(
+        "SELECT kind, archived_at FROM channels WHERE id = {}",
+        req.channel
+    );
     let result = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r,
         Err(e) => {
@@ -1185,6 +1193,14 @@ pub async fn conversations_join(
 
     if kind != "public" {
         return slack::err("method_not_allowed_for_channel_type");
+    }
+
+    let archived_at = match &result.rows[0][1] {
+        crate::connector::Value::String(s) => s.clone(),
+        _ => String::new(),
+    };
+    if !archived_at.is_empty() {
+        return slack::err("channel_archived");
     }
 
     // Check if already a member
@@ -1827,6 +1843,7 @@ pub struct MuteRequest {
 }
 
 /// Upsert channel_settings row for (channel_id, user_id).
+/// Caller must hold `state.settings_lock` to prevent TOCTOU races.
 fn upsert_channel_setting(
     state: &AppState,
     channel_id: i64,
@@ -1887,6 +1904,7 @@ pub async fn conversations_mute(
         return slack::err("channel_not_found");
     }
 
+    let _guard = state.settings_lock.lock().await;
     if let Err(e) = upsert_channel_setting(&state, req.channel, claims.user_id, "muted", "true") {
         tracing::error!("mute failed: {e}");
         return slack::err("internal_error");
@@ -1904,6 +1922,7 @@ pub async fn conversations_unmute(
         return slack::err("channel_not_found");
     }
 
+    let _guard = state.settings_lock.lock().await;
     if let Err(e) = upsert_channel_setting(&state, req.channel, claims.user_id, "muted", "false") {
         tracing::error!("unmute failed: {e}");
         return slack::err("internal_error");
@@ -1932,6 +1951,7 @@ pub async fn conversations_set_notification(
         return slack::err("channel_not_found");
     }
 
+    let _guard = state.settings_lock.lock().await;
     if let Err(e) =
         upsert_channel_setting(&state, req.channel, claims.user_id, "notification_level", &req.level)
     {
@@ -2606,7 +2626,7 @@ pub async fn conversations_directory(
         sql.push_str(&format!(" AND id > {cursor}"));
     }
 
-    sql.push_str(&format!(" ORDER BY name LIMIT {limit}"));
+    sql.push_str(&format!(" ORDER BY id LIMIT {limit}"));
 
     let rows = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r.rows,
@@ -2878,31 +2898,56 @@ pub async fn links_unfurl(
     }
 
     // Block private/reserved IPs (SSRF protection)
+    // Check both literal IPs in URL and resolved IPs to prevent DNS rebinding
+    fn is_blocked_ipv4(ip: &std::net::Ipv4Addr) -> bool {
+        let octets = ip.octets();
+        octets[0] == 10
+            || (octets[0] == 172 && (16..=31).contains(&octets[1]))
+            || (octets[0] == 192 && octets[1] == 168)
+            || octets[0] == 127
+            || octets[0] == 0
+            || (octets[0] == 169 && octets[1] == 254)
+    }
+
+    fn is_blocked_ipv6(ip: &std::net::Ipv6Addr) -> bool {
+        ip.is_loopback()
+            || ip.is_unspecified()
+            || { let s = ip.segments(); s[0] & 0xfe00 == 0xfc00 } // unique local (fc00::/7)
+            || { let s = ip.segments(); s[0] & 0xffc0 == 0xfe80 } // link-local (fe80::/10)
+            || { let s = ip.segments(); s[0] == 0 && s[1] == 0 && s[2] == 0 && s[3] == 0 && s[4] == 0 && s[5] == 0xffff } // IPv4-mapped
+    }
+
     if let Some(host) = url.host_str() {
         let host_trimmed = host.trim_matches(|c| c == '[' || c == ']');
         if host_trimmed == "localhost" || host_trimmed == "::1" || host_trimmed == "0.0.0.0" {
             return slack::err("blocked_url");
         }
         if let Ok(ip) = host_trimmed.parse::<std::net::Ipv4Addr>() {
-            let octets = ip.octets();
-            let blocked = octets[0] == 10
-                || (octets[0] == 172 && (16..=31).contains(&octets[1]))
-                || (octets[0] == 192 && octets[1] == 168)
-                || octets[0] == 127
-                || octets[0] == 0
-                || (octets[0] == 169 && octets[1] == 254);
-            if blocked {
+            if is_blocked_ipv4(&ip) {
                 return slack::err("blocked_url");
             }
         }
         if let Ok(ip) = host_trimmed.parse::<std::net::Ipv6Addr>() {
-            let blocked = ip.is_loopback()
-                || ip.is_unspecified()
-                || { let s = ip.segments(); s[0] & 0xfe00 == 0xfc00 } // unique local (fc00::/7)
-                || { let s = ip.segments(); s[0] & 0xffc0 == 0xfe80 } // link-local (fe80::/10)
-                || { let s = ip.segments(); s[0] == 0 && s[1] == 0 && s[2] == 0 && s[3] == 0 && s[4] == 0 && s[5] == 0xffff }; // IPv4-mapped
-            if blocked {
+            if is_blocked_ipv6(&ip) {
                 return slack::err("blocked_url");
+            }
+        }
+        // Resolve hostname and check resolved IPs to prevent DNS rebinding
+        let port = url.port().unwrap_or(if url.scheme() == "https" { 443 } else { 80 });
+        let addr_str = format!("{}:{}", host_trimmed, port);
+        let resolved: Vec<std::net::SocketAddr> = tokio::net::lookup_host(&addr_str)
+            .await
+            .map(|addrs| addrs.collect())
+            .unwrap_or_default();
+        for addr in &resolved {
+            match addr.ip() {
+                std::net::IpAddr::V4(ip) if is_blocked_ipv4(&ip) => {
+                    return slack::err("blocked_url");
+                }
+                std::net::IpAddr::V6(ip) if is_blocked_ipv6(&ip) => {
+                    return slack::err("blocked_url");
+                }
+                _ => {}
             }
         }
     }
@@ -2941,13 +2986,22 @@ pub async fn links_unfurl(
         _ => return slack::err("fetch_failed"),
     };
 
-    // Parse OG tags (simple regex-based)
+    // Parse OG tags (simple regex-based, handles both attribute orderings)
     fn og_tag(html: &str, property: &str) -> Option<String> {
-        let pattern = format!(
+        // property before content
+        let pattern1 = format!(
             r#"<meta[^>]*property=["']og:{}["'][^>]*content=["']([^"']*)["']"#,
             property
         );
-        regex::Regex::new(&pattern)
+        if let Some(caps) = regex::Regex::new(&pattern1).ok()?.captures(html) {
+            return Some(caps[1].to_string());
+        }
+        // content before property
+        let pattern2 = format!(
+            r#"<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:{}["']"#,
+            property
+        );
+        regex::Regex::new(&pattern2)
             .ok()?
             .captures(html)
             .map(|c| c[1].to_string())

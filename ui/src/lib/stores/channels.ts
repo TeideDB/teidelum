@@ -116,7 +116,7 @@ export function initChannelWsListeners(): () => void {
 						ch.id === data.channel
 							? {
 									...ch,
-									...(data.name && { name: data.name }),
+									...(data.name !== undefined && { name: data.name }),
 									...(data.topic !== undefined && { topic: data.topic }),
 									...(data.description !== undefined && {
 										description: data.description

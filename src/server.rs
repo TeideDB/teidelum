@@ -31,6 +31,7 @@ pub fn build_router(
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
+        settings_lock: tokio::sync::Mutex::new(()),
     });
 
     // Data API routes (protected by optional API key)
