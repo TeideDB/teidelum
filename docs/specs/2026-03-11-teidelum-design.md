@@ -13,7 +13,7 @@ Teidelum collapses all of this into one self-contained server:
 | Capability | Traditional Stack | Teidelum |
 |-----------|------------------|----------|
 | Chat & messaging | Slack / Zulip | Built-in |
-| Full-text search | Elasticsearch | tantivy (embedded) |
+| Full-text search | Elasticsearch | Built-in (embedded) |
 | SQL analytics | Data warehouse | TeideDB (embedded columnar) |
 | Graph queries | Neo4j | Catalog FK traversal |
 | Real-time pub/sub | Redis | In-process WebSocket hub |
@@ -70,7 +70,7 @@ Single Rust binary. Zero external dependencies. All state in a data directory.
 ```
 teidelum
 ├── TeideDB engine         — Columnar SQL (microsecond queries)
-├── tantivy index          — Full-text search (BM25, fuzzy)
+├── Search index            — Full-text search (BM25, fuzzy)
 ├── Catalog                — Schema registry, FK relationships
 ├── Graph engine           — BFS/DFS over FK relationships
 ├── Chat                   — Channels, messages, threads, reactions
@@ -87,14 +87,14 @@ teidelum
 ```
 data/
 ├── tables/          — TeideDB columnar storage
-├── docs/            — tantivy search index
+├── docs/            — Full-text search index
 ├── files/           — Uploaded files (uuid/filename)
 └── config.toml      — Server configuration (Pro)
 ```
 
 ### Why This Works
 
-TeideDB executes analytical queries in microseconds-to-milliseconds on columnar storage. tantivy provides Lucene-grade full-text search. The WebSocket hub is an in-process `HashMap<user_id, broadcast::Sender>` — no Redis needed. Everything shares one process, one memory space, zero serialization overhead between components.
+TeideDB executes analytical queries in microseconds-to-milliseconds on columnar storage. The embedded search engine provides full-text search with BM25 ranking and fuzzy matching. The WebSocket hub is an in-process `HashMap<user_id, broadcast::Sender>` — no Redis needed. Everything shares one process, one memory space, zero serialization overhead between components.
 
 ---
 
@@ -253,7 +253,7 @@ Slack-compatible method-based endpoints. All POST with JSON body. Response: `{"o
 ## Search & Analytics
 
 ### Full-Text Search
-- Every message indexed in tantivy on post
+- Every message indexed on post
 - Source: "chat", title: "#channel-name", body: message content
 - `search.messages` API filters by channel membership
 - Same index used by MCP `search` tool
@@ -357,7 +357,7 @@ This is not a clone — it's API compatibility where it makes sense, extended wi
 |---|---|---|---|
 | Price | $8-12/user/mo | Free (self-host) | Free (self-host) |
 | Dependencies | SaaS only | PostgreSQL, Redis, RabbitMQ, memcached | None |
-| Search | Limited, paid tier | Requires Elasticsearch | Built-in (tantivy) |
+| Search | Limited, paid tier | Requires Elasticsearch | Built-in |
 | SQL on chat data | No | No | Yes (TeideDB) |
 | Graph queries | No | No | Yes (Catalog FK) |
 | AI agents | Third-party, extra cost | Limited | Native MCP, first-class |
