@@ -29,7 +29,8 @@ export function disconnect() {
 		ws.close();
 		ws = null;
 	}
-	listeners.clear();
+	// Don't clear listeners here - they are managed by component cleanup callbacks
+	// Clearing them would break re-login without page reload since onMount won't re-fire
 }
 
 function doConnect() {

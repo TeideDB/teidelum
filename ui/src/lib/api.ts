@@ -154,6 +154,10 @@ export function searchMessages(
 
 // === Files ===
 
+export function fileDownloadUrl(fileId: Id, filename: string): string {
+	return `/files/${fileId}/${filename}`;
+}
+
 export async function filesUpload(
 	channel: Id,
 	file: File,

@@ -198,13 +198,18 @@ export function initMessageWsListeners(): () => void {
 			const data = event as unknown as { item_ts: Id; reaction: string; user: Id };
 			if (data.item_ts) {
 				updateMessage(data.item_ts, (msg) => {
-					const reactions = (msg.reactions || []).map((r) =>
-						r.name === data.reaction
-							? { ...r, count: r.count + 1, users: [...r.users, data.user] }
-							: r
-					);
-					const existing = reactions.find((r) => r.name === data.reaction);
-					if (!existing) {
+					const reactions = [...(msg.reactions || [])];
+					const idx = reactions.findIndex((r) => r.name === data.reaction);
+					if (idx !== -1) {
+						// Guard against duplicate WS events
+						if (!reactions[idx].users.includes(data.user)) {
+							reactions[idx] = {
+								...reactions[idx],
+								count: reactions[idx].count + 1,
+								users: [...reactions[idx].users, data.user]
+							};
+						}
+					} else {
 						reactions.push({ name: data.reaction, count: 1, users: [data.user] });
 					}
 					return { ...msg, reactions };

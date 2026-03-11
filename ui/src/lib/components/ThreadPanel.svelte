@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import * as api from '$lib/api';
+	const { fileDownloadUrl } = api;
 	import { users } from '$lib/stores/users';
 	import { sendMessage } from '$lib/stores/messages';
 	import { sendTyping } from '$lib/ws';
@@ -104,6 +105,24 @@
 					<span class="text-xs text-gray-600">{formatTime(parentMessage.created_at)}</span>
 				</div>
 				<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMarkdown(parentMessage.text)}</div>
+				{#if parentMessage.files && parentMessage.files.length > 0}
+					<div class="mt-1 flex flex-col gap-1">
+						{#each parentMessage.files as file}
+							<a
+								href={fileDownloadUrl(file.id, file.filename)}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:underline"
+							>
+								<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+								</svg>
+								{file.filename}
+								<span class="text-gray-600">({Math.round(file.size_bytes / 1024)}KB)</span>
+							</a>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -126,6 +145,24 @@
 							<span class="text-xs text-gray-600">{formatTime(reply.created_at)}</span>
 						</div>
 						<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMarkdown(reply.text)}</div>
+						{#if reply.files && reply.files.length > 0}
+							<div class="mt-1 flex flex-col gap-1">
+								{#each reply.files as file}
+									<a
+										href={fileDownloadUrl(file.id, file.filename)}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:underline"
+									>
+										<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+										</svg>
+										{file.filename}
+										<span class="text-gray-600">({Math.round(file.size_bytes / 1024)}KB)</span>
+									</a>
+								{/each}
+							</div>
+						{/if}
 					</div>
 				</div>
 			{/each}

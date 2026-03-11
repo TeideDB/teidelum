@@ -1,6 +1,7 @@
 import { writable, get } from 'svelte/store';
 import * as ws from '$lib/ws';
 import { activeChannelId } from './channels';
+import { auth } from './auth';
 import type { Id, WsEvent } from '$lib/types';
 
 /** Map of channelId -> unread count */
@@ -28,9 +29,10 @@ export function incrementUnread(channelId: Id) {
 export function initUnreadsWsListeners(): () => void {
 	const unsub = ws.on('message', (event: WsEvent) => {
 		// Backend sends channel as `channel` field
-		const data = event as unknown as { channel?: Id };
+		const data = event as unknown as { channel?: Id; user?: Id };
 		const channelId = data.channel;
-		if (channelId) {
+		// Don't increment unreads for own messages
+		if (channelId && data.user !== get(auth).userId) {
 			incrementUnread(channelId);
 		}
 	});
