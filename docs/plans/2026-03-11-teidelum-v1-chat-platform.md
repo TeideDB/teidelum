@@ -1617,15 +1617,15 @@ Place `<TypingIndicator channelId={$activeChannelId} />` between MessageList and
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Write test for users.search**
+- [x] **Step 1: Write test for users.search**
 
 Register 3 users (alice, bob, alice_b). Search for "alice" — should return 2 matches. Search for "bob" — should return 1. Search for "zzz" — should return 0.
 
-- [ ] **Step 2: Write test for conversations.autocomplete**
+- [x] **Step 2: Write test for conversations.autocomplete**
 
 Create channels (general, general-dev, random). Autocomplete "gen" — should return 2. Autocomplete "ran" — should return 1.
 
-- [ ] **Step 3: Run tests, commit**
+- [x] **Step 3: Run tests, commit**
 
 ```bash
 cargo test --test chat_integration -- --test-threads=1

@@ -1508,3 +1508,126 @@ async fn test_pins_add_list_remove() {
         "pins should be empty after unpin"
     );
 }
+
+#[tokio::test]
+async fn test_users_search() {
+    let (app, _tmp) = setup().await;
+
+    // Register 3 users
+    let token_alice = register_and_login(&app, "alice", "pass1234", "alice@example.com").await;
+    let _token_bob = register_and_login(&app, "bob", "pass1234", "bob@example.com").await;
+    let _token_alice_b =
+        register_and_login(&app, "alice_b", "pass1234", "alice_b@example.com").await;
+
+    // Search for "alice" — should return 2 matches
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.search",
+            json!({"query": "alice"}),
+            Some(&token_alice),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    assert_eq!(
+        body["users"].as_array().unwrap().len(),
+        2,
+        "searching 'alice' should return 2 users"
+    );
+
+    // Search for "bob" — should return 1
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.search",
+            json!({"query": "bob"}),
+            Some(&token_alice),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    assert_eq!(
+        body["users"].as_array().unwrap().len(),
+        1,
+        "searching 'bob' should return 1 user"
+    );
+
+    // Search for "zzz" — should return 0
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.search",
+            json!({"query": "zzz"}),
+            Some(&token_alice),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    assert_eq!(
+        body["users"].as_array().unwrap().len(),
+        0,
+        "searching 'zzz' should return 0 users"
+    );
+}
+
+#[tokio::test]
+async fn test_conversations_autocomplete() {
+    let (app, _tmp) = setup().await;
+
+    let token = register_and_login(&app, "alice", "pass1234", "alice@example.com").await;
+
+    // Create 3 channels
+    for name in &["general", "general-dev", "random"] {
+        let resp = app
+            .clone()
+            .oneshot(post_json(
+                "/api/slack/conversations.create",
+                json!({"name": name}),
+                Some(&token),
+            ))
+            .await
+            .unwrap();
+        let body = body_json(resp).await;
+        assert_eq!(body["ok"], true, "creating channel '{name}' should succeed");
+    }
+
+    // Autocomplete "gen" — should return 2
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.autocomplete",
+            json!({"query": "gen"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    assert_eq!(
+        body["channels"].as_array().unwrap().len(),
+        2,
+        "autocomplete 'gen' should return 2 channels"
+    );
+
+    // Autocomplete "ran" — should return 1
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.autocomplete",
+            json!({"query": "ran"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    assert_eq!(
+        body["channels"].as_array().unwrap().len(),
+        1,
+        "autocomplete 'ran' should return 1 channel"
+    );
+}
