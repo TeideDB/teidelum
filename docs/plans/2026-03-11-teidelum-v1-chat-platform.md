@@ -1920,7 +1920,7 @@ Show status emoji next to display name in MessageList and UserProfilePopover.
 **Files:**
 - Modify: `ui/src/routes/(app)/+layout.svelte`
 
-- [ ] **Step 1: Add idle detection**
+- [x] **Step 1: Add idle detection**
 
 In the app layout, track mouse/keyboard activity:
 
@@ -1952,7 +1952,7 @@ onMount(() => {
 });
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ---
 

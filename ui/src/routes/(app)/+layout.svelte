@@ -6,9 +6,25 @@
 	import { loadUsers, initUserWsListeners } from '$lib/stores/users';
 	import { initMessageWsListeners } from '$lib/stores/messages';
 	import { initUnreadsWsListeners } from '$lib/stores/unreads';
+	import { usersSetPresence } from '$lib/api';
 
 	let { children } = $props();
 	let showSearch = $state(false);
+
+	let idleTimer: ReturnType<typeof setTimeout>;
+	let isIdle = false;
+
+	function resetIdle() {
+		if (isIdle) {
+			isIdle = false;
+			usersSetPresence('online');
+		}
+		clearTimeout(idleTimer);
+		idleTimer = setTimeout(() => {
+			isIdle = true;
+			usersSetPresence('away');
+		}, 5 * 60 * 1000);
+	}
 
 	onMount(() => {
 		Promise.all([loadChannels(), loadUsers()]).catch((e) => {
@@ -20,7 +36,17 @@
 			initMessageWsListeners(),
 			initUnreadsWsListeners()
 		];
-		return () => cleanups.forEach((fn) => fn());
+
+		window.addEventListener('mousemove', resetIdle);
+		window.addEventListener('keydown', resetIdle);
+		resetIdle();
+
+		return () => {
+			cleanups.forEach((fn) => fn());
+			window.removeEventListener('mousemove', resetIdle);
+			window.removeEventListener('keydown', resetIdle);
+			clearTimeout(idleTimer);
+		};
 	});
 
 	function handleGlobalKeydown(e: KeyboardEvent) {
