@@ -1227,7 +1227,7 @@ git commit -m "feat(chat-ui): add users store with presence tracking"
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/unreads.ts`
 
-- [ ] **Step 1: Implement unreads store**
+- [x] **Step 1: Implement unreads store**
 
 Create `src/lib/stores/unreads.ts`:
 
@@ -1274,11 +1274,11 @@ export function initUnreadsWsListeners() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/unreads.ts
