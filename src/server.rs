@@ -31,9 +31,37 @@ pub fn build_router(
         hub: hub.clone(),
     });
 
-    let mut app = Router::new()
+    // Data API routes (protected by optional API key)
+    let mut data_api = Router::new()
         .merge(routes::api_routes())
-        .with_state(api.clone())
+        .with_state(api.clone());
+
+    // MCP Streamable HTTP endpoint (also protected by optional API key)
+    let mcp_api = api;
+    let mcp_service = StreamableHttpService::new(
+        move || Ok(Teidelum::new_with_shared(mcp_api.clone())),
+        Arc::new(LocalSessionManager::default()),
+        StreamableHttpServerConfig {
+            stateful_mode: true,
+            cancellation_token: ct.child_token(),
+            ..Default::default()
+        },
+    );
+    data_api = data_api.nest_service("/mcp", mcp_service);
+
+    // If TEIDELUM_API_KEY is set, apply auth only to data API and MCP routes (not chat/ws/files)
+    if let Ok(key) = std::env::var("TEIDELUM_API_KEY") {
+        if !key.is_empty() {
+            data_api = data_api.layer(middleware::from_fn(move |req, next| {
+                let key = key.clone();
+                async move { auth_check(req, next, key).await }
+            }));
+        }
+    }
+
+    // Chat routes (protected by JWT, not API key)
+    let mut app = Router::new()
+        .merge(data_api)
         .merge(chat_routes(chat_state.clone()))
         .route(
             "/files/{id}/{filename}",
@@ -50,29 +78,7 @@ pub fn build_router(
         app = app.fallback_service(serve_dir);
     }
 
-    // If TEIDELUM_API_KEY is set, capture it once and wrap all routes with auth middleware
-    if let Ok(key) = std::env::var("TEIDELUM_API_KEY") {
-        if !key.is_empty() {
-            app = app.layer(middleware::from_fn(move |req, next| {
-                let key = key.clone();
-                async move { auth_check(req, next, key).await }
-            }));
-        }
-    }
-
-    // MCP Streamable HTTP endpoint
-    let mcp_api = api;
-    let mcp_service = StreamableHttpService::new(
-        move || Ok(Teidelum::new_with_shared(mcp_api.clone())),
-        Arc::new(LocalSessionManager::default()),
-        StreamableHttpServerConfig {
-            stateful_mode: true,
-            cancellation_token: ct.child_token(),
-            ..Default::default()
-        },
-    );
-
-    app.nest_service("/mcp", mcp_service)
+    app
 }
 
 /// Auth check: requires `Authorization: Bearer <key>` matching the captured key.

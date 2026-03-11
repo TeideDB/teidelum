@@ -2,6 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import * as api from '$lib/api';
 import * as ws from '$lib/ws';
 import type { Channel, Id } from '$lib/types';
+import { unreads } from './unreads';
 
 export const channels = writable<Channel[]>([]);
 export const activeChannelId = writable<Id | null>(null);
@@ -28,6 +29,14 @@ export async function loadChannels() {
 	const res = await api.conversationsList();
 	if (res.ok && res.channels) {
 		channels.set(res.channels);
+		// Seed unread counts from server on initial load
+		const unreadMap = new Map<Id, number>();
+		for (const ch of res.channels) {
+			if (ch.unread_count && ch.unread_count > 0) {
+				unreadMap.set(ch.id, ch.unread_count);
+			}
+		}
+		unreads.set(unreadMap);
 	}
 }
 
