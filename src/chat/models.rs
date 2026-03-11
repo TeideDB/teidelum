@@ -12,6 +12,7 @@ const CREATE_TABLES: &[&str] = &[
     )",
     "CREATE TABLE channels (
         id BIGINT, name VARCHAR, kind VARCHAR, topic VARCHAR,
+        description VARCHAR, archived_at VARCHAR,
         created_by BIGINT, created_at VARCHAR
     )",
     "CREATE TABLE channel_members (

@@ -856,7 +856,7 @@ git commit -m "feat: add Avatar component with colored initials fallback"
 **Files:**
 - Modify: `src/chat/models.rs`
 
-- [ ] **Step 1: Add description and archived_at columns to channels DDL**
+- [x] **Step 1: Add description and archived_at columns to channels DDL**
 
 ```rust
 "CREATE TABLE channels (
@@ -866,11 +866,11 @@ git commit -m "feat: add Avatar component with colored initials fallback"
 )",
 ```
 
-- [ ] **Step 2: Run `cargo check`**
+- [x] **Step 2: Run `cargo check`**
 
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/chat/models.rs
