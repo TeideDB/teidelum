@@ -3067,7 +3067,7 @@ git commit -m "feat(chat-ui): add FileUpload component and integrate into Messag
 **Files:**
 - Modify: `teidelum/ui/src/lib/components/MessageList.svelte`
 
-- [ ] **Step 1: Add markdown rendering utility**
+- [x] **Step 1: Add markdown rendering utility**
 
 Create `src/lib/markdown.ts`:
 
@@ -3094,7 +3094,7 @@ export function renderMarkdown(text: string): string {
 }
 ```
 
-- [ ] **Step 2: Update MessageList to use markdown rendering**
+- [x] **Step 2: Update MessageList to use markdown rendering**
 
 In `src/lib/components/MessageList.svelte`, replace the plain text display `{msg.text}` with rendered markdown. Import the utility:
 
@@ -3112,7 +3112,7 @@ Replace the message text line:
 <div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMarkdown(msg.text)}</div>
 ```
 
-- [ ] **Step 3: Add prose-chat styles to app.css**
+- [x] **Step 3: Add prose-chat styles to app.css**
 
 Add to `src/app.css`:
 
@@ -3143,11 +3143,11 @@ Add to `src/app.css`:
 }
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/markdown.ts teidelum/ui/src/lib/components/MessageList.svelte teidelum/ui/src/app.css

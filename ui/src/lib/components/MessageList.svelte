@@ -4,6 +4,7 @@
 	import { users } from '$lib/stores/users';
 	import { auth } from '$lib/stores/auth';
 	import { reactionsAdd, reactionsRemove } from '$lib/api';
+	import { renderMarkdown } from '$lib/markdown';
 	import type { Message, Id } from '$lib/types';
 
 	interface Props {
@@ -168,7 +169,7 @@
 						</div>
 					{/if}
 
-					<div class="text-sm leading-relaxed text-gray-300 break-words">{msg.text}</div>
+					<div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMarkdown(msg.text)}</div>
 
 					<!-- Reactions -->
 					{#if msg.reactions && msg.reactions.length > 0}
