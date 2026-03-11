@@ -182,7 +182,7 @@ git commit -m "feat(chat-ui): scaffold SvelteKit project with TypeScript and Tai
 **Files:**
 - Create: `teidelum/ui/src/lib/types.ts`
 
-- [ ] **Step 1: Define all shared TypeScript types**
+- [x] **Step 1: Define all shared TypeScript types**
 
 Create `src/lib/types.ts`:
 
@@ -327,12 +327,12 @@ export interface WsEvent {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 Expected: compiles with no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/types.ts
