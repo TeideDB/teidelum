@@ -6,12 +6,34 @@ import type {
 	HistoryResponse,
 	Id,
 	MembersResponse,
+	Message,
 	MessageResponse,
 	OkResponse,
 	SearchResponse,
 	UserInfoResponse,
 	UsersListResponse
 } from './types';
+
+/**
+ * Map a backend message object (ts/channel/user) to the frontend Message shape (id/channel_id/user_id).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapMessage(raw: any): Message {
+	return {
+		id: String(raw.ts ?? raw.id ?? ''),
+		ts: String(raw.ts ?? raw.id ?? ''),
+		channel_id: String(raw.channel ?? raw.channel_id ?? ''),
+		user_id: String(raw.user ?? raw.user_id ?? ''),
+		user: raw.username ?? raw.user_name,
+		text: raw.text ?? '',
+		thread_ts: raw.thread_ts ? String(raw.thread_ts) : undefined,
+		reply_count: raw.reply_count,
+		reactions: raw.reactions,
+		files: raw.files,
+		edited_at: raw.edited_ts ?? raw.edited_at,
+		created_at: raw.created_at ?? new Date().toISOString()
+	};
+}
 
 let token: string | null = null;
 
@@ -60,7 +82,7 @@ export function conversationsInfo(channel: Id): Promise<ChannelResponse> {
 	return call('conversations.info', { channel });
 }
 
-export function conversationsHistory(
+export async function conversationsHistory(
 	channel: Id,
 	limit?: number,
 	before?: Id
@@ -68,11 +90,19 @@ export function conversationsHistory(
 	const body: Record<string, unknown> = { channel };
 	if (limit !== undefined) body.limit = limit;
 	if (before !== undefined) body.before = before;
-	return call('conversations.history', body);
+	const res = await call<HistoryResponse>('conversations.history', body);
+	if (res.ok && res.messages) {
+		res.messages = res.messages.map(mapMessage);
+	}
+	return res;
 }
 
-export function conversationsReplies(channel: Id, ts: Id): Promise<HistoryResponse> {
-	return call('conversations.replies', { channel, ts });
+export async function conversationsReplies(channel: Id, ts: Id): Promise<HistoryResponse> {
+	const res = await call<HistoryResponse>('conversations.replies', { channel, ts });
+	if (res.ok && res.messages) {
+		res.messages = res.messages.map(mapMessage);
+	}
+	return res;
 }
 
 export function conversationsJoin(channel: Id): Promise<OkResponse> {
@@ -97,14 +127,18 @@ export function conversationsOpen(users: Id[]): Promise<ChannelResponse> {
 
 // === Chat ===
 
-export function chatPostMessage(
+export async function chatPostMessage(
 	channel: Id,
 	text: string,
 	thread_ts?: Id
 ): Promise<MessageResponse> {
 	const body: Record<string, unknown> = { channel, text };
 	if (thread_ts !== undefined) body.thread_ts = thread_ts;
-	return call('chat.postMessage', body);
+	const res = await call<MessageResponse>('chat.postMessage', body);
+	if (res.ok && res.message) {
+		res.message = mapMessage(res.message);
+	}
+	return res;
 }
 
 export function chatUpdate(ts: Id, text: string): Promise<MessageResponse> {
@@ -141,7 +175,7 @@ export function reactionsRemove(name: string, timestamp: Id): Promise<OkResponse
 
 // === Search ===
 
-export function searchMessages(
+export async function searchMessages(
 	query: string,
 	channel?: Id,
 	limit?: number
@@ -149,13 +183,22 @@ export function searchMessages(
 	const body: Record<string, unknown> = { query };
 	if (channel !== undefined) body.channel = channel;
 	if (limit !== undefined) body.limit = limit;
-	return call('search.messages', body);
+	// Backend returns { messages: { matches: [...], total: N } }
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const res = await call<any>('search.messages', body);
+	const matches = res?.messages?.matches ?? [];
+	return {
+		ok: res.ok ?? false,
+		messages: matches.map(mapMessage),
+		error: res.error
+	};
 }
 
 // === Files ===
 
 export function fileDownloadUrl(fileId: Id, filename: string): string {
-	return `/files/${fileId}/${filename}`;
+	const url = `/files/${fileId}/${filename}`;
+	return token ? `${url}?token=${encodeURIComponent(token)}` : url;
 }
 
 export async function filesUpload(

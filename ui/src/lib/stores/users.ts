@@ -8,6 +8,11 @@ export const users = writable<Map<Id, User>>(new Map());
 /** Presence: maps userId -> 'active' | 'away' */
 export const presence = writable<Map<Id, string>>(new Map());
 
+export function resetUsers() {
+	users.set(new Map());
+	presence.set(new Map());
+}
+
 export const userList = derived(users, ($users) => Array.from($users.values()));
 
 export async function loadUsers() {

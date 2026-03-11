@@ -11,7 +11,9 @@
 	let showSearch = $state(false);
 
 	onMount(() => {
-		Promise.all([loadChannels(), loadUsers()]);
+		Promise.all([loadChannels(), loadUsers()]).catch((e) => {
+			console.error('Failed to load initial data:', e);
+		});
 		const cleanups = [
 			initChannelWsListeners(),
 			initUserWsListeners(),

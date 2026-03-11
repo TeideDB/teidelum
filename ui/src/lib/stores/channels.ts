@@ -6,6 +6,11 @@ import type { Channel, Id } from '$lib/types';
 export const channels = writable<Channel[]>([]);
 export const activeChannelId = writable<Id | null>(null);
 
+export function resetChannels() {
+	channels.set([]);
+	activeChannelId.set(null);
+}
+
 export const activeChannel = derived(
 	[channels, activeChannelId],
 	([$channels, $activeChannelId]) => $channels.find((c) => c.id === $activeChannelId) ?? null

@@ -20,6 +20,7 @@
 	let loading = $state(true);
 	let replyText = $state('');
 	let lastTypingSent = $state(0);
+	let loadSeq = 0;
 
 	$effect(() => {
 		// Reload replies when parent message changes
@@ -28,13 +29,24 @@
 	});
 
 	async function loadReplies() {
+		const seq = ++loadSeq;
 		loading = true;
-		const res = await api.conversationsReplies(channelId, parentMessage.id);
-		if (res.ok && res.messages) {
-			// First message is the parent; rest are replies
-			replies = res.messages.slice(1);
+		try {
+			const res = await api.conversationsReplies(channelId, parentMessage.id);
+			// Discard stale responses if parent changed during fetch
+			if (seq !== loadSeq) return;
+			if (res.ok && res.messages) {
+				// First message is the parent; rest are replies
+				replies = res.messages.slice(1);
+			}
+		} catch (e) {
+			if (seq !== loadSeq) return;
+			console.error('Failed to load replies:', e);
+		} finally {
+			if (seq === loadSeq) {
+				loading = false;
+			}
 		}
-		loading = false;
 	}
 
 	function getUserName(userId: Id): string {

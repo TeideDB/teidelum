@@ -1,6 +1,10 @@
 import { writable, derived, get } from 'svelte/store';
 import * as api from '$lib/api';
 import * as ws from '$lib/ws';
+import { resetChannels } from './channels';
+import { resetMessages } from './messages';
+import { resetUsers } from './users';
+import { resetUnreads } from './unreads';
 import type { User, Id } from '$lib/types';
 
 interface AuthState {
@@ -107,4 +111,8 @@ export function doLogout() {
 	api.setToken(null);
 	ws.disconnect();
 	auth.set({ token: null, userId: null, user: null, loading: false });
+	resetChannels();
+	resetMessages();
+	resetUsers();
+	resetUnreads();
 }

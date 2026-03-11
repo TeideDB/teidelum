@@ -7,6 +7,10 @@ import type { Id, WsEvent } from '$lib/types';
 /** Map of channelId -> unread count */
 export const unreads = writable<Map<Id, number>>(new Map());
 
+export function resetUnreads() {
+	unreads.set(new Map());
+}
+
 export function markRead(channelId: Id) {
 	unreads.update((map) => {
 		const newMap = new Map(map);

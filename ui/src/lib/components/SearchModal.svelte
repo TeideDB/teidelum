@@ -14,6 +14,7 @@
 	let results = $state<Message[]>([]);
 	let loading = $state(false);
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+	let searchSeq = 0;
 
 	function handleInput() {
 		if (searchTimeout) clearTimeout(searchTimeout);
@@ -23,16 +24,28 @@
 	async function doSearch() {
 		const q = query.trim();
 		if (!q) {
+			++searchSeq;
 			results = [];
 			return;
 		}
 
+		const seq = ++searchSeq;
 		loading = true;
-		const res = await api.searchMessages(q, undefined, 20);
-		if (res.ok && res.messages) {
-			results = res.messages;
+		try {
+			const res = await api.searchMessages(q, undefined, 20);
+			// Discard stale responses
+			if (seq !== searchSeq) return;
+			if (res.ok && res.messages) {
+				results = res.messages;
+			}
+		} catch (e) {
+			if (seq !== searchSeq) return;
+			console.error('Search failed:', e);
+		} finally {
+			if (seq === searchSeq) {
+				loading = false;
+			}
 		}
-		loading = false;
 	}
 
 	function getUserName(userId: Id): string {

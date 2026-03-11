@@ -12,6 +12,10 @@ interface ChannelMessages {
 /** Map of channelId -> messages state */
 export const messagesByChannel = writable<Map<Id, ChannelMessages>>(new Map());
 
+export function resetMessages() {
+	messagesByChannel.set(new Map());
+}
+
 function getChannelState(channelId: Id): ChannelMessages {
 	const map = get(messagesByChannel);
 	return map.get(channelId) ?? { messages: [], hasMore: true, loading: false };
