@@ -109,7 +109,7 @@ git commit -m "feat(ui): switch to adapter-static for production SPA build"
 - Modify: `src/server.rs`
 - Modify: `Cargo.toml`
 
-- [ ] **Step 1: Add tower-http `fs` feature**
+- [x] **Step 1: Add tower-http `fs` feature**
 
 In `Cargo.toml`, change:
 
@@ -123,7 +123,7 @@ to:
 tower-http = { version = "0.6", features = ["cors", "fs"] }
 ```
 
-- [ ] **Step 2: Add static file serving to server.rs**
+- [x] **Step 2: Add static file serving to server.rs**
 
 Add import at top of `server.rs`:
 
@@ -145,7 +145,7 @@ In `build_router()`, after `.layer(CorsLayer::permissive())` and before the API 
 
 API routes take priority because they're merged first. The fallback catches everything else and serves static files or falls back to `index.html` for SPA routing.
 
-- [ ] **Step 3: Build and verify**
+- [x] **Step 3: Build and verify**
 
 ```bash
 cd ui && npm run build && cd ..
@@ -154,7 +154,7 @@ cargo check
 
 Expected: compiles without errors.
 
-- [ ] **Step 4: Verify end-to-end**
+- [x] **Step 4: Verify end-to-end**
 
 ```bash
 TEIDE_CHAT_SECRET=testsecret123456789012345678901234 cargo run &
@@ -166,7 +166,7 @@ kill %1
 
 Expected: Root path returns SvelteKit HTML. API path returns JSON error (missing body).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Cargo.toml src/server.rs
