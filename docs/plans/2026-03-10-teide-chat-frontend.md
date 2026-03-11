@@ -2608,7 +2608,7 @@ git commit -m "feat(chat-ui): add ReactionPicker component with common emoji rea
 **Files:**
 - Create: `teidelum/ui/src/lib/components/SearchModal.svelte`
 
-- [ ] **Step 1: Implement search modal**
+- [x] **Step 1: Implement search modal**
 
 Create `src/lib/components/SearchModal.svelte`:
 
@@ -2730,7 +2730,7 @@ Create `src/lib/components/SearchModal.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Add search button to Sidebar**
+- [x] **Step 2: Add search button to Sidebar**
 
 Update `src/lib/components/Sidebar.svelte` to include a search trigger. Add a search button in the header area (next to the "Sign out" button). When clicked, it should emit an event or use a shared state. For simplicity, add a global search modal toggle.
 
@@ -2811,11 +2811,11 @@ The full updated `src/routes/(app)/+layout.svelte`:
 {/if}
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/SearchModal.svelte teidelum/ui/src/routes/\(app\)/+layout.svelte

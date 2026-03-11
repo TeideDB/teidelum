@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import SearchModal from '$lib/components/SearchModal.svelte';
 	import { loadChannels, initChannelWsListeners } from '$lib/stores/channels';
 	import { loadUsers, initUserWsListeners } from '$lib/stores/users';
 	import { initMessageWsListeners } from '$lib/stores/messages';
 	import { initUnreadsWsListeners } from '$lib/stores/unreads';
 
 	let { children } = $props();
+	let showSearch = $state(false);
 
 	onMount(async () => {
 		await Promise.all([loadChannels(), loadUsers()]);
@@ -15,7 +17,16 @@
 		initMessageWsListeners();
 		initUnreadsWsListeners();
 	});
+
+	function handleGlobalKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+			e.preventDefault();
+			showSearch = !showSearch;
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleGlobalKeydown} />
 
 <div class="flex h-screen overflow-hidden bg-gray-900">
 	<!-- Sidebar -->
@@ -28,3 +39,7 @@
 		{@render children()}
 	</div>
 </div>
+
+{#if showSearch}
+	<SearchModal onClose={() => (showSearch = false)} />
+{/if}
