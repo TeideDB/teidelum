@@ -926,6 +926,58 @@ pub struct ChannelIdRequest {
     pub channel: i64,
 }
 
+// ── Mark Read ──
+
+#[derive(Deserialize)]
+pub struct MarkReadRequest {
+    pub channel: i64,
+    #[serde(default)]
+    pub ts: Option<String>,
+}
+
+pub async fn conversations_mark_read(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<MarkReadRequest>,
+) -> Response {
+    if !is_channel_member(&state, req.channel, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
+    let ts = req.ts.unwrap_or_else(now_timestamp);
+
+    // Upsert channel_reads
+    let check_sql = format!(
+        "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    let has_existing = state.api.query_router().query_sync(&check_sql)
+        .map(|r| !r.rows.is_empty())
+        .unwrap_or(false);
+
+    if has_existing {
+        let sql = format!(
+            "UPDATE channel_reads SET last_read_ts = '{}' WHERE channel_id = {} AND user_id = {}",
+            escape_sql(&ts), req.channel, claims.user_id
+        );
+        if let Err(e) = state.api.query_router().query_sync(&sql) {
+            tracing::error!("mark read update failed: {e}");
+            return slack::err("internal_error");
+        }
+    } else {
+        let sql = format!(
+            "INSERT INTO channel_reads (channel_id, user_id, last_read_ts) VALUES ({}, {}, '{}')",
+            req.channel, claims.user_id, escape_sql(&ts)
+        );
+        if let Err(e) = state.api.query_router().query_sync(&sql) {
+            tracing::error!("mark read insert failed: {e}");
+            return slack::err("internal_error");
+        }
+    }
+
+    slack::ok(json!({}))
+}
+
 // ── Messaging ──
 
 pub async fn chat_post_message(
@@ -1526,6 +1578,10 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/conversations.open",
             axum::routing::post(conversations_open),
+        )
+        .route(
+            "/conversations.markRead",
+            axum::routing::post(conversations_mark_read),
         )
         // Chat
         .route("/chat.postMessage", axum::routing::post(chat_post_message))

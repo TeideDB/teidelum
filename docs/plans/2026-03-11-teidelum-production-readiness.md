@@ -395,7 +395,7 @@ git commit -m "feat(chat): implement unread tracking via channel_reads table"
 
 The frontend needs an explicit way to mark a channel as read (not just on history fetch).
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add to `tests/chat_integration.rs`:
 
@@ -459,7 +459,7 @@ async fn test_conversations_mark_read() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cargo test test_conversations_mark_read -- --nocapture
@@ -467,7 +467,7 @@ cargo test test_conversations_mark_read -- --nocapture
 
 Expected: FAIL — 404 on `/api/slack/conversations.markRead`.
 
-- [ ] **Step 3: Add request struct and handler**
+- [x] **Step 3: Add request struct and handler**
 
 In `handlers.rs`, add the request struct:
 
@@ -536,7 +536,7 @@ Register route in `chat_routes()` inside the authed router, before the `.layer(m
         )
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 cargo test test_conversations_mark_read -- --nocapture
@@ -544,7 +544,7 @@ cargo test test_conversations_mark_read -- --nocapture
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/chat/handlers.rs tests/chat_integration.rs

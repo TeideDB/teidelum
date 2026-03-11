@@ -248,3 +248,61 @@ async fn test_unread_tracking() {
     let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == ch_id.to_string()).unwrap();
     assert_eq!(ch["unread_count"].as_i64().unwrap(), 0, "expected unread = 0 after reading history");
 }
+
+#[tokio::test]
+async fn test_conversations_mark_read() {
+    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-12345");
+    let tmp = tempfile::tempdir().unwrap();
+    let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
+    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    let api = std::sync::Arc::new(api);
+    let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
+    let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
+        api: api.clone(),
+        hub: hub.clone(),
+    });
+    let app = teidelum::chat::handlers::chat_routes(state);
+
+    // Register and login
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "carol", "password": "secret123", "email": "carol@test.com"}),
+        None,
+    )).await.unwrap();
+    let token = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Create channel
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.create",
+        json!({"name": "mark-read-test"}),
+        Some(&token),
+    )).await.unwrap();
+    let ch_id: i64 = body_json(resp).await["channel"]["id"].as_str().unwrap().parse().unwrap();
+
+    // Post message
+    let _ = app.clone().oneshot(post_json(
+        "/api/slack/chat.postMessage",
+        json!({"channel": ch_id, "text": "test message"}),
+        Some(&token),
+    )).await.unwrap();
+
+    // Mark as read
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.markRead",
+        json!({"channel": ch_id}),
+        Some(&token),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // List channels — should have 0 unread
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.list",
+        json!({}),
+        Some(&token),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == ch_id.to_string()).unwrap();
+    assert_eq!(ch["unread_count"].as_i64().unwrap(), 0);
+}
