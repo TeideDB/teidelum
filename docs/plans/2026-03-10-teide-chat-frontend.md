@@ -699,7 +699,7 @@ git commit -m "feat(chat-ui): add WebSocket client with auto-reconnect and event
 **Files:**
 - Create: `teidelum/ui/src/lib/stores/auth.ts`
 
-- [ ] **Step 1: Implement auth store**
+- [x] **Step 1: Implement auth store**
 
 Create `src/lib/stores/auth.ts`:
 
@@ -816,11 +816,11 @@ export function doLogout() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/stores/auth.ts
