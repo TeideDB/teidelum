@@ -2877,7 +2877,7 @@ git commit -m "feat(chat-ui): add UserPresence component with active/away indica
 **Files:**
 - Create: `teidelum/ui/src/lib/components/FileUpload.svelte`
 
-- [ ] **Step 1: Implement file upload button**
+- [x] **Step 1: Implement file upload button**
 
 Create `src/lib/components/FileUpload.svelte`:
 
@@ -2944,7 +2944,7 @@ Create `src/lib/components/FileUpload.svelte`:
 </button>
 ```
 
-- [ ] **Step 2: Add FileUpload to MessageInput**
+- [x] **Step 2: Add FileUpload to MessageInput**
 
 Update `src/lib/components/MessageInput.svelte` to include the FileUpload button. Add the import and place the component before the textarea in the input area:
 
@@ -3047,11 +3047,11 @@ The full updated `src/lib/components/MessageInput.svelte`:
 </div>
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/FileUpload.svelte teidelum/ui/src/lib/components/MessageInput.svelte

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { sendTyping } from '$lib/ws';
 	import { sendMessage } from '$lib/stores/messages';
+	import FileUpload from './FileUpload.svelte';
 	import type { Id } from '$lib/types';
 
 	interface Props {
@@ -52,6 +53,8 @@
 
 <div class="border-t border-gray-700 px-4 py-3">
 	<div class="flex items-end gap-2 rounded-lg bg-gray-700 px-3 py-2">
+		<FileUpload {channelId} {threadTs} />
+
 		<textarea
 			bind:this={textarea}
 			bind:value={text}
