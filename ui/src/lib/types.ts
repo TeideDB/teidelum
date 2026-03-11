@@ -150,7 +150,9 @@ export type WsEventType =
 	| 'member_joined_channel'
 	| 'member_left_channel'
 	| 'user_profile_updated'
-	| 'channel_updated';
+	| 'channel_updated'
+	| 'message_pinned'
+	| 'message_unpinned';
 
 export interface WsEvent {
 	type: WsEventType;

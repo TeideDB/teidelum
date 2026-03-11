@@ -255,6 +255,25 @@ export async function searchMessages(
 	};
 }
 
+// === Pins ===
+
+export function pinsAdd(channel: Id, message_id: Id): Promise<OkResponse> {
+	return call('pins.add', { channel, message_id });
+}
+
+export function pinsRemove(channel: Id, message_id: Id): Promise<OkResponse> {
+	return call('pins.remove', { channel, message_id });
+}
+
+export async function pinsList(channel: Id): Promise<{ ok: boolean; pins?: Message[]; error?: string }> {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const res = await call<any>('pins.list', { channel });
+	if (res.ok && res.pins) {
+		res.pins = res.pins.map(mapMessage);
+	}
+	return res;
+}
+
 // === Files ===
 
 export function fileDownloadUrl(fileId: Id, filename: string): string {

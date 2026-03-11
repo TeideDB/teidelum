@@ -1,28 +1,38 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { messagesByChannel, loadMessages, loadOlderMessages } from '$lib/stores/messages';
+	import { messagesByChannel, loadMessages, loadOlderMessages, editMessage, deleteMessage } from '$lib/stores/messages';
 	import { users } from '$lib/stores/users';
 	import { auth } from '$lib/stores/auth';
-	import { reactionsAdd, reactionsRemove, fileDownloadUrl } from '$lib/api';
+	import { reactionsAdd, reactionsRemove, pinsAdd, pinsRemove, fileDownloadUrl } from '$lib/api';
 	import { renderMarkdown } from '$lib/markdown';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import MessageContextMenu from '$lib/components/MessageContextMenu.svelte';
 	import type { Message, Id } from '$lib/types';
 
 	interface Props {
 		channelId: Id;
 		onOpenThread?: (msg: Message) => void;
+		pinnedMessageIds?: Set<Id>;
 	}
 
-	let { channelId, onOpenThread }: Props = $props();
+	let { channelId, onOpenThread, pinnedMessageIds = new Set() }: Props = $props();
 
 	let scrollContainer: HTMLDivElement | undefined = $state();
 	let isAtBottom = $state(true);
 	let prevMessageCount = $state(0);
 
+	// Inline edit state
+	let editingMessageId = $state<Id | null>(null);
+	let editText = $state('');
+
+	// Delete confirmation state
+	let deletingMessage = $state<Message | null>(null);
+
 	const channelState = $derived($messagesByChannel.get(channelId));
 	const messages = $derived(channelState?.messages ?? []);
 	const hasMore = $derived(channelState?.hasMore ?? false);
 	const loading = $derived(channelState?.loading ?? false);
+	const currentUserId = $derived($auth.userId ?? '');
 
 	$effect(() => {
 		// Load messages when channelId changes
@@ -114,13 +124,55 @@
 	}
 
 	async function toggleReaction(msg: Message, emoji: string) {
-		const currentUserId = $auth.userId;
 		const existing = msg.reactions?.find((r) => r.name === emoji);
 		if (existing && currentUserId && existing.users.includes(currentUserId)) {
 			await reactionsRemove(emoji, msg.id);
 		} else {
 			await reactionsAdd(emoji, msg.id);
 		}
+	}
+
+	// Inline edit handlers
+	function startEdit(msg: Message) {
+		editingMessageId = msg.id;
+		editText = msg.text;
+	}
+
+	function cancelEdit() {
+		editingMessageId = null;
+		editText = '';
+	}
+
+	async function saveEdit() {
+		if (!editingMessageId || !editText.trim()) return;
+		await editMessage(editingMessageId, editText.trim());
+		editingMessageId = null;
+		editText = '';
+	}
+
+	function handleEditKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' && !e.shiftKey) {
+			e.preventDefault();
+			saveEdit();
+		} else if (e.key === 'Escape') {
+			cancelEdit();
+		}
+	}
+
+	// Delete handlers
+	async function confirmDelete() {
+		if (!deletingMessage) return;
+		await deleteMessage(deletingMessage.id);
+		deletingMessage = null;
+	}
+
+	// Pin handlers
+	async function pinMessage(msg: Message) {
+		await pinsAdd(channelId, msg.id);
+	}
+
+	async function unpinMessage(msg: Message) {
+		await pinsRemove(channelId, msg.id);
 	}
 
 	onMount(() => {
@@ -177,7 +229,34 @@
 						</div>
 					{/if}
 
-					<div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMarkdown(msg.text)}</div>
+					<!-- Message text or inline edit -->
+					{#if editingMessageId === msg.id}
+						<div class="mt-1">
+							<textarea
+								bind:value={editText}
+								onkeydown={handleEditKeydown}
+								class="w-full resize-none rounded border border-primary-dark/40 bg-navy px-3 py-2 text-sm text-white placeholder-primary-light/40 focus:border-primary focus:outline-none"
+								rows="2"
+							></textarea>
+							<div class="mt-1 flex gap-2">
+								<button
+									onclick={saveEdit}
+									class="rounded bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-primary-light"
+								>
+									Save
+								</button>
+								<button
+									onclick={cancelEdit}
+									class="rounded px-3 py-1 text-xs text-primary-lighter/70 hover:text-white"
+								>
+									Cancel
+								</button>
+								<span class="ml-auto text-xs text-primary-light/40">Enter to save, Esc to cancel</span>
+							</div>
+						</div>
+					{:else}
+						<div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMarkdown(msg.text)}</div>
+					{/if}
 
 					<!-- File attachments -->
 					{#if msg.files && msg.files.length > 0}
@@ -225,30 +304,50 @@
 					{/if}
 				</div>
 
-				<!-- Message actions (hover) -->
-				<div class="absolute -top-3 right-2 hidden gap-1 rounded border border-primary-dark/40 bg-navy-light p-0.5 shadow group-hover:flex">
-					<button
-						onclick={() => toggleReaction(msg, '+1')}
-						class="rounded p-1 text-primary-light/50 hover:bg-navy-mid hover:text-primary-lighter"
-						title="React"
-					>
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-					</button>
-					{#if onOpenThread}
-						<button
-							onclick={() => onOpenThread?.(msg)}
-							class="rounded p-1 text-primary-light/50 hover:bg-navy-mid hover:text-primary-lighter"
-							title="Reply in thread"
-						>
-							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-							</svg>
-						</button>
-					{/if}
+				<!-- Message context menu (hover) -->
+				<div class="absolute -top-3 right-2 hidden group-hover:block">
+					<MessageContextMenu
+						message={msg}
+						{currentUserId}
+						isPinned={pinnedMessageIds.has(msg.id)}
+						onReply={() => onOpenThread?.(msg)}
+						onReact={(emoji) => toggleReaction(msg, emoji)}
+						onEdit={() => startEdit(msg)}
+						onDelete={() => (deletingMessage = msg)}
+						onPin={() => pinMessage(msg)}
+						onUnpin={() => unpinMessage(msg)}
+					/>
 				</div>
 			</div>
 		{/each}
 	{/if}
 </div>
+
+<!-- Delete confirmation dialog -->
+{#if deletingMessage}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+		<div class="w-full max-w-sm rounded-lg bg-navy-light p-6 shadow-xl">
+			<h3 class="mb-2 text-lg font-semibold text-white">Delete Message</h3>
+			<p class="mb-4 text-sm text-primary-lighter/70">
+				Delete this message? This can't be undone.
+			</p>
+			<div class="mb-4 rounded bg-navy p-3 text-sm text-gray-300">
+				{deletingMessage.text.length > 100 ? deletingMessage.text.slice(0, 100) + '...' : deletingMessage.text}
+			</div>
+			<div class="flex justify-end gap-2">
+				<button
+					onclick={() => (deletingMessage = null)}
+					class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-white"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={confirmDelete}
+					class="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
+				>
+					Delete
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}

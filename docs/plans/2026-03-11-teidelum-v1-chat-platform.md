@@ -1361,7 +1361,7 @@ Pin a message, list pins, verify. Pin same message again (idempotent). Unpin, ve
 - Modify: `ui/src/lib/api.ts`
 - Modify: `ui/src/lib/types.ts`
 
-- [ ] **Step 1: Add pin API functions**
+- [x] **Step 1: Add pin API functions**
 
 ```typescript
 export function pinsAdd(channel: Id, message_id: Id): Promise<OkResponse> {
@@ -1375,27 +1375,27 @@ export function pinsList(channel: Id): Promise<{ ok: boolean; pins?: Message[]; 
 }
 ```
 
-- [ ] **Step 2: Create MessageContextMenu component**
+- [x] **Step 2: Create MessageContextMenu component**
 
 Shows on hover (extended actions bar) with buttons: Reply, React (opens emoji picker), Edit (own messages only), Delete (own messages only), Pin/Unpin, Copy text.
 
-- [ ] **Step 3: Add inline edit mode to MessageList**
+- [x] **Step 3: Add inline edit mode to MessageList**
 
 When editing: replace message text with textarea, show Save/Cancel buttons. Save calls `editMessage()` from messages store. Cancel reverts.
 
-- [ ] **Step 4: Add delete confirmation dialog**
+- [x] **Step 4: Add delete confirmation dialog**
 
 Simple modal: "Delete this message? This can't be undone." with Delete/Cancel buttons.
 
-- [ ] **Step 5: Add pinned messages indicator in channel header**
+- [x] **Step 5: Add pinned messages indicator in channel header**
 
 Pin icon + count. Clicking opens a dropdown showing pinned messages with Unpin action.
 
-- [ ] **Step 6: Add WS event types and listeners for pins**
+- [x] **Step 6: Add WS event types and listeners for pins**
 
 Add `'message_pinned' | 'message_unpinned'` to `WsEventType`.
 
-- [ ] **Step 7: Type check, commit**
+- [x] **Step 7: Type check, commit**
 
 ---
 
