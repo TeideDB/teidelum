@@ -572,14 +572,11 @@ pub async fn conversations_history(
         if let Ok(reply_result) = state.api.query_router().query_sync(&reply_sql) {
             if let Some(row) = reply_result.rows.first() {
                 let count_str = row[0].to_json();
-                let count: i64 = count_str.as_str()
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(0);
+                let count: i64 = count_str.as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
                 if count > 0 {
-                    msg.as_object_mut().unwrap().insert(
-                        "reply_count".to_string(),
-                        serde_json::json!(count),
-                    );
+                    msg.as_object_mut()
+                        .unwrap()
+                        .insert("reply_count".to_string(), serde_json::json!(count));
                     // Get last reply timestamp
                     let last_sql = format!(
                         "SELECT MAX(created_at) AS last_reply FROM messages WHERE thread_id = {} AND deleted_at = ''",
@@ -587,10 +584,9 @@ pub async fn conversations_history(
                     );
                     if let Ok(last_result) = state.api.query_router().query_sync(&last_sql) {
                         if let Some(last_row) = last_result.rows.first() {
-                            msg.as_object_mut().unwrap().insert(
-                                "last_reply_ts".to_string(),
-                                last_row[0].to_json(),
-                            );
+                            msg.as_object_mut()
+                                .unwrap()
+                                .insert("last_reply_ts".to_string(), last_row[0].to_json());
                         }
                     }
                 }
@@ -604,18 +600,23 @@ pub async fn conversations_history(
         "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
         req.channel, claims.user_id
     );
-    let has_existing = state.api.query_router().query_sync(&read_check)
+    let has_existing = state
+        .api
+        .query_router()
+        .query_sync(&read_check)
         .map(|r| !r.rows.is_empty())
         .unwrap_or(false);
 
     if has_existing {
-        let update_sql = format!(
+        let update_sql =
+            format!(
             "UPDATE channel_reads SET last_read_ts = '{}' WHERE channel_id = {} AND user_id = {}",
             escape_sql(&now), req.channel, claims.user_id
         );
         let _ = state.api.query_router().query_sync(&update_sql);
     } else {
-        let insert_sql = format!(
+        let insert_sql =
+            format!(
             "INSERT INTO channel_reads (channel_id, user_id, last_read_ts) VALUES ({}, {}, '{}')",
             req.channel, claims.user_id, escape_sql(&now)
         );
@@ -994,12 +995,16 @@ pub async fn conversations_mark_read(
         "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
         req.channel, claims.user_id
     );
-    let has_existing = state.api.query_router().query_sync(&check_sql)
+    let has_existing = state
+        .api
+        .query_router()
+        .query_sync(&check_sql)
         .map(|r| !r.rows.is_empty())
         .unwrap_or(false);
 
     if has_existing {
-        let sql = format!(
+        let sql =
+            format!(
             "UPDATE channel_reads SET last_read_ts = '{}' WHERE channel_id = {} AND user_id = {}",
             escape_sql(&ts), req.channel, claims.user_id
         );
@@ -1008,7 +1013,8 @@ pub async fn conversations_mark_read(
             return slack::err("internal_error");
         }
     } else {
-        let sql = format!(
+        let sql =
+            format!(
             "INSERT INTO channel_reads (channel_id, user_id, last_read_ts) VALUES ({}, {}, '{}')",
             req.channel, claims.user_id, escape_sql(&ts)
         );
@@ -1512,7 +1518,9 @@ pub async fn search_messages(
             .map(|id| id.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        let sql = format!("SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at IS NULL");
+        let sql = format!(
+            "SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at IS NULL"
+        );
         match state.api.query_router().query_sync(&sql) {
             Ok(r) => r
                 .rows

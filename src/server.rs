@@ -45,8 +45,8 @@ pub fn build_router(
     // Serve SvelteKit static build — fallback after API routes
     let ui_dir = std::path::Path::new("ui/build");
     if ui_dir.exists() {
-        let serve_dir = ServeDir::new(ui_dir)
-            .not_found_service(ServeFile::new(ui_dir.join("index.html")));
+        let serve_dir =
+            ServeDir::new(ui_dir).not_found_service(ServeFile::new(ui_dir.join("index.html")));
         app = app.fallback_service(serve_dir);
     }
 
