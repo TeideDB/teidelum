@@ -523,7 +523,7 @@ pub async fn conversations_history(
          m.deleted_at, m.edited_at, m.created_at, u.username \
          FROM messages m \
          JOIN users u ON m.user_id = u.id \
-         WHERE m.channel_id = {} AND m.thread_id = 0{} \
+         WHERE m.channel_id = {} AND m.thread_id = 0 AND m.deleted_at = ''{} \
          ORDER BY m.id DESC LIMIT {}",
         req.channel, before_clause, limit
     );
@@ -540,17 +540,12 @@ pub async fn conversations_history(
         .rows
         .iter()
         .map(|row| {
-            let deleted = match &row[5] {
-                crate::connector::Value::Null => false,
-                crate::connector::Value::String(s) if s.is_empty() => false,
-                _ => true,
-            };
             json!({
                 "ts": row[0].to_json(),
                 "channel": row[1].to_json(),
                 "user": row[2].to_json(),
                 "thread_ts": row[3].to_json(),
-                "text": if deleted { serde_json::Value::String("[deleted]".into()) } else { row[4].to_json() },
+                "text": row[4].to_json(),
                 "edited_ts": row[6].to_json(),
                 "created_at": row[7].to_json(),
                 "username": row[8].to_json(),
@@ -879,6 +874,20 @@ pub async fn conversations_open(
     let other_user = req.users.first().copied().unwrap_or(0);
     if other_user == 0 {
         return slack::err("invalid_arguments");
+    }
+    if other_user == claims.user_id {
+        return slack::err("cannot_dm_self");
+    }
+
+    // Verify the target user exists
+    let user_check = format!("SELECT id FROM users WHERE id = {}", other_user);
+    match state.api.query_router().query_sync(&user_check) {
+        Ok(r) if r.rows.is_empty() => return slack::err("user_not_found"),
+        Err(e) => {
+            tracing::error!("user check failed: {e}");
+            return slack::err("internal_error");
+        }
+        _ => {}
     }
 
     // Look for existing DM between these two users
@@ -1510,7 +1519,13 @@ pub async fn search_messages(
         .iter()
         .filter_map(|r| r.id.parse::<i64>().ok())
         .collect();
-    let msg_channel_map: std::collections::HashMap<String, i64> = if msg_ids.is_empty() {
+    // Fetch channel_id, user_id, created_at for each matched message
+    struct MsgMeta {
+        channel_id: i64,
+        user_id: i64,
+        created_at: String,
+    }
+    let msg_meta_map: std::collections::HashMap<String, MsgMeta> = if msg_ids.is_empty() {
         std::collections::HashMap::new()
     } else {
         let id_list = msg_ids
@@ -1519,7 +1534,7 @@ pub async fn search_messages(
             .collect::<Vec<_>>()
             .join(", ");
         let sql = format!(
-            "SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at = ''"
+            "SELECT id, channel_id, user_id, created_at FROM messages WHERE id IN ({id_list}) AND deleted_at = ''"
         );
         match state.api.query_router().query_sync(&sql) {
             Ok(r) => r
@@ -1534,7 +1549,12 @@ pub async fn search_messages(
                         crate::connector::Value::Int(v) => *v,
                         _ => return None,
                     };
-                    Some((id, ch_id))
+                    let user_id = match &row[2] {
+                        crate::connector::Value::Int(v) => *v,
+                        _ => 0,
+                    };
+                    let created_at = row[3].to_json().as_str().unwrap_or("").to_string();
+                    Some((id, MsgMeta { channel_id: ch_id, user_id, created_at }))
                 })
                 .collect(),
             Err(e) => {
@@ -1548,16 +1568,18 @@ pub async fn search_messages(
     let matches: Vec<serde_json::Value> = results
         .iter()
         .filter(|r| {
-            msg_channel_map
+            msg_meta_map
                 .get(&r.id)
-                .is_some_and(|ch_id| member_channel_ids.contains(ch_id))
+                .is_some_and(|meta| member_channel_ids.contains(&meta.channel_id))
         })
         .take(limit)
         .map(|r| {
-            let ch_id = msg_channel_map.get(&r.id).copied().unwrap_or(0);
+            let meta = msg_meta_map.get(&r.id);
             json!({
                 "ts": r.id,
-                "channel": ch_id,
+                "channel": meta.map(|m| m.channel_id).unwrap_or(0),
+                "user": meta.map(|m| m.user_id).unwrap_or(0),
+                "created_at": meta.map(|m| m.created_at.as_str()).unwrap_or(""),
                 "text": r.snippet,
                 "score": r.score,
             })

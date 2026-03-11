@@ -26,7 +26,7 @@ function mapMessage(raw: any): Message {
 		user_id: String(raw.user ?? raw.user_id ?? ''),
 		user: raw.username ?? raw.user_name,
 		text: raw.text ?? '',
-		thread_ts: raw.thread_ts ? String(raw.thread_ts) : undefined,
+		thread_ts: raw.thread_ts && String(raw.thread_ts) !== '0' ? String(raw.thread_ts) : undefined,
 		reply_count: raw.reply_count,
 		last_reply_ts: raw.last_reply_ts,
 		reactions: raw.reactions,
