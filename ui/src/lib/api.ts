@@ -212,7 +212,7 @@ export async function searchMessages(
 // === Files ===
 
 export function fileDownloadUrl(fileId: Id, filename: string): string {
-	const url = `${getBaseUrl()}/files/${fileId}/${filename}`;
+	const url = `${getBaseUrl()}/files/${fileId}/${encodeURIComponent(filename)}`;
 	return token ? `${url}?token=${encodeURIComponent(token)}` : url;
 }
 

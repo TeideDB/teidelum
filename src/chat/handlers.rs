@@ -955,10 +955,7 @@ pub async fn conversations_open(
             let mut members = std::collections::HashSet::new();
             members.insert(claims.user_id);
             members.insert(other_user);
-            state
-                .hub
-                .set_channel_members(channel_id_val, members)
-                .await;
+            state.hub.set_channel_members(channel_id_val, members).await;
 
             return slack::ok(json!({
                 "channel": {
@@ -1007,8 +1004,7 @@ pub async fn conversations_open(
             tracing::error!("dm member insert failed: {e}");
             // Clean up member rows first to avoid orphan memberships
             // (channel_members must be deleted before channels)
-            let cleanup_members =
-                format!("DELETE FROM channel_members WHERE channel_id = {id}");
+            let cleanup_members = format!("DELETE FROM channel_members WHERE channel_id = {id}");
             if let Err(ce) = state.api.query_router().query_sync(&cleanup_members) {
                 tracing::error!("dm member cleanup also failed: {ce}");
             }
@@ -1217,9 +1213,9 @@ pub async fn chat_update(
     Extension(claims): Extension<Claims>,
     Json(req): Json<ChatUpdateRequest>,
 ) -> Response {
-    // Verify the message exists and belongs to the user
+    // Verify the message exists, is not deleted, and belongs to the user
     let check = format!(
-        "SELECT user_id, channel_id FROM messages WHERE id = {}",
+        "SELECT user_id, channel_id FROM messages WHERE id = {} AND deleted_at = ''",
         req.ts
     );
     let result = match state.api.query_router().query_sync(&check) {
@@ -1310,7 +1306,7 @@ pub async fn chat_delete(
     Json(req): Json<ChatDeleteRequest>,
 ) -> Response {
     let check = format!(
-        "SELECT user_id, channel_id FROM messages WHERE id = {}",
+        "SELECT user_id, channel_id FROM messages WHERE id = {} AND deleted_at = ''",
         req.ts
     );
     let result = match state.api.query_router().query_sync(&check) {
@@ -1626,7 +1622,14 @@ pub async fn search_messages(
                         _ => 0,
                     };
                     let created_at = row[3].to_json().as_str().unwrap_or("").to_string();
-                    Some((id, MsgMeta { channel_id: ch_id, user_id, created_at }))
+                    Some((
+                        id,
+                        MsgMeta {
+                            channel_id: ch_id,
+                            user_id,
+                            created_at,
+                        },
+                    ))
                 })
                 .collect(),
             Err(e) => {
@@ -1637,13 +1640,17 @@ pub async fn search_messages(
     };
 
     // Filter results to only channels the user is a member of (by channel ID)
-    let matches: Vec<serde_json::Value> = results
+    let filtered: Vec<_> = results
         .iter()
         .filter(|r| {
             msg_meta_map
                 .get(&r.id)
                 .is_some_and(|meta| member_channel_ids.contains(&meta.channel_id))
         })
+        .collect();
+    let total = filtered.len();
+    let matches: Vec<serde_json::Value> = filtered
+        .into_iter()
         .take(limit)
         .map(|r| {
             let meta = msg_meta_map.get(&r.id);
@@ -1661,7 +1668,7 @@ pub async fn search_messages(
     slack::ok(json!({
         "messages": {
             "matches": matches,
-            "total": matches.len(),
+            "total": total,
         }
     }))
 }
