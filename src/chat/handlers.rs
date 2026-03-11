@@ -1312,12 +1312,18 @@ pub async fn conversations_invite(
         "SELECT archived_at FROM channels WHERE id = {}",
         req.channel
     );
-    if let Ok(r) = state.api.query_router().query_sync(&arch_sql) {
-        if let Some(row) = r.rows.first() {
-            let archived = row[0].to_json().as_str().unwrap_or("").to_string();
-            if !archived.is_empty() {
-                return slack::err("channel_archived");
+    match state.api.query_router().query_sync(&arch_sql) {
+        Ok(r) => {
+            if let Some(row) = r.rows.first() {
+                let archived = row[0].to_json().as_str().unwrap_or("").to_string();
+                if !archived.is_empty() {
+                    return slack::err("channel_archived");
+                }
             }
+        }
+        Err(e) => {
+            tracing::error!("archived check failed: {e}");
+            return slack::err("internal_error");
         }
     }
 
@@ -2046,12 +2052,18 @@ pub async fn chat_post_message(
         "SELECT archived_at FROM channels WHERE id = {}",
         req.channel
     );
-    if let Ok(r) = state.api.query_router().query_sync(&arch_sql) {
-        if let Some(row) = r.rows.first() {
-            let archived = row[0].to_json().as_str().unwrap_or("").to_string();
-            if !archived.is_empty() {
-                return slack::err("channel_archived");
+    match state.api.query_router().query_sync(&arch_sql) {
+        Ok(r) => {
+            if let Some(row) = r.rows.first() {
+                let archived = row[0].to_json().as_str().unwrap_or("").to_string();
+                if !archived.is_empty() {
+                    return slack::err("channel_archived");
+                }
             }
+        }
+        Err(e) => {
+            tracing::error!("archived check failed: {e}");
+            return slack::err("internal_error");
         }
     }
 

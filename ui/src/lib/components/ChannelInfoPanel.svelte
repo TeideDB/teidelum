@@ -35,7 +35,8 @@
 		popoverUserId = userId;
 	}
 
-	const isOwner = $derived(channel.created_by === $auth.user?.id);
+	const myRole = $derived(members.find(m => m.id === $auth.user?.id)?.role);
+	const isOwnerOrAdmin = $derived(myRole === 'owner' || myRole === 'admin');
 	const isArchived = $derived(!!channel.archived_at);
 
 	onMount(() => {
@@ -240,7 +241,7 @@
 			<!-- Actions -->
 			{#if channel.kind !== 'dm'}
 				<div class="flex flex-wrap gap-2">
-					{#if isOwner && !isArchived}
+					{#if isOwnerOrAdmin && !isArchived}
 						<button
 							onclick={startEdit}
 							class="rounded bg-primary-darker/60 px-3 py-1.5 text-xs text-primary-lighter hover:bg-primary-darker hover:text-heading"
@@ -256,7 +257,7 @@
 							Add people
 						</button>
 					{/if}
-					{#if isOwner}
+					{#if isOwnerOrAdmin}
 						{#if isArchived}
 							<button
 								onclick={handleUnarchive}
@@ -294,8 +295,8 @@
 						>
 							<Avatar url={getUserAvatar(member.id)} name={getUserName(member.id)} size="sm" />
 							<span class="text-sm text-gray-300">{getUserName(member.id)}</span>
-							{#if member.id === channel.created_by}
-								<span class="text-xs text-primary-light/40">owner</span>
+							{#if member.role === 'owner' || member.role === 'admin'}
+								<span class="text-xs text-primary-light/40">{member.role}</span>
 							{/if}
 						</button>
 					{/each}
