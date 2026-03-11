@@ -1959,3 +1959,236 @@ async fn test_set_notification_level() {
     assert_eq!(body["ok"], false);
     assert_eq!(body["error"], "invalid_level");
 }
+
+#[tokio::test]
+async fn test_search_messages_with_filters() {
+    let (app, _tmp) = setup().await;
+
+    // Register two users
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.register",
+            json!({"username": "searchuser1", "password": "secret123", "email": "su1@test.com"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    let token1 = body["token"].as_str().unwrap().to_string();
+    let user1_id = body["user_id"].as_str().unwrap().to_string();
+
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.register",
+            json!({"username": "searchuser2", "password": "secret123", "email": "su2@test.com"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    let token2 = body["token"].as_str().unwrap().to_string();
+    let _user2_id = body["user_id"].as_str().unwrap().to_string();
+
+    // User1 creates a channel and user2 joins
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "search-test-chan", "kind": "public"}),
+            Some(&token1),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let channel_id = body["channel"]["id"].as_str().unwrap().to_string();
+
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.join",
+            json!({"channel": channel_id}),
+            Some(&token2),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // User1 posts a message with searchable keyword
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/chat.postMessage",
+            json!({"channel": channel_id, "text": "xylophone unique keyword from user1"}),
+            Some(&token1),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // User2 posts a message with same keyword
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/chat.postMessage",
+            json!({"channel": channel_id, "text": "xylophone unique keyword from user2"}),
+            Some(&token2),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Search without filter — should return both messages
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/search.messages",
+            json!({"query": "xylophone"}),
+            Some(&token1),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let matches = body["messages"]["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 2, "should find both messages without filter");
+
+    // Search with user_id filter — should return only user1's message
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/search.messages",
+            json!({"query": "xylophone", "user_id": user1_id}),
+            Some(&token1),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let matches = body["messages"]["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 1, "should find only user1's message with user_id filter");
+    assert_eq!(
+        matches[0]["user"].as_i64().unwrap().to_string(),
+        user1_id,
+        "filtered result should be from user1"
+    );
+
+    // Search with channel_id filter — should return results from that channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/search.messages",
+            json!({"query": "xylophone", "channel_id": channel_id}),
+            Some(&token1),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let matches = body["messages"]["matches"].as_array().unwrap();
+    assert_eq!(matches.len(), 2, "should find both messages with channel_id filter");
+
+    // Empty query should fail
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/search.messages",
+            json!({"query": ""}),
+            Some(&token1),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "invalid_arguments");
+}
+
+#[tokio::test]
+async fn test_conversations_directory() {
+    let (app, _tmp) = setup().await;
+
+    let token = register_and_login(&app, "diruser", "secret123", "diruser@test.com").await;
+
+    // Create a public channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "public-alpha", "kind": "public", "topic": "Alpha topic", "description": "Alpha desc"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Create another public channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "public-beta", "kind": "public", "topic": "Beta topic"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Create a private channel — should NOT appear in directory
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "private-gamma", "kind": "private"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Fetch directory with no filters
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.directory",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let channels = body["channels"].as_array().unwrap();
+    // Should contain only public channels (may include "general" if auto-created)
+    let names: Vec<&str> = channels.iter().map(|c| c["name"].as_str().unwrap()).collect();
+    assert!(names.contains(&"public-alpha"), "directory should contain public-alpha");
+    assert!(names.contains(&"public-beta"), "directory should contain public-beta");
+    assert!(!names.contains(&"private-gamma"), "directory should NOT contain private channel");
+
+    // Each channel should have member_count
+    let alpha = channels.iter().find(|c| c["name"].as_str().unwrap() == "public-alpha").unwrap();
+    assert!(alpha["member_count"].as_i64().unwrap() >= 1, "public-alpha should have at least 1 member");
+
+    // Test query filter
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.directory",
+            json!({"query": "alpha"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let channels = body["channels"].as_array().unwrap();
+    assert_eq!(channels.len(), 1, "query filter should match only one channel");
+    assert_eq!(channels[0]["name"].as_str().unwrap(), "public-alpha");
+}

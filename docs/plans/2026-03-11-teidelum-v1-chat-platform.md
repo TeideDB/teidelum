@@ -2119,15 +2119,15 @@ Intercept Cmd+F, open SearchModal with channel filter pre-set to current channel
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Write test for search.messages with filters**
+- [x] **Step 1: Write test for search.messages with filters**
 
 Post messages from two users. Search with `user_id` filter — should return only that user's messages.
 
-- [ ] **Step 2: Write test for conversations.directory**
+- [x] **Step 2: Write test for conversations.directory**
 
 Create public and private channels. Directory should return only public channels. Test `query` filter.
 
-- [ ] **Step 3: Run tests, commit**
+- [x] **Step 3: Run tests, commit**
 
 ---
 
