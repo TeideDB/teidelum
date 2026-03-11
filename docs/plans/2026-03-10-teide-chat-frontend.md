@@ -1539,7 +1539,7 @@ git commit -m "feat(chat-ui): add register page"
 **Files:**
 - Modify: `teidelum/ui/src/routes/+layout.svelte`
 
-- [ ] **Step 1: Add auth guard to root layout**
+- [x] **Step 1: Add auth guard to root layout**
 
 Update `src/routes/+layout.svelte` to check auth state and redirect unauthenticated users to `/login`:
 
@@ -1582,11 +1582,11 @@ Update `src/routes/+layout.svelte` to check auth state and redirect unauthentica
 {/if}
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/+layout.svelte
