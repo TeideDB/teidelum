@@ -272,6 +272,9 @@
 								class="text-sm font-bold text-gray-200 hover:underline cursor-pointer"
 								onclick={(e) => openProfilePopover(msg.user_id, e)}
 							>{getUserName(msg.user_id)}</button>
+							{#if getUser(msg.user_id)?.status_emoji}
+								<span class="text-sm" title={getUser(msg.user_id)?.status_text || ''}>{getUser(msg.user_id)?.status_emoji}</span>
+							{/if}
 							<span class="text-xs text-primary-light/40">{formatTime(msg.created_at)}</span>
 							{#if msg.edited_at}
 								<span class="text-xs text-primary-light/40">(edited)</span>

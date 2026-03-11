@@ -9,13 +9,84 @@
 	} from '$lib/stores/channels';
 	import { unreads } from '$lib/stores/unreads';
 	import { auth, doLogout } from '$lib/stores/auth';
+	import { usersUpdateProfile } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 	import type { Channel } from '$lib/types';
 
 	let showCreateModal = $state(false);
 	let newChannelName = $state('');
 	let newChannelTopic = $state('');
 	let showUserMenu = $state(false);
+	let showStatusModal = $state(false);
+	let statusText = $state('');
+	let statusEmoji = $state('');
+	let showStatusEmojiPicker = $state(false);
+
+	// Map short names back to native emoji
+	const nameToEmoji: Record<string, string> = {
+		'+1': '\u{1F44D}',
+		'-1': '\u{1F44E}',
+		heart: '\u{2764}\u{FE0F}',
+		laughing: '\u{1F606}',
+		eyes: '\u{1F440}',
+		tada: '\u{1F389}',
+		fire: '\u{1F525}',
+		rocket: '\u{1F680}',
+		'100': '\u{1F4AF}',
+		thinking: '\u{1F914}',
+		calendar: '\u{1F4C5}',
+		palm_tree: '\u{1F334}',
+		house: '\u{1F3E0}',
+		face_with_thermometer: '\u{1F912}'
+	};
+
+	const quickStatuses = [
+		{ emoji: '\u{1F4C5}', text: 'In a meeting' },
+		{ emoji: '\u{1F3E0}', text: 'Working remotely' },
+		{ emoji: '\u{1F334}', text: 'On vacation' },
+		{ emoji: '\u{1F912}', text: 'Out sick' }
+	];
+
+	function openStatusModal() {
+		showUserMenu = false;
+		statusText = $auth.user?.status_text ?? '';
+		statusEmoji = $auth.user?.status_emoji ?? '';
+		showStatusModal = true;
+	}
+
+	function handleStatusEmojiSelect(name: string) {
+		statusEmoji = nameToEmoji[name] || name;
+		showStatusEmojiPicker = false;
+	}
+
+	async function saveStatus() {
+		await usersUpdateProfile({
+			status_text: statusText,
+			status_emoji: statusEmoji
+		});
+		if ($auth.user) {
+			$auth.user.status_text = statusText;
+			$auth.user.status_emoji = statusEmoji;
+		}
+		showStatusModal = false;
+	}
+
+	function applyQuickStatus(emoji: string, text: string) {
+		statusEmoji = emoji;
+		statusText = text;
+	}
+
+	async function clearStatus() {
+		statusEmoji = '';
+		statusText = '';
+		await usersUpdateProfile({ status_text: '', status_emoji: '' });
+		if ($auth.user) {
+			$auth.user.status_text = '';
+			$auth.user.status_emoji = '';
+		}
+		showStatusModal = false;
+	}
 
 	function navigateToChannel(channel: Channel) {
 		setActiveChannel(channel.id);
@@ -77,11 +148,24 @@
 			{#if showUserMenu}
 				<div class="absolute bottom-full left-2 right-2 mb-1 rounded-md bg-navy-light shadow-lg ring-1 ring-primary-dark/60 z-50">
 					<button
+						onclick={openStatusModal}
+						class="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white rounded-t-md"
+					>
+						{#if $auth.user?.status_emoji}
+							<span>{$auth.user.status_emoji}</span>
+						{:else}
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+						{/if}
+						{$auth.user?.status_text || 'Set status'}
+					</button>
+					<button
 						onclick={() => {
 							showUserMenu = false;
 							goto('/settings');
 						}}
-						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white rounded-t-md"
+						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white"
 					>
 						Settings
 					</button>
@@ -221,6 +305,75 @@
 					</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+<!-- Set status modal -->
+{#if showStatusModal}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+		<div class="w-full max-w-sm rounded-lg bg-navy-light p-6 shadow-xl">
+			<h3 class="mb-4 font-[Oswald] text-lg font-semibold text-white">Set a status</h3>
+
+			<div class="mb-3 flex items-center gap-2">
+				<div class="relative">
+					<button
+						onclick={() => (showStatusEmojiPicker = !showStatusEmojiPicker)}
+						class="flex h-10 w-10 items-center justify-center rounded bg-navy text-lg hover:bg-navy/80"
+						title="Pick emoji"
+					>
+						{statusEmoji || '\u{1F642}'}
+					</button>
+					{#if showStatusEmojiPicker}
+						<div class="absolute bottom-full left-0 z-50 mb-2">
+							<EmojiPicker onSelect={handleStatusEmojiSelect} />
+						</div>
+					{/if}
+				</div>
+				<input
+					type="text"
+					bind:value={statusText}
+					class="flex-1 rounded bg-navy px-3 py-2 text-sm text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
+					placeholder="What's your status?"
+					maxlength="100"
+				/>
+			</div>
+
+			<!-- Quick statuses -->
+			<div class="mb-4 space-y-1">
+				{#each quickStatuses as qs}
+					<button
+						onclick={() => applyQuickStatus(qs.emoji, qs.text)}
+						class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white"
+					>
+						<span>{qs.emoji}</span>
+						<span>{qs.text}</span>
+					</button>
+				{/each}
+			</div>
+
+			<div class="flex justify-between pt-2">
+				<button
+					onclick={clearStatus}
+					class="rounded px-3 py-2 text-sm text-primary-lighter/70 hover:text-white"
+				>
+					Clear status
+				</button>
+				<div class="flex gap-2">
+					<button
+						onclick={() => (showStatusModal = false)}
+						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-white"
+					>
+						Cancel
+					</button>
+					<button
+						onclick={saveStatus}
+						class="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
+					>
+						Save
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
 {/if}

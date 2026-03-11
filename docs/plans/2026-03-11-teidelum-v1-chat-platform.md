@@ -1899,7 +1899,7 @@ Clicking a member name opens the popover.
 **Files:**
 - Modify: `ui/src/lib/components/Sidebar.svelte`
 
-- [ ] **Step 1: Add status setter to sidebar user menu**
+- [x] **Step 1: Add status setter to sidebar user menu**
 
 When clicking "Set status" in the user menu:
 - Show a small modal with emoji selector (from EmojiPicker) + text input
@@ -1907,11 +1907,11 @@ When clicking "Set status" in the user menu:
 - "Clear status" button
 - Save calls `api.usersUpdateProfile({ status_text, status_emoji })`
 
-- [ ] **Step 2: Display status in messages and popover**
+- [x] **Step 2: Display status in messages and popover**
 
 Show status emoji next to display name in MessageList and UserProfilePopover.
 
-- [ ] **Step 3: Type check, commit**
+- [x] **Step 3: Type check, commit**
 
 ---
 
