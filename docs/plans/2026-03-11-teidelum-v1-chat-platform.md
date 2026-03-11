@@ -2087,11 +2087,11 @@ pub async fn conversations_directory(
 - Modify: `ui/src/lib/components/Sidebar.svelte`
 - Modify: `ui/src/lib/api.ts`
 
-- [ ] **Step 1: Add filter UI to SearchModal**
+- [x] **Step 1: Add filter UI to SearchModal**
 
 Add filter bar with: user dropdown (uses users.search), channel dropdown (uses conversations.autocomplete), date range picker. Pass filters to `api.searchMessages()`.
 
-- [ ] **Step 2: Add API for directory**
+- [x] **Step 2: Add API for directory**
 
 ```typescript
 export function conversationsDirectory(query?: string, limit?: number, cursor?: Id): Promise<{
@@ -2102,15 +2102,15 @@ export function conversationsDirectory(query?: string, limit?: number, cursor?: 
 }
 ```
 
-- [ ] **Step 3: Create ChannelDirectory component**
+- [x] **Step 3: Create ChannelDirectory component**
 
 Modal showing all public channels. Search/filter. Each entry: name, topic, member count, Join button. Called from "Browse channels" button in Sidebar.
 
-- [ ] **Step 4: Add Cmd+F for in-channel search**
+- [x] **Step 4: Add Cmd+F for in-channel search**
 
 Intercept Cmd+F, open SearchModal with channel filter pre-set to current channel.
 
-- [ ] **Step 5: Type check, commit**
+- [x] **Step 5: Type check, commit**
 
 ---
 

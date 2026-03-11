@@ -13,6 +13,7 @@
 	import { usersUpdateProfile, conversationsMute, conversationsUnmute } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
+	import ChannelDirectory from '$lib/components/ChannelDirectory.svelte';
 	import type { Channel } from '$lib/types';
 
 	let showCreateModal = $state(false);
@@ -23,6 +24,7 @@
 	let statusText = $state('');
 	let statusEmoji = $state('');
 	let showStatusEmojiPicker = $state(false);
+	let showDirectory = $state(false);
 	let contextMenu = $state<{ x: number; y: number; channel: Channel } | null>(null);
 
 	// Map short names back to native emoji
@@ -215,15 +217,26 @@
 		<div class="px-2 pt-3">
 			<div class="flex items-center justify-between px-2 pb-1">
 				<span class="text-xs font-semibold uppercase tracking-wide text-primary-light/50">Channels</span>
-				<button
-					onclick={() => (showCreateModal = true)}
-					class="text-primary-light/50 hover:text-primary-lighter"
-					title="Create channel"
-				>
-					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-					</svg>
-				</button>
+				<div class="flex items-center gap-1">
+					<button
+						onclick={() => (showDirectory = true)}
+						class="text-primary-light/50 hover:text-primary-lighter"
+						title="Browse channels"
+					>
+						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+						</svg>
+					</button>
+					<button
+						onclick={() => (showCreateModal = true)}
+						class="text-primary-light/50 hover:text-primary-lighter"
+						title="Create channel"
+					>
+						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+					</button>
+				</div>
 			</div>
 
 			{#each $nonDmChannels as channel}
@@ -443,4 +456,8 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+{#if showDirectory}
+	<ChannelDirectory onClose={() => (showDirectory = false)} />
 {/if}

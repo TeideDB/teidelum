@@ -1,5 +1,6 @@
 import type {
 	AuthResponse,
+	Channel,
 	ChannelListResponse,
 	ChannelResponse,
 	FileUploadResponse,
@@ -253,6 +254,19 @@ export function conversationsAutocomplete(
 	return call('conversations.autocomplete', { query });
 }
 
+// === Directory ===
+
+export function conversationsDirectory(query?: string, limit?: number, cursor?: Id): Promise<{
+	ok: boolean;
+	channels?: Channel[];
+}> {
+	const body: Record<string, unknown> = {};
+	if (query !== undefined) body.query = query;
+	if (limit !== undefined) body.limit = limit;
+	if (cursor !== undefined) body.cursor = cursor;
+	return call('conversations.directory', body);
+}
+
 // === Reactions ===
 
 export function reactionsAdd(name: string, timestamp: Id): Promise<OkResponse> {
@@ -268,11 +282,17 @@ export function reactionsRemove(name: string, timestamp: Id): Promise<OkResponse
 export async function searchMessages(
 	query: string,
 	channel?: Id,
-	limit?: number
+	limit?: number,
+	user_id?: Id,
+	date_from?: string,
+	date_to?: string
 ): Promise<SearchResponse> {
 	const body: Record<string, unknown> = { query };
-	if (channel !== undefined) body.channel = channel;
+	if (channel !== undefined) body.channel_id = channel;
 	if (limit !== undefined) body.limit = limit;
+	if (user_id !== undefined) body.user_id = user_id;
+	if (date_from !== undefined) body.date_from = date_from;
+	if (date_to !== undefined) body.date_to = date_to;
 	// Backend returns { messages: { matches: [...], total: N } }
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const res = await call<any>('search.messages', body);

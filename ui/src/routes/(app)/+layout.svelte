@@ -2,14 +2,17 @@
 	import { onMount } from 'svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import SearchModal from '$lib/components/SearchModal.svelte';
-	import { loadChannels, initChannelWsListeners } from '$lib/stores/channels';
+	import { loadChannels, initChannelWsListeners, activeChannelId } from '$lib/stores/channels';
 	import { loadUsers, initUserWsListeners } from '$lib/stores/users';
 	import { initMessageWsListeners } from '$lib/stores/messages';
 	import { initUnreadsWsListeners } from '$lib/stores/unreads';
 	import { usersSetPresence } from '$lib/api';
+	import { get } from 'svelte/store';
+	import type { Id } from '$lib/types';
 
 	let { children } = $props();
 	let showSearch = $state(false);
+	let searchInitialChannel = $state<Id | undefined>(undefined);
 
 	let idleTimer: ReturnType<typeof setTimeout>;
 	let isIdle = false;
@@ -52,7 +55,13 @@
 	function handleGlobalKeydown(e: KeyboardEvent) {
 		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
 			e.preventDefault();
+			searchInitialChannel = undefined;
 			showSearch = !showSearch;
+		}
+		if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+			e.preventDefault();
+			searchInitialChannel = get(activeChannelId) ?? undefined;
+			showSearch = true;
 		}
 	}
 </script>
@@ -72,5 +81,5 @@
 </div>
 
 {#if showSearch}
-	<SearchModal onClose={() => (showSearch = false)} />
+	<SearchModal onClose={() => (showSearch = false)} initialChannel={searchInitialChannel} />
 {/if}
