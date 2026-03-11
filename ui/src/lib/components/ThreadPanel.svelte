@@ -5,7 +5,7 @@
 	import { users } from '$lib/stores/users';
 	import { sendMessage } from '$lib/stores/messages';
 	import { sendTyping } from '$lib/ws';
-	import { renderMarkdown } from '$lib/markdown';
+	import { renderMarkdown, onHighlightReady } from '$lib/markdown';
 	import Autocomplete from './Autocomplete.svelte';
 	import type { Message, Id } from '$lib/types';
 
@@ -31,6 +31,16 @@
 	let triggerStart = $state(0);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let autocompleteRef: Autocomplete | undefined = $state();
+
+	// Re-render trigger for async Shiki highlighting
+	let highlightVersion = $state(0);
+	$effect(() => {
+		return onHighlightReady(() => { highlightVersion++; });
+	});
+	function renderMd(text: string): string {
+		void highlightVersion;
+		return renderMarkdown(text);
+	}
 
 	$effect(() => {
 		// Reload replies when parent message changes
@@ -234,7 +244,7 @@
 					<span class="text-sm font-bold text-gray-200">{getUserName(parentMessage.user_id)}</span>
 					<span class="text-xs text-primary-light/40">{formatTime(parentMessage.created_at)}</span>
 				</div>
-				<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMarkdown(parentMessage.text)}</div>
+				<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMd(parentMessage.text)}</div>
 				{#if parentMessage.files && parentMessage.files.length > 0}
 					<div class="mt-1 flex flex-col gap-1">
 						{#each parentMessage.files as file}
@@ -288,7 +298,7 @@
 							<span class="text-sm font-bold text-gray-200">{getUserName(reply.user_id)}</span>
 							<span class="text-xs text-primary-light/40">{formatTime(reply.created_at)}</span>
 						</div>
-						<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMarkdown(reply.text)}</div>
+						<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMd(reply.text)}</div>
 						{#if reply.files && reply.files.length > 0}
 							<div class="mt-1 flex flex-col gap-1">
 								{#each reply.files as file}

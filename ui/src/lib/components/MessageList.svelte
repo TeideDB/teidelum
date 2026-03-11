@@ -4,7 +4,7 @@
 	import { users } from '$lib/stores/users';
 	import { auth } from '$lib/stores/auth';
 	import { reactionsAdd, reactionsRemove, pinsAdd, pinsRemove, fileDownloadUrl } from '$lib/api';
-	import { renderMarkdown } from '$lib/markdown';
+	import { renderMarkdown, onHighlightReady } from '$lib/markdown';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import MessageContextMenu from '$lib/components/MessageContextMenu.svelte';
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
@@ -37,6 +37,16 @@
 	// Image lightbox state
 	let lightboxSrc = $state<string | null>(null);
 	let lightboxAlt = $state('');
+
+	// Re-render trigger for async Shiki highlighting
+	let highlightVersion = $state(0);
+	$effect(() => {
+		return onHighlightReady(() => { highlightVersion++; });
+	});
+	function renderMd(text: string): string {
+		void highlightVersion;
+		return renderMarkdown(text);
+	}
 
 	// User profile popover state
 	let popoverUserId = $state<Id | null>(null);
@@ -323,7 +333,7 @@
 							</div>
 						</div>
 					{:else}
-						<div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMarkdown(msg.text)}</div>
+						<div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMd(msg.text)}</div>
 					{/if}
 
 					<!-- Link previews -->

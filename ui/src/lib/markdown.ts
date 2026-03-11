@@ -40,6 +40,15 @@ getHighlighter();
 /** Synchronous cache for highlighted code blocks */
 const highlightCache = new Map<string, string>();
 
+/** Callbacks to notify when new highlights are ready */
+const highlightListeners = new Set<() => void>();
+
+/** Register a callback for when async highlighting completes */
+export function onHighlightReady(cb: () => void): () => void {
+	highlightListeners.add(cb);
+	return () => highlightListeners.delete(cb);
+}
+
 /** Queue a code block for async highlighting, returns placeholder or cached result */
 function highlightCode(code: string, lang: string): string {
 	const key = `${lang}:${code}`;
@@ -55,6 +64,8 @@ function highlightCode(code: string, lang: string): string {
 			theme: 'github-dark'
 		});
 		highlightCache.set(key, html);
+		// Notify listeners so components can re-render
+		for (const cb of highlightListeners) cb();
 	});
 
 	// Return plain code block as fallback until cache is populated
@@ -104,6 +115,6 @@ export function renderMarkdown(text: string): string {
 			'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3',
 			'span', 'div', 'button'
 		],
-		ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'data-code']
+		ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'data-code', 'style']
 	});
 }

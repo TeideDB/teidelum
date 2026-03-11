@@ -548,6 +548,8 @@ pub async fn users_get_settings(
     Extension(claims): Extension<Claims>,
     Json(_req): Json<serde_json::Value>,
 ) -> Response {
+    // Hold lock for entire check-then-insert to prevent TOCTOU duplicate rows
+    let _guard = state.settings_lock.lock().await;
     let sql = format!(
         "SELECT theme, notification_default, timezone FROM user_settings WHERE user_id = {}",
         claims.user_id
@@ -565,8 +567,6 @@ pub async fn users_get_settings(
             }))
         }
         Ok(_) => {
-            // Create default settings (hold lock to prevent TOCTOU race)
-            let _guard = state.settings_lock.lock().await;
             let now = now_timestamp();
             let insert = format!(
                 "INSERT INTO user_settings (user_id, theme, notification_default, timezone, created_at) \
@@ -1554,8 +1554,12 @@ pub async fn conversations_mark_read(
 
     let now = now_timestamp();
     let ts = match req.ts {
-        Some(t) if t > now => now.clone(),
-        Some(t) => t,
+        Some(t) => {
+            if t.parse::<u64>().is_err() {
+                return slack::err("invalid_arguments");
+            }
+            if t > now { now.clone() } else { t }
+        }
         None => now,
     };
 
@@ -2965,7 +2969,7 @@ pub async fn links_unfurl(
     // Fetch with timeout
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
-        .redirect(reqwest::redirect::Policy::limited(3))
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .unwrap_or_default();
 
