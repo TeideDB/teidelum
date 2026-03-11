@@ -536,7 +536,7 @@ pub async fn conversations_history(
         }
     };
 
-    let messages: Vec<serde_json::Value> = result
+    let mut messages: Vec<serde_json::Value> = result
         .rows
         .iter()
         .map(|row| {
@@ -557,6 +557,46 @@ pub async fn conversations_history(
             })
         })
         .collect();
+
+    // Enrich parent messages with reply metadata
+    for msg in messages.iter_mut() {
+        let msg_id_str = msg["ts"].as_str().unwrap_or("0");
+        let msg_id: i64 = msg_id_str.parse().unwrap_or(0);
+        if msg_id == 0 {
+            continue;
+        }
+        let reply_sql = format!(
+            "SELECT COUNT(*) AS cnt FROM messages WHERE thread_id = {} AND deleted_at = ''",
+            msg_id
+        );
+        if let Ok(reply_result) = state.api.query_router().query_sync(&reply_sql) {
+            if let Some(row) = reply_result.rows.first() {
+                let count_str = row[0].to_json();
+                let count: i64 = count_str.as_str()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0);
+                if count > 0 {
+                    msg.as_object_mut().unwrap().insert(
+                        "reply_count".to_string(),
+                        serde_json::json!(count),
+                    );
+                    // Get last reply timestamp
+                    let last_sql = format!(
+                        "SELECT MAX(created_at) AS last_reply FROM messages WHERE thread_id = {} AND deleted_at = ''",
+                        msg_id
+                    );
+                    if let Ok(last_result) = state.api.query_router().query_sync(&last_sql) {
+                        if let Some(last_row) = last_result.rows.first() {
+                            msg.as_object_mut().unwrap().insert(
+                                "last_reply_ts".to_string(),
+                                last_row[0].to_json(),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Update channel_reads for this user
     let now = now_timestamp();

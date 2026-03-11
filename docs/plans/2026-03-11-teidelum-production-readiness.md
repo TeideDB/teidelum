@@ -563,7 +563,7 @@ git commit -m "feat(chat): add conversations.markRead endpoint"
 
 When returning messages in `conversations.history`, parent messages should include `reply_count` and `last_reply_ts` so the frontend can show "N replies" badges.
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add to `tests/chat_integration.rs`:
 
@@ -632,7 +632,7 @@ async fn test_thread_metadata() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cargo test test_thread_metadata -- --nocapture
@@ -640,7 +640,7 @@ cargo test test_thread_metadata -- --nocapture
 
 Expected: FAIL — no `reply_count` field on parent message.
 
-- [ ] **Step 3: Enrich parent messages with reply metadata in conversations.history**
+- [x] **Step 3: Enrich parent messages with reply metadata in conversations.history**
 
 In `conversations_history()`, change the `messages` variable to `mut`:
 
@@ -692,7 +692,7 @@ Then, after the `.collect()` and before the `channel_reads` update code (added i
     }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 cargo test test_thread_metadata -- --nocapture
@@ -700,7 +700,7 @@ cargo test test_thread_metadata -- --nocapture
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/chat/handlers.rs tests/chat_integration.rs

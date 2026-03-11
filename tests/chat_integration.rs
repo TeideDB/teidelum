@@ -306,3 +306,66 @@ async fn test_conversations_mark_read() {
     let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == ch_id.to_string()).unwrap();
     assert_eq!(ch["unread_count"].as_i64().unwrap(), 0);
 }
+
+#[tokio::test]
+async fn test_thread_metadata() {
+    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-12345");
+    let tmp = tempfile::tempdir().unwrap();
+    let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
+    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    let api = std::sync::Arc::new(api);
+    let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
+    let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
+        api: api.clone(),
+        hub: hub.clone(),
+    });
+    let app = teidelum::chat::handlers::chat_routes(state);
+
+    // Register
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "dave", "password": "secret123", "email": "dave@test.com"}),
+        None,
+    )).await.unwrap();
+    let token = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Create channel
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.create",
+        json!({"name": "thread-test"}),
+        Some(&token),
+    )).await.unwrap();
+    let ch_id: i64 = body_json(resp).await["channel"]["id"].as_str().unwrap().parse().unwrap();
+
+    // Post parent message
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/chat.postMessage",
+        json!({"channel": ch_id, "text": "parent message"}),
+        Some(&token),
+    )).await.unwrap();
+    let parent_ts = body_json(resp).await["message"]["ts"].as_str().unwrap().to_string();
+    let parent_id: i64 = parent_ts.parse().unwrap();
+
+    // Post 3 replies
+    for i in 0..3 {
+        let _ = app.clone().oneshot(post_json(
+            "/api/slack/chat.postMessage",
+            json!({"channel": ch_id, "text": format!("reply {i}"), "thread_ts": parent_id}),
+            Some(&token),
+        )).await.unwrap();
+    }
+
+    // Fetch history — parent should have reply_count: 3
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.history",
+        json!({"channel": ch_id}),
+        Some(&token),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    let messages = body["messages"].as_array().unwrap();
+
+    // History returns top-level messages only (thread_id == 0), so parent should be there
+    let parent = messages.iter().find(|m| m["ts"].as_str().unwrap() == parent_ts).unwrap();
+    assert_eq!(parent["reply_count"].as_i64().unwrap(), 3, "expected 3 replies");
+    assert!(parent["last_reply_ts"].is_string(), "expected last_reply_ts to be set");
+}
