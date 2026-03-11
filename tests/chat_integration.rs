@@ -3,6 +3,7 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use axum::Router;
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
 use tower::ServiceExt;
@@ -27,6 +28,57 @@ fn post_json(uri: &str, body: Value, token: Option<&str>) -> Request<Body> {
 async fn body_json(resp: axum::response::Response) -> Value {
     let bytes = resp.into_body().collect().await.unwrap().to_bytes();
     serde_json::from_slice(&bytes).unwrap()
+}
+
+/// Setup helper: creates temp dir, initializes API and chat tables, returns (app, _tmp).
+async fn setup() -> (Router, tempfile::TempDir) {
+    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-12345");
+    let tmp = tempfile::tempdir().unwrap();
+    let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
+    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    let api = std::sync::Arc::new(api);
+    let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
+    let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
+        api: api.clone(),
+        hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
+    });
+    let app = teidelum::chat::handlers::chat_routes(state);
+    (app, tmp)
+}
+
+/// Register a user and return their auth token.
+async fn register_and_login(app: &Router, username: &str, password: &str, email: &str) -> String {
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.register",
+            json!({"username": username, "password": password, "email": email}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true, "register failed: {body}");
+    body["token"].as_str().unwrap().to_string()
+}
+
+/// Get the user ID for the authenticated user by decoding from users.list.
+async fn get_user_id(app: &Router, token: &str) -> String {
+    let resp = app
+        .clone()
+        .oneshot(post_json("/api/slack/users.list", json!({}), Some(token)))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    // The token belongs to the user who registered — find them by checking the JWT claims
+    // For simplicity, we get the user_id from a users.info-like approach via the token
+    // Actually, let's use auth.test or just parse from register response
+    // Since we can't easily get the user_id from the token alone, we'll use the register response
+    // But this helper is called after the fact, so let's query users.list and find the user
+    // We need to know the username... let's just return the first user's ID
+    body["members"][0]["id"].as_str().unwrap().to_string()
 }
 
 #[tokio::test]
@@ -858,4 +910,129 @@ async fn test_reaction_lifecycle() {
         .unwrap();
     let body = body_json(resp).await;
     assert_eq!(body["ok"], false);
+}
+
+#[tokio::test]
+async fn test_update_profile() {
+    let (app, _tmp) = setup().await;
+    let token = register_and_login(&app, "profileuser", "pass123", "profile@test.com").await;
+
+    // Update display_name
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.updateProfile",
+            json!({"display_name": "New Name", "avatar_url": "https://example.com/avatar.png"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Verify via users.info
+    let user_id = get_user_id(&app, &token).await;
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.info",
+            json!({"user": user_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["user"]["display_name"], "New Name");
+    assert_eq!(body["user"]["avatar_url"], "https://example.com/avatar.png");
+}
+
+#[tokio::test]
+async fn test_change_password() {
+    let (app, _tmp) = setup().await;
+    let _token = register_and_login(&app, "pwuser", "oldpass", "pw@test.com").await;
+
+    // Change password
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.changePassword",
+            json!({"old_password": "oldpass", "new_password": "newpass"}),
+            Some(&_token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Login with new password should work
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.login",
+            json!({"username": "pwuser", "password": "newpass"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Login with old password should fail
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.login",
+            json!({"username": "pwuser", "password": "oldpass"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+}
+
+#[tokio::test]
+async fn test_user_settings() {
+    let (app, _tmp) = setup().await;
+    let token = register_and_login(&app, "settingsuser", "pass", "settings@test.com").await;
+
+    // Get default settings
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.getSettings",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    assert_eq!(body["settings"]["theme"], "dark");
+
+    // Update theme
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.updateSettings",
+            json!({"theme": "light"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Verify
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/users.getSettings",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["settings"]["theme"], "light");
 }

@@ -493,7 +493,7 @@ git commit -m "feat: add users.getSettings and users.updateSettings endpoints"
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Write test for updateProfile**
+- [x] **Step 1: Write test for updateProfile**
 
 ```rust
 #[tokio::test]
@@ -524,7 +524,7 @@ async fn test_update_profile() {
 
 Note: `setup()` and `register_and_login()` are helpers — extract from existing test pattern (create tmp dir, init API, create chat state, return app). If these helpers don't exist, create them by refactoring the common setup pattern from existing tests.
 
-- [ ] **Step 2: Write test for changePassword**
+- [x] **Step 2: Write test for changePassword**
 
 ```rust
 #[tokio::test]
@@ -561,7 +561,7 @@ async fn test_change_password() {
 }
 ```
 
-- [ ] **Step 3: Write test for settings**
+- [x] **Step 3: Write test for settings**
 
 ```rust
 #[tokio::test]
@@ -599,12 +599,12 @@ async fn test_user_settings() {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/chat_integration.rs
