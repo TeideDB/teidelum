@@ -1068,7 +1068,7 @@ git commit -m "chore: add ui/.gitignore for build artifacts"
 **Files:**
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Add production build instructions to CLAUDE.md**
+- [x] **Step 1: Add production build instructions to CLAUDE.md**
 
 Add to the Frontend section of CLAUDE.md:
 
@@ -1082,7 +1082,7 @@ TEIDE_CHAT_SECRET=<secret> ./target/release/teidelum  # serves frontend + API on
 ```
 ```
 
-- [ ] **Step 2: Add new feature documentation to CLAUDE.md**
+- [x] **Step 2: Add new feature documentation to CLAUDE.md**
 
 Under Key Design Patterns, add:
 
@@ -1092,7 +1092,7 @@ Under Key Design Patterns, add:
 - **Static Frontend Serving** (`server.rs`): When `ui/build/` exists, Axum serves it as a fallback after API routes. SPA routing handled via `index.html` fallback. In dev, use Vite proxy instead.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add CLAUDE.md
