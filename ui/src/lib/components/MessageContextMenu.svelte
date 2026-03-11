@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ReactionPicker from '$lib/components/ReactionPicker.svelte';
+	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 	import type { Message, Id } from '$lib/types';
 
 	interface Props {
@@ -49,12 +49,11 @@
 		</button>
 		{#if showReactionPicker}
 			<div class="absolute -top-2 right-0 z-50 -translate-y-full">
-				<ReactionPicker
+				<EmojiPicker
 					onSelect={(emoji) => {
 						onReact(emoji);
 						showReactionPicker = false;
 					}}
-					onClose={() => (showReactionPicker = false)}
 				/>
 			</div>
 		{/if}

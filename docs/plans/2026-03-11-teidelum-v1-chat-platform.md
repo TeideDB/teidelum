@@ -1512,25 +1512,25 @@ Same autocomplete in thread replies.
 - Modify: `ui/src/lib/components/ReactionPicker.svelte`
 - Modify: `ui/src/lib/components/MessageInput.svelte`
 
-- [ ] **Step 1: Install emoji-mart**
+- [x] **Step 1: Install emoji-mart**
 
 ```bash
 cd ui && npm install emoji-mart @emoji-mart/data
 ```
 
-- [ ] **Step 2: Create EmojiPicker wrapper component**
+- [x] **Step 2: Create EmojiPicker wrapper component**
 
 Wraps the emoji-mart picker with Svelte. Props: `onSelect(emoji: string)`. Positioned as a popover.
 
-- [ ] **Step 3: Replace ReactionPicker with EmojiPicker**
+- [x] **Step 3: Replace ReactionPicker with EmojiPicker**
 
 MessageContextMenu's "React" button opens EmojiPicker instead of the hardcoded 10-emoji grid.
 
-- [ ] **Step 4: Add emoji button to MessageInput**
+- [x] **Step 4: Add emoji button to MessageInput**
 
 Small smiley icon button that opens EmojiPicker, inserts selected emoji at cursor.
 
-- [ ] **Step 5: Type check, commit**
+- [x] **Step 5: Type check, commit**
 
 ---
 

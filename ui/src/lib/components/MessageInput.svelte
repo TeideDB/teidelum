@@ -4,6 +4,7 @@
 	import { usersSearch, conversationsAutocomplete } from '$lib/api';
 	import FileUpload from './FileUpload.svelte';
 	import Autocomplete from './Autocomplete.svelte';
+	import EmojiPicker from './EmojiPicker.svelte';
 	import type { Id } from '$lib/types';
 
 	interface Props {
@@ -17,6 +18,7 @@
 	let text = $state('');
 	let textarea: HTMLTextAreaElement | undefined = $state();
 	let lastTypingSent = $state(0);
+	let showEmojiPicker = $state(false);
 
 	// Autocomplete state
 	let autocompleteVisible = $state(false);
@@ -153,6 +155,42 @@
 		if (debounceTimer) clearTimeout(debounceTimer);
 	}
 
+	// Map short names back to native emoji for inserting into text
+	const nameToEmoji: Record<string, string> = {
+		'+1': '\u{1F44D}',
+		'-1': '\u{1F44E}',
+		'heart': '\u{2764}\u{FE0F}',
+		'laughing': '\u{1F606}',
+		'eyes': '\u{1F440}',
+		'tada': '\u{1F389}',
+		'fire': '\u{1F525}',
+		'rocket': '\u{1F680}',
+		'100': '\u{1F4AF}',
+		'thinking': '\u{1F914}'
+	};
+
+	function handleEmojiSelect(name: string) {
+		// Convert short name to native emoji for text insertion
+		const native = nameToEmoji[name] || name;
+		if (textarea) {
+			const start = textarea.selectionStart;
+			const end = textarea.selectionEnd;
+			text = text.substring(0, start) + native + text.substring(end);
+			showEmojiPicker = false;
+			requestAnimationFrame(() => {
+				if (textarea) {
+					const pos = start + native.length;
+					textarea.selectionStart = pos;
+					textarea.selectionEnd = pos;
+					textarea.focus();
+				}
+			});
+		} else {
+			text += native;
+			showEmojiPicker = false;
+		}
+	}
+
 	async function handleSend() {
 		const trimmed = text.trim();
 		if (!trimmed) return;
@@ -187,6 +225,23 @@
 			rows="1"
 			class="max-h-[200px] flex-1 resize-none bg-transparent text-sm text-white placeholder-primary-light/40 focus:outline-none"
 		></textarea>
+
+		<div class="relative">
+			<button
+				onclick={() => (showEmojiPicker = !showEmojiPicker)}
+				class="flex-shrink-0 rounded p-1 text-primary-light/50 transition hover:text-primary-lighter"
+				title="Add emoji"
+			>
+				<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+				</svg>
+			</button>
+			{#if showEmojiPicker}
+				<div class="absolute bottom-full right-0 z-50 mb-2">
+					<EmojiPicker onSelect={handleEmojiSelect} />
+				</div>
+			{/if}
+		</div>
 
 		<button
 			onclick={handleSend}
