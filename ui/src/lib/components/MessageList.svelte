@@ -134,35 +134,35 @@
 	onscroll={handleScroll}
 >
 	{#if loading && messages.length === 0}
-		<div class="flex h-full items-center justify-center text-gray-500">Loading messages...</div>
+		<div class="flex h-full items-center justify-center text-primary-light/50">Loading messages...</div>
 	{:else if messages.length === 0}
-		<div class="flex h-full items-center justify-center text-gray-500">
+		<div class="flex h-full items-center justify-center text-primary-light/50">
 			No messages yet. Start the conversation!
 		</div>
 	{:else}
 		{#if loading && hasMore}
-			<div class="py-2 text-center text-sm text-gray-500">Loading older messages...</div>
+			<div class="py-2 text-center text-sm text-primary-light/50">Loading older messages...</div>
 		{/if}
 
 		{#each messages as msg, idx}
 			{#if shouldShowDateSeparator(idx)}
 				<div class="my-4 flex items-center">
-					<div class="flex-1 border-t border-gray-700"></div>
-					<span class="px-3 text-xs text-gray-500">{formatDate(msg.created_at)}</span>
-					<div class="flex-1 border-t border-gray-700"></div>
+					<div class="flex-1 border-t border-primary-dark/40"></div>
+					<span class="px-3 text-xs text-primary-light/50">{formatDate(msg.created_at)}</span>
+					<div class="flex-1 border-t border-primary-dark/40"></div>
 				</div>
 			{/if}
 
-			<div class="group relative flex gap-3 px-1 py-0.5 hover:bg-gray-800/50 {shouldShowAuthor(idx) ? 'mt-3' : ''}">
+			<div class="group relative flex gap-3 px-1 py-0.5 hover:bg-navy-light/50 {shouldShowAuthor(idx) ? 'mt-3' : ''}">
 				{#if shouldShowAuthor(idx)}
 					<!-- Avatar -->
-					<div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
+					<div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
 						{getUserAvatar(msg.user_id)}
 					</div>
 				{:else}
 					<!-- Timestamp on hover (aligned with avatar) -->
 					<div class="flex w-9 flex-shrink-0 items-center justify-center">
-						<span class="hidden text-xs text-gray-600 group-hover:inline">{formatTime(msg.created_at)}</span>
+						<span class="hidden text-xs text-primary-light/40 group-hover:inline">{formatTime(msg.created_at)}</span>
 					</div>
 				{/if}
 
@@ -170,9 +170,9 @@
 					{#if shouldShowAuthor(idx)}
 						<div class="flex items-baseline gap-2">
 							<span class="text-sm font-bold text-gray-200">{getUserName(msg.user_id)}</span>
-							<span class="text-xs text-gray-600">{formatTime(msg.created_at)}</span>
+							<span class="text-xs text-primary-light/40">{formatTime(msg.created_at)}</span>
 							{#if msg.edited_at}
-								<span class="text-xs text-gray-600">(edited)</span>
+								<span class="text-xs text-primary-light/40">(edited)</span>
 							{/if}
 						</div>
 					{/if}
@@ -187,13 +187,13 @@
 									href={fileDownloadUrl(file.id, file.filename)}
 									target="_blank"
 									rel="noopener noreferrer"
-									class="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:underline"
+									class="inline-flex items-center gap-1.5 text-xs text-primary-lighter hover:underline"
 								>
 									<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
 									</svg>
 									{file.filename}
-									<span class="text-gray-600">({Math.round(file.size_bytes / 1024)}KB)</span>
+									<span class="text-primary-light/40">({Math.round(file.size_bytes / 1024)}KB)</span>
 								</a>
 							{/each}
 						</div>
@@ -205,10 +205,10 @@
 							{#each msg.reactions as reaction}
 								<button
 									onclick={() => toggleReaction(msg, reaction.name)}
-									class="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-800 px-2 py-0.5 text-xs transition hover:border-blue-500"
+									class="inline-flex items-center gap-1 rounded-full border border-primary-dark/40 bg-navy-light px-2 py-0.5 text-xs transition hover:border-primary"
 								>
 									<span>{reaction.name}</span>
-									<span class="text-gray-400">{reaction.count}</span>
+									<span class="text-primary-light/60">{reaction.count}</span>
 								</button>
 							{/each}
 						</div>
@@ -218,7 +218,7 @@
 					{#if msg.reply_count && msg.reply_count > 0}
 						<button
 							onclick={() => onOpenThread?.(msg)}
-							class="mt-1 text-xs text-blue-400 hover:underline"
+							class="mt-1 text-xs text-primary-lighter hover:underline"
 						>
 							{msg.reply_count} {msg.reply_count === 1 ? 'reply' : 'replies'}
 						</button>
@@ -226,10 +226,10 @@
 				</div>
 
 				<!-- Message actions (hover) -->
-				<div class="absolute -top-3 right-2 hidden gap-1 rounded border border-gray-700 bg-gray-800 p-0.5 shadow group-hover:flex">
+				<div class="absolute -top-3 right-2 hidden gap-1 rounded border border-primary-dark/40 bg-navy-light p-0.5 shadow group-hover:flex">
 					<button
 						onclick={() => toggleReaction(msg, '+1')}
-						class="rounded p-1 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
+						class="rounded p-1 text-primary-light/50 hover:bg-navy-mid hover:text-primary-lighter"
 						title="React"
 					>
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,7 +239,7 @@
 					{#if onOpenThread}
 						<button
 							onclick={() => onOpenThread?.(msg)}
-							class="rounded p-1 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
+							class="rounded p-1 text-primary-light/50 hover:bg-navy-mid hover:text-primary-lighter"
 							title="Reply in thread"
 						>
 							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -44,7 +44,7 @@
 <button
 	onclick={triggerUpload}
 	disabled={uploading}
-	class="rounded p-1 text-gray-500 transition hover:text-gray-300 disabled:opacity-50"
+	class="rounded p-1 text-primary-light/50 transition hover:text-primary-lighter disabled:opacity-50"
 	title="Upload file"
 >
 	{#if uploading}

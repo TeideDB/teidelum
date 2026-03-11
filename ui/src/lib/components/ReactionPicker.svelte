@@ -30,12 +30,12 @@
 	}
 </script>
 
-<div class="rounded-lg border border-gray-700 bg-gray-800 p-2 shadow-xl">
+<div class="rounded-lg border border-primary-dark/40 bg-navy-light p-2 shadow-xl">
 	<div class="grid grid-cols-5 gap-1">
 		{#each commonReactions as name}
 			<button
 				onclick={() => handleSelect(name)}
-				class="rounded p-1.5 text-lg transition hover:bg-gray-700"
+				class="rounded p-1.5 text-lg transition hover:bg-navy-mid"
 				title={name}
 			>
 				{emojiMap[name] ?? name}

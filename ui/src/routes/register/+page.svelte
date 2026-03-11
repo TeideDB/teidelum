@@ -33,12 +33,15 @@
 </script>
 
 <svelte:head>
-	<title>Register - Teide Chat</title>
+	<title>Register - Teidelum</title>
 </svelte:head>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-900">
-	<div class="w-full max-w-sm rounded-lg bg-gray-800 p-8 shadow-xl">
-		<h1 class="mb-6 text-center text-2xl font-bold text-white">Create Account</h1>
+<div class="flex min-h-screen items-center justify-center bg-navy">
+	<div class="w-full max-w-sm rounded-lg bg-navy-light p-8 shadow-xl">
+		<div class="mb-6 flex flex-col items-center gap-2">
+			<img src="/teide-logo.svg" alt="Teidelum" class="h-10 w-auto" />
+			<h1 class="font-[Oswald] text-2xl font-semibold tracking-wide text-white">Create Account</h1>
+		</div>
 
 		<form onsubmit={handleSubmit} class="space-y-4">
 			{#if error}
@@ -46,12 +49,12 @@
 			{/if}
 
 			<div>
-				<label for="username" class="mb-1 block text-sm text-gray-400">Username</label>
+				<label for="username" class="mb-1 block text-sm text-primary-lighter/70">Username</label>
 				<input
 					id="username"
 					type="text"
 					bind:value={username}
-					class="w-full rounded bg-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					class="w-full rounded bg-navy px-3 py-2 text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
 					placeholder="Choose a username"
 					autocomplete="username"
 					required
@@ -59,12 +62,12 @@
 			</div>
 
 			<div>
-				<label for="email" class="mb-1 block text-sm text-gray-400">Email</label>
+				<label for="email" class="mb-1 block text-sm text-primary-lighter/70">Email</label>
 				<input
 					id="email"
 					type="email"
 					bind:value={email}
-					class="w-full rounded bg-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					class="w-full rounded bg-navy px-3 py-2 text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
 					placeholder="you@example.com"
 					autocomplete="email"
 					required
@@ -72,12 +75,12 @@
 			</div>
 
 			<div>
-				<label for="password" class="mb-1 block text-sm text-gray-400">Password</label>
+				<label for="password" class="mb-1 block text-sm text-primary-lighter/70">Password</label>
 				<input
 					id="password"
 					type="password"
 					bind:value={password}
-					class="w-full rounded bg-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					class="w-full rounded bg-navy px-3 py-2 text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
 					placeholder="Choose a password"
 					autocomplete="new-password"
 					required
@@ -85,12 +88,12 @@
 			</div>
 
 			<div>
-				<label for="confirmPassword" class="mb-1 block text-sm text-gray-400">Confirm Password</label>
+				<label for="confirmPassword" class="mb-1 block text-sm text-primary-lighter/70">Confirm Password</label>
 				<input
 					id="confirmPassword"
 					type="password"
 					bind:value={confirmPassword}
-					class="w-full rounded bg-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+					class="w-full rounded bg-navy px-3 py-2 text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
 					placeholder="Confirm password"
 					autocomplete="new-password"
 					required
@@ -100,15 +103,15 @@
 			<button
 				type="submit"
 				disabled={loading}
-				class="w-full rounded bg-blue-600 py-2 font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+				class="w-full rounded bg-primary py-2 font-medium text-white transition hover:bg-primary-light disabled:opacity-50"
 			>
 				{loading ? 'Creating account...' : 'Create Account'}
 			</button>
 		</form>
 
-		<p class="mt-4 text-center text-sm text-gray-500">
+		<p class="mt-4 text-center text-sm text-primary-light/50">
 			Already have an account?
-			<a href="/login" class="text-blue-400 hover:underline">Sign in</a>
+			<a href="/login" class="text-primary-lighter hover:underline">Sign in</a>
 		</p>
 	</div>
 </div>

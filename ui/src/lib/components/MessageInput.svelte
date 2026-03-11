@@ -51,8 +51,8 @@
 	}
 </script>
 
-<div class="border-t border-gray-700 px-4 py-3">
-	<div class="flex items-end gap-2 rounded-lg bg-gray-700 px-3 py-2">
+<div class="border-t border-primary-dark/40 px-4 py-3">
+	<div class="flex items-end gap-2 rounded-lg bg-navy-light px-3 py-2">
 		<FileUpload {channelId} {threadTs} />
 
 		<textarea
@@ -62,13 +62,13 @@
 			oninput={handleInput}
 			{placeholder}
 			rows="1"
-			class="max-h-[200px] flex-1 resize-none bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
+			class="max-h-[200px] flex-1 resize-none bg-transparent text-sm text-white placeholder-primary-light/40 focus:outline-none"
 		></textarea>
 
 		<button
 			onclick={handleSend}
 			disabled={!text.trim()}
-			class="flex-shrink-0 rounded p-1 text-gray-500 transition hover:text-blue-400 disabled:opacity-30"
+			class="flex-shrink-0 rounded p-1 text-primary-light/50 transition hover:text-primary-lighter disabled:opacity-30"
 			title="Send message"
 		>
 			<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">

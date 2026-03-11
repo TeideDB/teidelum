@@ -33,9 +33,9 @@
 
 <svelte:window onkeydown={handleGlobalKeydown} />
 
-<div class="flex h-screen overflow-hidden bg-gray-900">
+<div class="flex h-screen overflow-hidden bg-navy">
 	<!-- Sidebar -->
-	<div class="flex w-64 flex-shrink-0 flex-col border-r border-gray-700 bg-gray-800">
+	<div class="flex w-64 flex-shrink-0 flex-col border-r border-primary-dark/40 bg-navy-light">
 		<Sidebar />
 	</div>
 

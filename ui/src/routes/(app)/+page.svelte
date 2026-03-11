@@ -17,6 +17,6 @@
 	});
 </script>
 
-<div class="flex flex-1 items-center justify-center text-gray-500">
+<div class="flex flex-1 items-center justify-center text-primary-light/50">
 	<p>Select a channel to start chatting</p>
 </div>

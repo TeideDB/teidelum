@@ -28,28 +28,28 @@
 </script>
 
 <svelte:head>
-	<title>{$activeChannel ? `#${$activeChannel.name}` : 'Teide Chat'} - Teide Chat</title>
+	<title>{$activeChannel ? `#${$activeChannel.name}` : 'Teidelum'} - Teidelum</title>
 </svelte:head>
 
 <div class="flex flex-1 overflow-hidden">
 	<!-- Main message area -->
 	<div class="flex flex-1 flex-col overflow-hidden">
 		<!-- Channel header -->
-		<div class="flex items-center border-b border-gray-700 px-4 py-3">
+		<div class="flex items-center border-b border-primary-dark/40 px-4 py-3">
 			<div>
 				<h2 class="text-lg font-bold text-white">
 					{#if $activeChannel}
 						{#if $activeChannel.kind === 'dm'}
 							{$activeChannel.name}
 						{:else}
-							<span class="text-gray-500">#</span> {$activeChannel.name}
+							<span class="text-primary-light/40">#</span> {$activeChannel.name}
 						{/if}
 					{:else}
 						Loading...
 					{/if}
 				</h2>
 				{#if $activeChannel?.topic}
-					<p class="text-xs text-gray-500">{$activeChannel.topic}</p>
+					<p class="text-xs text-primary-light/50">{$activeChannel.topic}</p>
 				{/if}
 			</div>
 		</div>
@@ -66,7 +66,7 @@
 
 	<!-- Thread panel -->
 	{#if threadMessage}
-		<div class="w-96 flex-shrink-0 border-l border-gray-700">
+		<div class="w-96 flex-shrink-0 border-l border-primary-dark/40">
 			<ThreadPanel
 				{channelId}
 				parentMessage={threadMessage}

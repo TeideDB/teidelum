@@ -28,8 +28,8 @@
 </script>
 
 {#if !initialized}
-	<div class="flex min-h-screen items-center justify-center bg-gray-900">
-		<div class="text-gray-500">Loading...</div>
+	<div class="flex min-h-screen items-center justify-center bg-navy">
+		<div class="text-primary-light/50">Loading...</div>
 	</div>
 {:else}
 	{@render children()}

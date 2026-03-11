@@ -1,12 +1,25 @@
 @import 'tailwindcss';
 
+@theme {
+	--color-navy: #0e1b24;
+	--color-navy-light: #162a36;
+	--color-navy-mid: #1d3545;
+	--color-primary: #4b6777;
+	--color-primary-light: #6b8a9e;
+	--color-primary-lighter: #8ba8b8;
+	--color-primary-pale: #dce8ee;
+	--color-primary-dark: #3a5261;
+	--color-primary-darker: #2a3e4b;
+}
+
 :root {
 	color-scheme: dark;
 }
 
 body {
-	@apply bg-gray-900 text-gray-100;
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	background-color: var(--color-navy);
+	color: #e2e8f0;
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	margin: 0;
 	height: 100vh;
 	overflow: hidden;
@@ -16,19 +29,27 @@ body {
 .prose-chat p { margin: 0; }
 .prose-chat p + p { margin-top: 0.25rem; }
 .prose-chat code {
-	@apply rounded bg-gray-700 px-1 py-0.5 text-xs text-pink-300;
+	@apply rounded px-1 py-0.5 text-xs;
+	background-color: var(--color-navy-mid);
+	color: #c4b5fd;
+	font-family: 'JetBrains Mono', 'SF Mono', SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
 }
 .prose-chat pre {
-	@apply my-1 overflow-x-auto rounded bg-gray-800 p-2;
+	@apply my-1 overflow-x-auto rounded p-2;
+	background-color: var(--color-navy);
 }
 .prose-chat pre code {
-	@apply bg-transparent p-0 text-gray-300;
+	@apply bg-transparent p-0;
+	color: #cbd5e1;
 }
 .prose-chat a {
-	@apply text-blue-400 underline;
+	color: var(--color-primary-lighter);
+	text-decoration: underline;
 }
 .prose-chat blockquote {
-	@apply my-1 border-l-4 border-gray-600 pl-3 text-gray-400;
+	@apply my-1 pl-3;
+	border-left: 4px solid var(--color-primary-dark);
+	color: #94a3b8;
 }
 .prose-chat ul, .prose-chat ol {
 	@apply my-1 pl-5;
@@ -37,5 +58,7 @@ body {
 	@apply my-0.5;
 }
 .mention {
-	@apply rounded bg-blue-500/20 px-0.5 text-blue-300;
+	@apply rounded px-0.5;
+	background-color: rgba(75, 103, 119, 0.25);
+	color: var(--color-primary-lighter);
 }

@@ -51,11 +51,14 @@
 
 <div class="flex h-full flex-col">
 	<!-- Header -->
-	<div class="flex items-center justify-between border-b border-gray-700 px-4 py-3">
-		<h2 class="text-lg font-bold text-white">Teide Chat</h2>
+	<div class="flex items-center justify-between border-b border-primary-dark/40 px-4 py-3">
+		<div class="flex items-center gap-2">
+			<img src="/teide-logo.svg" alt="Teidelum" class="h-6 w-auto" />
+			<h2 class="font-[Oswald] text-lg font-semibold tracking-wide text-white">Teidelum</h2>
+		</div>
 		<button
 			onclick={handleLogout}
-			class="text-xs text-gray-500 hover:text-gray-300"
+			class="text-xs text-primary-light/60 hover:text-primary-lighter"
 			title="Sign out"
 		>
 			Sign out
@@ -64,8 +67,8 @@
 
 	<!-- User info -->
 	{#if $auth.user}
-		<div class="border-b border-gray-700 px-4 py-2">
-			<span class="text-sm text-gray-300">{$auth.user.display_name || $auth.user.username}</span>
+		<div class="border-b border-primary-dark/40 px-4 py-2">
+			<span class="text-sm text-primary-lighter">{$auth.user.display_name || $auth.user.username}</span>
 		</div>
 	{/if}
 
@@ -74,10 +77,10 @@
 		<!-- Channels section -->
 		<div class="px-2 pt-3">
 			<div class="flex items-center justify-between px-2 pb-1">
-				<span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Channels</span>
+				<span class="text-xs font-semibold uppercase tracking-wide text-primary-light/50">Channels</span>
 				<button
 					onclick={() => (showCreateModal = true)}
-					class="text-gray-500 hover:text-gray-300"
+					class="text-primary-light/50 hover:text-primary-lighter"
 					title="Create channel"
 				>
 					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -90,15 +93,15 @@
 				<button
 					onclick={() => navigateToChannel(channel)}
 					class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
-						? 'bg-blue-600 text-white'
-						: 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'}"
+						? 'bg-primary text-white'
+						: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white'}"
 				>
 					<span class="truncate">
-						<span class="mr-1 text-gray-500">#</span>
+						<span class="mr-1 text-primary-light/40">#</span>
 						{channel.name}
 					</span>
 					{#if getUnreadCount(channel.id) > 0}
-						<span class="ml-1 rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+						<span class="ml-1 rounded-full bg-primary-light px-1.5 text-xs font-bold text-white">
 							{getUnreadCount(channel.id)}
 						</span>
 					{/if}
@@ -109,19 +112,19 @@
 		<!-- DMs section -->
 		<div class="px-2 pt-4">
 			<div class="px-2 pb-1">
-				<span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Direct Messages</span>
+				<span class="text-xs font-semibold uppercase tracking-wide text-primary-light/50">Direct Messages</span>
 			</div>
 
 			{#each $dmChannels as channel}
 				<button
 					onclick={() => navigateToChannel(channel)}
 					class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
-						? 'bg-blue-600 text-white'
-						: 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'}"
+						? 'bg-primary text-white'
+						: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white'}"
 				>
 					<span class="truncate">{getDmDisplayName(channel)}</span>
 					{#if getUnreadCount(channel.id) > 0}
-						<span class="ml-1 rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+						<span class="ml-1 rounded-full bg-primary-light px-1.5 text-xs font-bold text-white">
 							{getUnreadCount(channel.id)}
 						</span>
 					{/if}
@@ -134,8 +137,8 @@
 <!-- Create channel modal -->
 {#if showCreateModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-		<div class="w-full max-w-md rounded-lg bg-gray-800 p-6 shadow-xl">
-			<h3 class="mb-4 text-lg font-bold text-white">Create Channel</h3>
+		<div class="w-full max-w-md rounded-lg bg-navy-light p-6 shadow-xl">
+			<h3 class="mb-4 font-[Oswald] text-lg font-semibold text-white">Create Channel</h3>
 
 			<form
 				onsubmit={(e) => {
@@ -145,24 +148,24 @@
 				class="space-y-3"
 			>
 				<div>
-					<label for="channelName" class="mb-1 block text-sm text-gray-400">Channel Name</label>
+					<label for="channelName" class="mb-1 block text-sm text-primary-lighter/70">Channel Name</label>
 					<input
 						id="channelName"
 						type="text"
 						bind:value={newChannelName}
-						class="w-full rounded bg-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+						class="w-full rounded bg-navy px-3 py-2 text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
 						placeholder="e.g. general"
 						required
 					/>
 				</div>
 
 				<div>
-					<label for="channelTopic" class="mb-1 block text-sm text-gray-400">Topic (optional)</label>
+					<label for="channelTopic" class="mb-1 block text-sm text-primary-lighter/70">Topic (optional)</label>
 					<input
 						id="channelTopic"
 						type="text"
 						bind:value={newChannelTopic}
-						class="w-full rounded bg-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+						class="w-full rounded bg-navy px-3 py-2 text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
 						placeholder="What's this channel about?"
 					/>
 				</div>
@@ -171,13 +174,13 @@
 					<button
 						type="button"
 						onclick={() => (showCreateModal = false)}
-						class="rounded px-4 py-2 text-sm text-gray-400 hover:text-gray-200"
+						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-white"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
-						class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+						class="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
 					>
 						Create
 					</button>
