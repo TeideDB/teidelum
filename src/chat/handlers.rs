@@ -539,6 +539,128 @@ pub async fn users_change_password(
     slack::ok(json!({}))
 }
 
+// ── User Settings ──
+
+pub async fn users_get_settings(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(_req): Json<serde_json::Value>,
+) -> Response {
+    let sql = format!(
+        "SELECT theme, notification_default, timezone FROM user_settings WHERE user_id = {}",
+        claims.user_id
+    );
+
+    match state.api.query_router().query_sync(&sql) {
+        Ok(r) if !r.rows.is_empty() => {
+            let row = &r.rows[0];
+            slack::ok(json!({
+                "settings": {
+                    "theme": row[0].to_json(),
+                    "notification_default": row[1].to_json(),
+                    "timezone": row[2].to_json(),
+                }
+            }))
+        }
+        Ok(_) => {
+            // Create default settings
+            let now = now_timestamp();
+            let insert = format!(
+                "INSERT INTO user_settings (user_id, theme, notification_default, timezone, created_at) \
+                 VALUES ({}, 'dark', 'all', 'UTC', '{now}')",
+                claims.user_id
+            );
+            let _ = state.api.query_router().query_sync(&insert);
+            slack::ok(json!({
+                "settings": {
+                    "theme": "dark",
+                    "notification_default": "all",
+                    "timezone": "UTC",
+                }
+            }))
+        }
+        Err(e) => {
+            tracing::error!("get settings failed: {e}");
+            slack::err("internal_error")
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct UpdateSettingsRequest {
+    #[serde(default)]
+    pub theme: Option<String>,
+    #[serde(default)]
+    pub notification_default: Option<String>,
+    #[serde(default)]
+    pub timezone: Option<String>,
+}
+
+pub async fn users_update_settings(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<UpdateSettingsRequest>,
+) -> Response {
+    // Ensure settings row exists (upsert pattern)
+    let check = format!(
+        "SELECT user_id FROM user_settings WHERE user_id = {}",
+        claims.user_id
+    );
+    let exists = state
+        .api
+        .query_router()
+        .query_sync(&check)
+        .map(|r| !r.rows.is_empty())
+        .unwrap_or(false);
+
+    if !exists {
+        let now = now_timestamp();
+        let insert = format!(
+            "INSERT INTO user_settings (user_id, theme, notification_default, timezone, created_at) \
+             VALUES ({}, 'dark', 'all', 'UTC', '{now}')",
+            claims.user_id
+        );
+        let _ = state.api.query_router().query_sync(&insert);
+    }
+
+    let mut sets = Vec::new();
+    if let Some(ref theme) = req.theme {
+        if !["dark", "light"].contains(&theme.as_str()) {
+            return slack::err("invalid_theme");
+        }
+        sets.push(format!("theme = '{}'", escape_sql(theme)));
+    }
+    if let Some(ref notif) = req.notification_default {
+        if !["all", "mentions", "none"].contains(&notif.as_str()) {
+            return slack::err("invalid_notification_default");
+        }
+        sets.push(format!(
+            "notification_default = '{}'",
+            escape_sql(notif)
+        ));
+    }
+    if let Some(ref tz) = req.timezone {
+        sets.push(format!("timezone = '{}'", escape_sql(tz)));
+    }
+
+    if sets.is_empty() {
+        return slack::err("no_changes");
+    }
+
+    let sql = format!(
+        "UPDATE user_settings SET {} WHERE user_id = {}",
+        sets.join(", "),
+        claims.user_id
+    );
+
+    if let Err(e) = state.api.query_router().query_sync(&sql) {
+        tracing::error!("update settings failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    slack::ok(json!({}))
+}
+
 // ── Conversations ──
 
 #[derive(Deserialize)]
@@ -2003,6 +2125,14 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/users.changePassword",
             axum::routing::post(users_change_password),
+        )
+        .route(
+            "/users.getSettings",
+            axum::routing::post(users_get_settings),
+        )
+        .route(
+            "/users.updateSettings",
+            axum::routing::post(users_update_settings),
         )
         // Reactions
         .route("/reactions.add", axum::routing::post(reactions_add))

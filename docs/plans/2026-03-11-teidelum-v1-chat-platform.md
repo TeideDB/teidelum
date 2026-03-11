@@ -347,7 +347,7 @@ git commit -m "feat: add users.changePassword endpoint"
 **Files:**
 - Modify: `src/chat/handlers.rs`
 
-- [ ] **Step 1: Write getSettings handler**
+- [x] **Step 1: Write getSettings handler**
 
 ```rust
 #[derive(Deserialize)]
@@ -399,7 +399,7 @@ pub async fn users_get_settings(
 }
 ```
 
-- [ ] **Step 2: Write updateSettings handler**
+- [x] **Step 2: Write updateSettings handler**
 
 ```rust
 #[derive(Deserialize)]
@@ -472,14 +472,14 @@ pub async fn users_update_settings(
 }
 ```
 
-- [ ] **Step 3: Register routes**
+- [x] **Step 3: Register routes**
 
 ```rust
 .route("/users.getSettings", axum::routing::post(users_get_settings))
 .route("/users.updateSettings", axum::routing::post(users_update_settings))
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/chat/handlers.rs
