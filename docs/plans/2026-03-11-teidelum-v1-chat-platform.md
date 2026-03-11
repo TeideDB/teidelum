@@ -1777,15 +1777,15 @@ In `Cargo.toml`: `regex = "1"`
 - Modify: `ui/src/lib/components/MessageList.svelte`
 - Create: `ui/src/lib/components/ImageLightbox.svelte`
 
-- [ ] **Step 1: Create ImageLightbox component**
+- [x] **Step 1: Create ImageLightbox component**
 
 Fullscreen overlay, click or Escape to close. Shows image at native resolution.
 
-- [ ] **Step 2: Modify file attachment rendering in MessageList**
+- [x] **Step 2: Modify file attachment rendering in MessageList**
 
 For files where `mime_type` starts with `image/`: render `<img>` with `max-w-[400px] max-h-[300px] object-contain cursor-pointer` classes. Click opens ImageLightbox. Non-image files keep existing download link behavior.
 
-- [ ] **Step 3: Type check, commit**
+- [x] **Step 3: Type check, commit**
 
 ---
 

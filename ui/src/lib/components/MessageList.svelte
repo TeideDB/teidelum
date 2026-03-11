@@ -7,6 +7,7 @@
 	import { renderMarkdown } from '$lib/markdown';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import MessageContextMenu from '$lib/components/MessageContextMenu.svelte';
+	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 	import type { Message, Id } from '$lib/types';
 
 	interface Props {
@@ -27,6 +28,10 @@
 
 	// Delete confirmation state
 	let deletingMessage = $state<Message | null>(null);
+
+	// Image lightbox state
+	let lightboxSrc = $state<string | null>(null);
+	let lightboxAlt = $state('');
 
 	const channelState = $derived($messagesByChannel.get(channelId));
 	const messages = $derived(channelState?.messages ?? []);
@@ -260,20 +265,34 @@
 
 					<!-- File attachments -->
 					{#if msg.files && msg.files.length > 0}
-						<div class="mt-1 flex flex-col gap-1">
+						<div class="mt-1 flex flex-col gap-2">
 							{#each msg.files as file}
-								<a
-									href={fileDownloadUrl(file.id, file.filename)}
-									target="_blank"
-									rel="noopener noreferrer"
-									class="inline-flex items-center gap-1.5 text-xs text-primary-lighter hover:underline"
-								>
-									<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-									</svg>
-									{file.filename}
-									<span class="text-primary-light/40">({Math.round(file.size_bytes / 1024)}KB)</span>
-								</a>
+								{#if file.mime_type.startsWith('image/')}
+									<button
+										type="button"
+										class="cursor-pointer"
+										onclick={() => { lightboxSrc = fileDownloadUrl(file.id, file.filename); lightboxAlt = file.filename; }}
+									>
+										<img
+											src={fileDownloadUrl(file.id, file.filename)}
+											alt={file.filename}
+											class="max-w-[400px] max-h-[300px] object-contain rounded"
+										/>
+									</button>
+								{:else}
+									<a
+										href={fileDownloadUrl(file.id, file.filename)}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="inline-flex items-center gap-1.5 text-xs text-primary-lighter hover:underline"
+									>
+										<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+										</svg>
+										{file.filename}
+										<span class="text-primary-light/40">({Math.round(file.size_bytes / 1024)}KB)</span>
+									</a>
+								{/if}
 							{/each}
 						</div>
 					{/if}
@@ -350,4 +369,8 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+{#if lightboxSrc}
+	<ImageLightbox src={lightboxSrc} alt={lightboxAlt} onClose={() => { lightboxSrc = null; }} />
 {/if}
