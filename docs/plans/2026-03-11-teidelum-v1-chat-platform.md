@@ -1861,10 +1861,10 @@ Test with a blocked URL (localhost) — should return error. Test with an invali
 
 If these columns were already added to the users DDL in Task 1.2, this task is just verification. Otherwise:
 
-- [ ] **Step 1: Update users DDL to include status_text and status_emoji**
-- [ ] **Step 2: Update users_list and users_info to return these fields**
-- [ ] **Step 3: Update presence_change event to include status_text and status_emoji**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Update users DDL to include status_text and status_emoji**
+- [x] **Step 2: Update users_list and users_info to return these fields**
+- [x] **Step 3: Update presence_change event to include status_text and status_emoji**
+- [x] **Step 4: Commit**
 
 ---
 
