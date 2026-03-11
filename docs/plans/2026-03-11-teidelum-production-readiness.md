@@ -45,13 +45,13 @@
 - Modify: `ui/svelte.config.js`
 - Modify: `ui/src/routes/+layout.ts`
 
-- [ ] **Step 1: Install adapter-static**
+- [x] **Step 1: Install adapter-static**
 
 ```bash
 cd ui && npm install -D @sveltejs/adapter-static && npm uninstall @sveltejs/adapter-auto
 ```
 
-- [ ] **Step 2: Update svelte.config.js**
+- [x] **Step 2: Update svelte.config.js**
 
 Replace `ui/svelte.config.js` with:
 
@@ -76,7 +76,7 @@ export default config;
 
 The `fallback: 'index.html'` is critical — it generates a catch-all page so SPA client-side routing works.
 
-- [ ] **Step 3: Ensure SPA prerender is disabled**
+- [x] **Step 3: Ensure SPA prerender is disabled**
 
 `ui/src/routes/+layout.ts` must contain:
 
@@ -85,7 +85,7 @@ export const prerender = false;
 export const ssr = false;
 ```
 
-- [ ] **Step 4: Build and verify**
+- [x] **Step 4: Build and verify**
 
 ```bash
 cd ui && npm run build
@@ -94,7 +94,7 @@ ls -la build/index.html
 
 Expected: `build/` directory with `index.html`, `_app/` directory with JS/CSS assets.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ui/package.json ui/package-lock.json ui/svelte.config.js ui/src/routes/+layout.ts
