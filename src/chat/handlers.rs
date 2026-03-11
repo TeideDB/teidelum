@@ -469,6 +469,76 @@ pub async fn users_update_profile(
     slack::ok(json!({}))
 }
 
+#[derive(Deserialize)]
+pub struct ChangePasswordRequest {
+    pub old_password: String,
+    pub new_password: String,
+}
+
+pub async fn users_change_password(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<ChangePasswordRequest>,
+) -> Response {
+    if req.new_password.is_empty() {
+        return slack::err("invalid_arguments");
+    }
+
+    // Fetch current password hash
+    let sql = format!(
+        "SELECT password_hash FROM users WHERE id = {}",
+        claims.user_id
+    );
+    let result = match state.api.query_router().query_sync(&sql) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("password fetch failed: {e}");
+            return slack::err("internal_error");
+        }
+    };
+
+    if result.rows.is_empty() {
+        return slack::err("user_not_found");
+    }
+
+    let current_hash = match &result.rows[0][0] {
+        crate::connector::Value::String(v) => v.clone(),
+        _ => return slack::err("internal_error"),
+    };
+
+    // Verify old password
+    match auth::verify_password(&req.old_password, &current_hash) {
+        Ok(true) => {}
+        Ok(false) => return slack::err("invalid_password"),
+        Err(e) => {
+            tracing::error!("password verify failed: {e}");
+            return slack::err("internal_error");
+        }
+    }
+
+    // Hash new password
+    let new_hash = match auth::hash_password(&req.new_password) {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::error!("password hash failed: {e}");
+            return slack::err("internal_error");
+        }
+    };
+
+    let update = format!(
+        "UPDATE users SET password_hash = '{}' WHERE id = {}",
+        escape_sql(&new_hash),
+        claims.user_id
+    );
+
+    if let Err(e) = state.api.query_router().query_sync(&update) {
+        tracing::error!("password update failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    slack::ok(json!({}))
+}
+
 // ── Conversations ──
 
 #[derive(Deserialize)]
@@ -1929,6 +1999,10 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/users.updateProfile",
             axum::routing::post(users_update_profile),
+        )
+        .route(
+            "/users.changePassword",
+            axum::routing::post(users_change_password),
         )
         // Reactions
         .route("/reactions.add", axum::routing::post(reactions_add))

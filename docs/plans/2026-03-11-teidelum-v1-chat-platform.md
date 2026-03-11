@@ -253,7 +253,7 @@ git commit -m "feat: add users.updateProfile endpoint with WS broadcast"
 **Files:**
 - Modify: `src/chat/handlers.rs`
 
-- [ ] **Step 1: Write the handler**
+- [x] **Step 1: Write the handler**
 
 ```rust
 #[derive(Deserialize)]
@@ -327,13 +327,13 @@ pub async fn users_change_password(
 }
 ```
 
-- [ ] **Step 2: Register the route**
+- [x] **Step 2: Register the route**
 
 ```rust
 .route("/users.changePassword", axum::routing::post(users_change_password))
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/chat/handlers.rs
