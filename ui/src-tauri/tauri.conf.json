@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicbarker/tauri/v2/crates/tauri-cli/config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/v2/crates/tauri-cli/config.schema.json",
   "productName": "Teidelum",
   "version": "0.1.0",
   "identifier": "com.teidelum.app",

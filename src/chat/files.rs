@@ -183,7 +183,7 @@ pub async fn files_upload(
 
     let msg_insert = format!(
         "INSERT INTO messages (id, channel_id, user_id, thread_id, content, deleted_at, edited_at, created_at) \
-         VALUES ({msg_id}, {channel_id}, {user_id}, {thread_id}, '{text}', NULL, NULL, '{now}')",
+         VALUES ({msg_id}, {channel_id}, {user_id}, {thread_id}, '{text}', '', '', '{now}')",
         user_id = claims.user_id,
         text = escape_sql(&msg_text),
     );

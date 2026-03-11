@@ -1044,7 +1044,7 @@ pub async fn chat_post_message(
 
     let insert = format!(
         "INSERT INTO messages (id, channel_id, user_id, thread_id, content, deleted_at, edited_at, created_at) \
-         VALUES ({id}, {channel}, {user}, {thread}, '{text}', NULL, NULL, '{now}')",
+         VALUES ({id}, {channel}, {user}, {thread}, '{text}', '', '', '{now}')",
         channel = req.channel,
         user = claims.user_id,
         thread = thread_id,

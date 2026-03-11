@@ -690,7 +690,7 @@ impl Teidelum {
 
         let sql = format!(
             "INSERT INTO messages (id, channel_id, user_id, thread_id, content, deleted_at, edited_at, created_at) \
-             VALUES ({id}, {channel}, {bot}, 0, '{text}', NULL, NULL, '{now}')",
+             VALUES ({id}, {channel}, {bot}, 0, '{text}', '', '', '{now}')",
             channel = params.channel,
             bot = bot_id,
             text = text_escaped,
@@ -799,7 +799,7 @@ impl Teidelum {
 
         let sql = format!(
             "INSERT INTO messages (id, channel_id, user_id, thread_id, content, deleted_at, edited_at, created_at) \
-             VALUES ({id}, {channel}, {bot}, {thread}, '{text}', NULL, NULL, '{now}')",
+             VALUES ({id}, {channel}, {bot}, {thread}, '{text}', '', '', '{now}')",
             channel = params.channel,
             bot = bot_id,
             thread = params.thread_ts,
