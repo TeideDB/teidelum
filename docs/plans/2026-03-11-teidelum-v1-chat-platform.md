@@ -1476,7 +1476,7 @@ Same pattern but searches channels by name prefix.
 - Modify: `ui/src/lib/components/MessageInput.svelte`
 - Modify: `ui/src/lib/api.ts`
 
-- [ ] **Step 1: Add API functions**
+- [x] **Step 1: Add API functions**
 
 ```typescript
 export function usersSearch(query: string): Promise<{ ok: boolean; users?: Array<{ id: Id; username: string; display_name: string; avatar_url: string }>; }> {
@@ -1488,19 +1488,19 @@ export function conversationsAutocomplete(query: string): Promise<{ ok: boolean;
 }
 ```
 
-- [ ] **Step 2: Create Autocomplete component**
+- [x] **Step 2: Create Autocomplete component**
 
 Generic autocomplete dropdown. Props: `trigger` (string like '@' or '#'), `items` (array), `onSelect` callback. Handles keyboard navigation (arrow keys, Enter, Escape).
 
-- [ ] **Step 3: Integrate into MessageInput**
+- [x] **Step 3: Integrate into MessageInput**
 
 Watch for `@` and `#` triggers in textarea value. When detected, show Autocomplete dropdown above cursor position. On select, insert the completed text. Debounce API calls (200ms).
 
-- [ ] **Step 4: Also integrate into ThreadPanel reply input**
+- [x] **Step 4: Also integrate into ThreadPanel reply input**
 
 Same autocomplete in thread replies.
 
-- [ ] **Step 5: Type check, commit**
+- [x] **Step 5: Type check, commit**
 
 ---
 

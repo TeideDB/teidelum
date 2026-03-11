@@ -224,6 +224,23 @@ export function usersUpdateSettings(settings: {
 	return call('users.updateSettings', settings);
 }
 
+// === Search / Autocomplete ===
+
+export function usersSearch(
+	query: string
+): Promise<{
+	ok: boolean;
+	users?: Array<{ id: Id; username: string; display_name: string; avatar_url: string }>;
+}> {
+	return call('users.search', { query });
+}
+
+export function conversationsAutocomplete(
+	query: string
+): Promise<{ ok: boolean; channels?: Array<{ id: Id; name: string; topic: string }> }> {
+	return call('conversations.autocomplete', { query });
+}
+
 // === Reactions ===
 
 export function reactionsAdd(name: string, timestamp: Id): Promise<OkResponse> {
