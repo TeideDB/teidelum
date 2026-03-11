@@ -815,7 +815,8 @@ async fn test_reaction_lifecycle() {
         .await
         .unwrap();
     let body = body_json(resp).await;
-    assert!(body["ok"] == true || body["error"] == "already_reacted");
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "already_reacted");
 
     // Remove reaction
     let resp = app

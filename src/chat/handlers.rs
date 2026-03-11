@@ -1519,7 +1519,7 @@ pub async fn search_messages(
             .collect::<Vec<_>>()
             .join(", ");
         let sql = format!(
-            "SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at IS NULL"
+            "SELECT id, channel_id FROM messages WHERE id IN ({id_list}) AND deleted_at = ''"
         );
         match state.api.query_router().query_sync(&sql) {
             Ok(r) => r

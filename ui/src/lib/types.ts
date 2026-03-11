@@ -20,6 +20,7 @@ export interface Channel {
 	created_by: Id;
 	created_at: string;
 	member_count?: number;
+	unread_count?: number;
 }
 
 export interface Message {
@@ -31,6 +32,7 @@ export interface Message {
 	text: string;
 	thread_ts?: Id;
 	reply_count?: number;
+	last_reply_ts?: string;
 	reactions?: Reaction[];
 	files?: FileAttachment[];
 	edited_at?: string;

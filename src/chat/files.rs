@@ -260,22 +260,36 @@ pub async fn files_upload(
 
 #[derive(Deserialize)]
 pub struct FileDownloadQuery {
-    pub token: String,
+    pub token: Option<String>,
 }
 
 /// Handle `GET /files/:id/:filename` — download a file with auth check.
 pub async fn files_download(
     State(state): State<AppState>,
     Path((file_id, _filename)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
     Query(query): Query<FileDownloadQuery>,
 ) -> Response {
-    // Validate JWT from query param
+    // Validate JWT from query param or Authorization header
     let secret = match std::env::var("TEIDE_CHAT_SECRET") {
         Ok(s) if !s.is_empty() => s,
         _ => return slack::http_err(StatusCode::INTERNAL_SERVER_ERROR, "server_misconfigured"),
     };
 
-    let claims = match crate::chat::auth::validate_token(&secret, &query.token) {
+    let jwt = query.token.or_else(|| {
+        headers
+            .get("authorization")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "))
+            .map(|s| s.to_string())
+    });
+
+    let jwt = match jwt {
+        Some(t) => t,
+        None => return slack::http_err(StatusCode::UNAUTHORIZED, "invalid_auth"),
+    };
+
+    let claims = match crate::chat::auth::validate_token(&secret, &jwt) {
         Ok(c) => c,
         Err(_) => return slack::http_err(StatusCode::UNAUTHORIZED, "invalid_auth"),
     };

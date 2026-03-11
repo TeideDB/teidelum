@@ -30,6 +30,13 @@ cd ui && npm run build        # production build
 cd ui && npx svelte-check     # type checking
 ```
 
+### Desktop (Tauri)
+
+```bash
+cd ui && npm run tauri:dev      # dev mode (launches native window with Vite dev server)
+cd ui && npm run tauri:build    # production build (creates native app bundle)
+```
+
 ### Production Build
 
 ```bash
@@ -65,9 +72,18 @@ Single crate, modules under `src/`:
 | `chat/models.rs` | Chat schema DDL, FK relationships, SQL helpers |
 | `chat/events.rs` | Server/client event types for WebSocket protocol |
 
+### Desktop Client (`ui/src-tauri/`)
+
+Tauri v2 wrapper that packages the SvelteKit SPA as a native desktop app. Connects to a remote Teidelum server (does not embed the Rust backend).
+
+| Module | Role |
+|--------|------|
+| `ui/src-tauri/src/main.rs` | Tauri bootstrap, loads SvelteKit frontend in a webview |
+| `ui/src-tauri/tauri.conf.json` | Window config (1200x800, min 800x600), build settings, bundle targets |
+
 ### Frontend (`ui/`)
 
-SvelteKit SPA (SSR disabled) with TypeScript and Tailwind CSS.
+SvelteKit SPA (SSR disabled) with TypeScript and Tailwind CSS. Uses `@sveltejs/adapter-static` (output to `ui/build/`, `fallback: 'index.html'`).
 
 | Module | Role |
 |--------|------|
@@ -89,11 +105,16 @@ SvelteKit SPA (SSR disabled) with TypeScript and Tailwind CSS.
 - **MCP via rmcp**: Tools are defined with `#[tool]` macro on `Teidelum` struct methods. Parameters use `schemars::JsonSchema` for auto-generated schemas. Tracing goes to stderr (stdout is the MCP transport).
 - **Search Auth Filtering**: Both the `chat_search` MCP tool and `search.messages` REST endpoint filter results to only channels the caller is a member of. Results are over-fetched (3x limit) from tantivy then filtered post-query, since tantivy has no per-user access control.
 - **MIME Hardening** (`chat/files.rs`): MIME type is always derived from file extension, never from client-supplied headers or DB values. Downloads include `X-Content-Type-Options: nosniff` and `Content-Disposition: attachment`.
-- **SPA Mode** (`ui/`): SvelteKit with SSR disabled. Vite dev server proxies `/api`, `/ws`, and `/files` to the Rust backend at `localhost:3000`.
+- **SPA Mode** (`ui/`): SvelteKit with SSR disabled, using `@sveltejs/adapter-static` (output to `ui/build/`, `fallback: 'index.html'`). Vite dev server proxies `/api`, `/ws`, and `/files` to the Rust backend at `localhost:3000`.
+- **DM Channels** (`chat/handlers.rs`): DM channels use deterministic naming `dm-{min_id}-{max_id}` for lookup, avoiding multi-table JOINs that TeideDB does not support.
 - **Store-Driven UI**: Svelte writable stores manage auth, channels, messages, users, and unreads. WebSocket events update stores in real time. All WS listener init functions return cleanup callbacks.
 - **Unread Tracking** (`chat/handlers.rs`): `channel_reads` table stores `last_read_ts` per user per channel. Updated on `conversations.history` fetch and `conversations.markRead`. Unread count computed in `conversations.list` by counting messages after `last_read_ts`.
 - **Thread Metadata**: `conversations.history` enriches parent messages with `reply_count` and `last_reply_ts` computed from the messages table. No denormalized columns — always computed fresh.
 - **Static Frontend Serving** (`server.rs`): When `ui/build/` exists, Axum serves it as a fallback after API routes. SPA routing handled via `index.html` fallback. In dev, use Vite proxy instead.
+
+### Testing
+
+Integration tests in `tests/chat_integration.rs` spin up an in-memory `TeidelumApi` + `ChatState` and exercise chat HTTP handlers via `tower::ServiceExt::oneshot`. Each test creates its own temp directory and registers fresh users. Covers: auth, channels, messaging, threads, unreads, DMs, presence, mentions, and reactions. Run with `--test-threads=1` to avoid TeideDB concurrency issues.
 
 ### MCP Tools
 

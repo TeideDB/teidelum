@@ -28,6 +28,7 @@ function mapMessage(raw: any): Message {
 		text: raw.text ?? '',
 		thread_ts: raw.thread_ts ? String(raw.thread_ts) : undefined,
 		reply_count: raw.reply_count,
+		last_reply_ts: raw.last_reply_ts,
 		reactions: raw.reactions,
 		files: raw.files,
 		edited_at: raw.edited_ts ?? raw.edited_at,
@@ -131,6 +132,12 @@ export function conversationsMembers(channel: Id): Promise<MembersResponse> {
 
 export function conversationsOpen(users: Id[]): Promise<ChannelResponse> {
 	return call('conversations.open', { users });
+}
+
+export function conversationsMarkRead(channel: Id, ts?: string): Promise<OkResponse> {
+	const body: Record<string, unknown> = { channel };
+	if (ts !== undefined) body.ts = ts;
+	return call('conversations.markRead', body);
 }
 
 // === Chat ===
