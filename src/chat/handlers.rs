@@ -1276,6 +1276,20 @@ pub async fn conversations_leave(
         return slack::err("not_in_channel");
     }
 
+    // Prevent the channel owner from leaving (would make channel unmanageable)
+    let role_sql = format!(
+        "SELECT role FROM channel_members WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    if let Ok(r) = state.api.query_router().query_sync(&role_sql) {
+        if !r.rows.is_empty() {
+            let role = r.rows[0][0].to_json();
+            if role.as_str() == Some("owner") {
+                return slack::err("cant_leave_as_owner");
+            }
+        }
+    }
+
     let sql = format!(
         "DELETE FROM channel_members WHERE channel_id = {} AND user_id = {}",
         req.channel, claims.user_id
@@ -1700,7 +1714,8 @@ pub async fn conversations_update(
 
     let mut sets = Vec::new();
     if let Some(ref name) = req.name {
-        // Check name uniqueness
+        // Serialize with channel_create_lock to prevent TOCTOU race on name uniqueness
+        let _lock = state.channel_create_lock.lock().await;
         let check = format!(
             "SELECT id FROM channels WHERE name = '{}' AND id != {}",
             escape_sql(name),
