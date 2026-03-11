@@ -1900,7 +1900,7 @@ git commit -m "feat(chat-ui): add Sidebar component with channel list, DMs, unre
 **Files:**
 - Create: `teidelum/ui/src/lib/components/MessageList.svelte`
 
-- [ ] **Step 1: Implement message list with infinite scroll and auto-scroll**
+- [x] **Step 1: Implement message list with infinite scroll and auto-scroll**
 
 Create `src/lib/components/MessageList.svelte`:
 
@@ -2132,11 +2132,11 @@ Create `src/lib/components/MessageList.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/MessageList.svelte
