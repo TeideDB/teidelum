@@ -844,7 +844,7 @@ pub async fn conversations_list(
 ) -> Response {
     // List channels the user is a member of
     let sql = format!(
-        "SELECT c.id, c.name, c.kind, c.topic, c.description, c.archived_at, c.created_at \
+        "SELECT c.id, c.name, c.kind, c.topic, c.description, c.archived_at, c.created_by, c.created_at \
          FROM channels c \
          JOIN channel_members cm ON c.id = cm.channel_id \
          WHERE cm.user_id = {}",
@@ -915,7 +915,8 @@ pub async fn conversations_list(
                 "topic": row[3].to_json(),
                 "description": row[4].to_json(),
                 "archived_at": row[5].to_json(),
-                "created_at": row[6].to_json(),
+                "created_by": row[6].to_json(),
+                "created_at": row[7].to_json(),
                 "unread_count": unread_count,
                 "muted": muted,
                 "notification_level": notification_level,
@@ -2965,10 +2966,41 @@ pub async fn links_unfurl(
         }
     }
 
-    // Fetch with timeout; pin resolved IPs to prevent DNS rebinding on redirects
+    // Fetch with timeout; custom redirect policy to block redirects to internal IPs
+    let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 3 {
+            return attempt.error("too many redirects");
+        }
+        if let Some(host) = attempt.url().host_str() {
+            let host_trimmed = host.trim_matches(|c| c == '[' || c == ']');
+            if host_trimmed == "localhost" || host_trimmed == "::1" || host_trimmed == "0.0.0.0" {
+                return attempt.error("redirect to blocked host");
+            }
+            if let Ok(ip) = host_trimmed.parse::<std::net::Ipv4Addr>() {
+                if ip.is_loopback() || ip.is_private() || ip.is_link_local()
+                    || ip.is_broadcast() || ip.is_unspecified()
+                    || ip.octets()[0] == 100 && (ip.octets()[1] & 0xC0) == 64
+                    || ip.octets()[0] == 169 && ip.octets()[1] == 254
+                    || ip.octets()[0] == 0
+                {
+                    return attempt.error("redirect to blocked IP");
+                }
+            }
+            if let Ok(ip) = host_trimmed.parse::<std::net::Ipv6Addr>() {
+                if ip.is_loopback() || ip.is_unspecified() {
+                    return attempt.error("redirect to blocked IP");
+                }
+                let s = ip.segments();
+                if (s[0] & 0xfe00) == 0xfc00 || (s[0] & 0xffc0) == 0xfe80 {
+                    return attempt.error("redirect to blocked IP");
+                }
+            }
+        }
+        attempt.follow()
+    });
     let mut builder = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
-        .redirect(reqwest::redirect::Policy::limited(3));
+        .redirect(redirect_policy);
     if let Some(host) = url.host_str() {
         for addr in &resolved {
             builder = builder.resolve(host, *addr);

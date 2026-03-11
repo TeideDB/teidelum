@@ -92,9 +92,15 @@ export interface MessageResponse {
 	error?: string;
 }
 
+export interface ChannelMember {
+	id: Id;
+	username: string;
+	role: string;
+}
+
 export interface MembersResponse {
 	ok: boolean;
-	members?: Id[];
+	members?: ChannelMember[];
 	error?: string;
 }
 

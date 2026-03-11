@@ -6,7 +6,7 @@
 	import { loadChannels } from '$lib/stores/channels';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import UserProfilePopover from '$lib/components/UserProfilePopover.svelte';
-	import type { Channel, Id } from '$lib/types';
+	import type { Channel, ChannelMember, Id } from '$lib/types';
 
 	interface Props {
 		channel: Channel;
@@ -15,7 +15,7 @@
 
 	let { channel, onClose }: Props = $props();
 
-	let members = $state<Id[]>([]);
+	let members = $state<ChannelMember[]>([]);
 	let loading = $state(true);
 	let editing = $state(false);
 	let editName = $state('');
@@ -286,15 +286,15 @@
 				<p class="text-sm text-primary-light/50">Loading...</p>
 			{:else}
 				<div class="space-y-1">
-					{#each members as memberId}
+					{#each members as member}
 						<button
 							type="button"
 							class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-navy-light/50 cursor-pointer"
-							onclick={(e) => openProfilePopover(memberId, e)}
+							onclick={(e) => openProfilePopover(member.id, e)}
 						>
-							<Avatar url={getUserAvatar(memberId)} name={getUserName(memberId)} size="sm" />
-							<span class="text-sm text-gray-300">{getUserName(memberId)}</span>
-							{#if memberId === channel.created_by}
+							<Avatar url={getUserAvatar(member.id)} name={getUserName(member.id)} size="sm" />
+							<span class="text-sm text-gray-300">{getUserName(member.id)}</span>
+							{#if member.id === channel.created_by}
 								<span class="text-xs text-primary-light/40">owner</span>
 							{/if}
 						</button>
