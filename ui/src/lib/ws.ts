@@ -33,11 +33,21 @@ export function disconnect() {
 	// Clearing them would break re-login without page reload since onMount won't re-fire
 }
 
+function getWsUrl(token: string): string {
+	// In Tauri, use configured server URL; in browser, use current host
+	if (typeof window !== 'undefined' && '__TAURI__' in window) {
+		const serverUrl = localStorage.getItem('teidelum_server_url') || 'http://localhost:3000';
+		const wsUrl = serverUrl.replace(/^http/, 'ws');
+		return `${wsUrl}/ws?token=${token}`;
+	}
+	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+	return `${protocol}//${window.location.host}/ws?token=${token}`;
+}
+
 function doConnect() {
 	if (!currentToken) return;
 
-	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-	const url = `${protocol}//${window.location.host}/ws?token=${currentToken}`;
+	const url = getWsUrl(currentToken);
 
 	ws = new WebSocket(url);
 

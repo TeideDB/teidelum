@@ -1161,13 +1161,13 @@ git branch -d graph-layer
 
 Tauri wraps the same `ui/build/` SPA into a native desktop app. The app connects to a remote Teidelum server — it does NOT embed the Rust server. It's a thin native shell around the web frontend.
 
-- [ ] **Step 1: Install Tauri CLI**
+- [x] **Step 1: Install Tauri CLI**
 
 ```bash
 cd ui && npm install -D @tauri-apps/cli@^2
 ```
 
-- [ ] **Step 2: Initialize Tauri project**
+- [x] **Step 2: Initialize Tauri project**
 
 ```bash
 cd ui && npx tauri init
@@ -1183,7 +1183,7 @@ When prompted:
 
 This creates `src-tauri/` inside the `ui/` directory.
 
-- [ ] **Step 3: Configure tauri.conf.json**
+- [x] **Step 3: Configure tauri.conf.json**
 
 Update `ui/src-tauri/tauri.conf.json` to set the correct build paths and window configuration:
 
@@ -1229,7 +1229,7 @@ Update `ui/src-tauri/tauri.conf.json` to set the correct build paths and window 
 }
 ```
 
-- [ ] **Step 4: Update Tauri's Rust entry point**
+- [x] **Step 4: Update Tauri's Rust entry point**
 
 Replace `ui/src-tauri/src/main.rs` with:
 
@@ -1244,7 +1244,7 @@ fn main() {
 }
 ```
 
-- [ ] **Step 5: Add server URL configuration to the frontend**
+- [x] **Step 5: Add server URL configuration to the frontend**
 
 The desktop app needs to know which Teidelum server to connect to. Update `ui/src/lib/api.ts` to support a configurable base URL:
 
@@ -1262,7 +1262,7 @@ function getBaseUrl(): string {
 
 Prefix all fetch calls in the API client with `getBaseUrl()`.
 
-- [ ] **Step 6: Add tauri scripts to package.json**
+- [x] **Step 6: Add tauri scripts to package.json**
 
 Add to `ui/package.json` scripts:
 
@@ -1276,7 +1276,7 @@ Add to `ui/package.json` scripts:
 }
 ```
 
-- [ ] **Step 7: Verify Tauri dev mode**
+- [x] **Step 7: Verify Tauri dev mode**
 
 ```bash
 cd ui && npm run tauri dev
@@ -1284,7 +1284,7 @@ cd ui && npm run tauri dev
 
 Expected: Native window opens showing the Teidelum login page (requires backend running on localhost:3000).
 
-- [ ] **Step 8: Build Tauri release**
+- [x] **Step 8: Build Tauri release**
 
 ```bash
 cd ui && npm run tauri build
@@ -1292,7 +1292,7 @@ cd ui && npm run tauri build
 
 Expected: Platform-specific installer created in `ui/src-tauri/target/release/bundle/`.
 
-- [ ] **Step 9: Add src-tauri to .gitignore exceptions**
+- [x] **Step 9: Add src-tauri to .gitignore exceptions**
 
 Update `ui/.gitignore` to exclude Tauri build artifacts but include config:
 
@@ -1301,7 +1301,7 @@ Update `ui/.gitignore` to exclude Tauri build artifacts but include config:
 src-tauri/target/
 ```
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add ui/src-tauri/ ui/package.json ui/package-lock.json ui/src/lib/api.ts ui/.gitignore

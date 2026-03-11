@@ -41,11 +41,19 @@ export function setToken(t: string | null) {
 	token = t;
 }
 
+function getBaseUrl(): string {
+	// In Tauri, use configured server URL; in browser, use relative paths
+	if (typeof window !== 'undefined' && '__TAURI__' in window) {
+		return localStorage.getItem('teidelum_server_url') || 'http://localhost:3000';
+	}
+	return '';
+}
+
 async function call<T>(method: string, body: Record<string, unknown> = {}): Promise<T> {
 	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 	if (token) headers['Authorization'] = `Bearer ${token}`;
 
-	const res = await fetch(`/api/slack/${method}`, {
+	const res = await fetch(`${getBaseUrl()}/api/slack/${method}`, {
 		method: 'POST',
 		headers,
 		body: JSON.stringify(body)
@@ -197,7 +205,7 @@ export async function searchMessages(
 // === Files ===
 
 export function fileDownloadUrl(fileId: Id, filename: string): string {
-	const url = `/files/${fileId}/${filename}`;
+	const url = `${getBaseUrl()}/files/${fileId}/${filename}`;
 	return token ? `${url}?token=${encodeURIComponent(token)}` : url;
 }
 
@@ -214,7 +222,7 @@ export async function filesUpload(
 	const headers: Record<string, string> = {};
 	if (token) headers['Authorization'] = `Bearer ${token}`;
 
-	const res = await fetch('/api/slack/files.upload', {
+	const res = await fetch(`${getBaseUrl()}/api/slack/files.upload`, {
 		method: 'POST',
 		headers,
 		body: formData
