@@ -163,3 +163,88 @@ async fn test_chat_flow() {
     assert_eq!(body["ok"], false);
     assert_eq!(body["error"], "username_taken");
 }
+
+#[tokio::test]
+async fn test_unread_tracking() {
+    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-12345");
+    let tmp = tempfile::tempdir().unwrap();
+    let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
+    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    let api = std::sync::Arc::new(api);
+    let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
+    let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
+        api: api.clone(),
+        hub: hub.clone(),
+    });
+    let app = teidelum::chat::handlers::chat_routes(state);
+
+    // Register alice
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "alice", "password": "secret123", "email": "alice@test.com"}),
+        None,
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    let token_a = body["token"].as_str().unwrap().to_string();
+
+    // Register bob
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "bob", "password": "secret123", "email": "bob@test.com"}),
+        None,
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    let token_b = body["token"].as_str().unwrap().to_string();
+
+    // Alice creates channel
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.create",
+        json!({"name": "unread-test"}),
+        Some(&token_a),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    let ch_id: i64 = body["channel"]["id"].as_str().unwrap().parse().unwrap();
+
+    // Bob joins channel
+    let _ = app.clone().oneshot(post_json(
+        "/api/slack/conversations.join",
+        json!({"channel": ch_id}),
+        Some(&token_b),
+    )).await.unwrap();
+
+    // Alice posts a message
+    let _ = app.clone().oneshot(post_json(
+        "/api/slack/chat.postMessage",
+        json!({"channel": ch_id, "text": "hello bob"}),
+        Some(&token_a),
+    )).await.unwrap();
+
+    // Bob lists channels — should see unread > 0
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.list",
+        json!({}),
+        Some(&token_b),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == ch_id.to_string()).unwrap();
+    assert!(ch["unread_count"].as_i64().unwrap() > 0, "expected unread > 0");
+
+    // Bob reads history — implicitly marks as read
+    let _ = app.clone().oneshot(post_json(
+        "/api/slack/conversations.history",
+        json!({"channel": ch_id}),
+        Some(&token_b),
+    )).await.unwrap();
+
+    // Bob lists channels again — unread should be 0
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.list",
+        json!({}),
+        Some(&token_b),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == ch_id.to_string()).unwrap();
+    assert_eq!(ch["unread_count"].as_i64().unwrap(), 0, "expected unread = 0 after reading history");
+}

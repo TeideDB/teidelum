@@ -187,7 +187,7 @@ The `channel_reads` table already exists (created in `models.rs`). We need:
 1. Update `last_read_ts` when a user fetches `conversations.history` (implicit read)
 2. Add unread info to `conversations.list` response
 
-- [ ] **Step 1: Write failing test for unread tracking**
+- [x] **Step 1: Write failing test for unread tracking**
 
 Add to `tests/chat_integration.rs`:
 
@@ -278,7 +278,7 @@ async fn test_unread_tracking() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 cargo test test_unread_tracking -- --nocapture
@@ -286,7 +286,7 @@ cargo test test_unread_tracking -- --nocapture
 
 Expected: FAIL — no `unread_count` field in conversations.list response.
 
-- [ ] **Step 3: Update conversations.history to record read timestamp**
+- [x] **Step 3: Update conversations.history to record read timestamp**
 
 In `handlers.rs`, in `conversations_history()`, just before the final `slack::ok(...)` return line, add:
 
@@ -316,7 +316,7 @@ In `handlers.rs`, in `conversations_history()`, just before the final `slack::ok
     }
 ```
 
-- [ ] **Step 4: Add unread_count to conversations.list response**
+- [x] **Step 4: Add unread_count to conversations.list response**
 
 In `conversations_list()`, replace the `.map(|row| { json!({...}) })` closure to compute unread count per channel:
 
@@ -370,7 +370,7 @@ In `conversations_list()`, replace the `.map(|row| { json!({...}) })` closure to
         .collect();
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 ```bash
 cargo test test_unread_tracking -- --nocapture
@@ -378,7 +378,7 @@ cargo test test_unread_tracking -- --nocapture
 
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/chat/handlers.rs tests/chat_integration.rs

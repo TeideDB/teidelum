@@ -403,12 +403,46 @@ pub async fn conversations_list(
         .rows
         .iter()
         .map(|row| {
+            let ch_id_val = &row[0];
+            let ch_id_str = match ch_id_val {
+                crate::connector::Value::Int(n) => n.to_string(),
+                _ => ch_id_val.to_json().as_str().unwrap_or("0").to_string(),
+            };
+
+            // Get last_read_ts for this channel
+            let read_sql = format!(
+                "SELECT last_read_ts FROM channel_reads WHERE channel_id = {} AND user_id = {}",
+                ch_id_str, claims.user_id
+            );
+            let last_read_ts = state.api.query_router().query_sync(&read_sql).ok()
+                .and_then(|r| r.rows.first().map(|row| row[0].to_json()))
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_default();
+
+            // Count unread messages
+            let unread_sql = if last_read_ts.is_empty() {
+                format!(
+                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND deleted_at = ''",
+                    ch_id_str
+                )
+            } else {
+                format!(
+                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND created_at > '{}' AND deleted_at = ''",
+                    ch_id_str, escape_sql(&last_read_ts)
+                )
+            };
+            let unread_count = state.api.query_router().query_sync(&unread_sql).ok()
+                .and_then(|r| r.rows.first().map(|row| row[0].to_json()))
+                .and_then(|v| v.as_str().and_then(|s| s.parse::<i64>().ok()))
+                .unwrap_or(0);
+
             json!({
                 "id": row[0].to_json(),
                 "name": row[1].to_json(),
                 "kind": row[2].to_json(),
                 "topic": row[3].to_json(),
                 "created_at": row[4].to_json(),
+                "unread_count": unread_count,
             })
         })
         .collect();
@@ -523,6 +557,30 @@ pub async fn conversations_history(
             })
         })
         .collect();
+
+    // Update channel_reads for this user
+    let now = now_timestamp();
+    let read_check = format!(
+        "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    let has_existing = state.api.query_router().query_sync(&read_check)
+        .map(|r| !r.rows.is_empty())
+        .unwrap_or(false);
+
+    if has_existing {
+        let update_sql = format!(
+            "UPDATE channel_reads SET last_read_ts = '{}' WHERE channel_id = {} AND user_id = {}",
+            escape_sql(&now), req.channel, claims.user_id
+        );
+        let _ = state.api.query_router().query_sync(&update_sql);
+    } else {
+        let insert_sql = format!(
+            "INSERT INTO channel_reads (channel_id, user_id, last_read_ts) VALUES ({}, {}, '{}')",
+            req.channel, claims.user_id, escape_sql(&now)
+        );
+        let _ = state.api.query_router().query_sync(&insert_sql);
+    }
 
     slack::ok(json!({"messages": messages, "has_more": messages.len() == limit}))
 }
@@ -1391,9 +1449,10 @@ pub async fn search_messages(
         })
         .take(limit)
         .map(|r| {
+            let ch_id = msg_channel_map.get(&r.id).copied().unwrap_or(0);
             json!({
                 "ts": r.id,
-                "channel": r.title,
+                "channel": ch_id,
                 "text": r.snippet,
                 "score": r.score,
             })
