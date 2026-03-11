@@ -1874,7 +1874,7 @@ If these columns were already added to the users DDL in Task 1.2, this task is j
 - Create: `ui/src/lib/components/UserProfilePopover.svelte`
 - Modify: `ui/src/lib/components/MessageList.svelte`
 
-- [ ] **Step 1: Create UserProfilePopover component**
+- [x] **Step 1: Create UserProfilePopover component**
 
 Props: `userId`, `anchorElement` (for positioning).
 Shows: large Avatar, display name, username, custom status (emoji + text), presence indicator, "Member since" date.
@@ -1882,15 +1882,15 @@ Action: "Message" button opens DM via `openDm()`.
 Dismisses on click outside or Escape.
 Positioned relative to anchor element.
 
-- [ ] **Step 2: Wire into MessageList**
+- [x] **Step 2: Wire into MessageList**
 
 Clicking on a username or avatar in the message list opens UserProfilePopover for that user.
 
-- [ ] **Step 3: Wire into ChannelInfoPanel member list**
+- [x] **Step 3: Wire into ChannelInfoPanel member list**
 
 Clicking a member name opens the popover.
 
-- [ ] **Step 4: Type check, commit**
+- [x] **Step 4: Type check, commit**
 
 ---
 

@@ -5,6 +5,7 @@
 	import { auth } from '$lib/stores/auth';
 	import { loadChannels } from '$lib/stores/channels';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import UserProfilePopover from '$lib/components/UserProfilePopover.svelte';
 	import type { Channel, Id } from '$lib/types';
 
 	interface Props {
@@ -24,6 +25,15 @@
 	let showArchiveConfirm = $state(false);
 	let showInviteModal = $state(false);
 	let inviteUserId = $state('');
+	let popoverUserId = $state<Id | null>(null);
+	let popoverAnchorRect = $state<{ top: number; left: number; bottom: number; right: number } | null>(null);
+
+	function openProfilePopover(userId: Id, e: MouseEvent) {
+		const el = e.currentTarget as HTMLElement;
+		const rect = el.getBoundingClientRect();
+		popoverAnchorRect = { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right };
+		popoverUserId = userId;
+	}
 
 	const isOwner = $derived(channel.created_by === $auth.user?.id);
 	const isArchived = $derived(!!channel.archived_at);
@@ -277,13 +287,17 @@
 			{:else}
 				<div class="space-y-1">
 					{#each members as memberId}
-						<div class="flex items-center gap-2 rounded px-2 py-1.5">
+						<button
+							type="button"
+							class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-navy-light/50 cursor-pointer"
+							onclick={(e) => openProfilePopover(memberId, e)}
+						>
 							<Avatar url={getUserAvatar(memberId)} name={getUserName(memberId)} size="sm" />
 							<span class="text-sm text-gray-300">{getUserName(memberId)}</span>
 							{#if memberId === channel.created_by}
 								<span class="text-xs text-primary-light/40">owner</span>
 							{/if}
-						</div>
+						</button>
 					{/each}
 				</div>
 			{/if}
@@ -352,4 +366,12 @@
 			</form>
 		</div>
 	</div>
+{/if}
+
+{#if popoverUserId && popoverAnchorRect}
+	<UserProfilePopover
+		userId={popoverUserId}
+		anchorRect={popoverAnchorRect}
+		onClose={() => { popoverUserId = null; popoverAnchorRect = null; }}
+	/>
 {/if}

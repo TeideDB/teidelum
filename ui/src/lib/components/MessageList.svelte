@@ -9,6 +9,7 @@
 	import MessageContextMenu from '$lib/components/MessageContextMenu.svelte';
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
+	import UserProfilePopover from '$lib/components/UserProfilePopover.svelte';
 	import type { Message, Id } from '$lib/types';
 
 	const URL_REGEX = /https?:\/\/[^\s<>"')\]]+/g;
@@ -35,6 +36,17 @@
 	// Image lightbox state
 	let lightboxSrc = $state<string | null>(null);
 	let lightboxAlt = $state('');
+
+	// User profile popover state
+	let popoverUserId = $state<Id | null>(null);
+	let popoverAnchorRect = $state<{ top: number; left: number; bottom: number; right: number } | null>(null);
+
+	function openProfilePopover(userId: Id, e: MouseEvent) {
+		const el = e.currentTarget as HTMLElement;
+		const rect = el.getBoundingClientRect();
+		popoverAnchorRect = { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right };
+		popoverUserId = userId;
+	}
 
 	const channelState = $derived($messagesByChannel.get(channelId));
 	const messages = $derived(channelState?.messages ?? []);
@@ -238,9 +250,13 @@
 			<div class="group relative flex gap-3 px-1 py-0.5 hover:bg-navy-light/50 {shouldShowAuthor(idx) ? 'mt-3' : ''}">
 				{#if shouldShowAuthor(idx)}
 					<!-- Avatar -->
-					<div class="flex-shrink-0 pt-0.5">
+					<button
+						type="button"
+						class="flex-shrink-0 pt-0.5 cursor-pointer"
+						onclick={(e) => openProfilePopover(msg.user_id, e)}
+					>
 						<Avatar url={getUser(msg.user_id)?.avatar_url ?? ''} name={getUser(msg.user_id)?.display_name || getUser(msg.user_id)?.username || ''} size="md" />
-					</div>
+					</button>
 				{:else}
 					<!-- Timestamp on hover (aligned with avatar) -->
 					<div class="flex w-9 flex-shrink-0 items-center justify-center">
@@ -251,7 +267,11 @@
 				<div class="min-w-0 flex-1">
 					{#if shouldShowAuthor(idx)}
 						<div class="flex items-baseline gap-2">
-							<span class="text-sm font-bold text-gray-200">{getUserName(msg.user_id)}</span>
+							<button
+								type="button"
+								class="text-sm font-bold text-gray-200 hover:underline cursor-pointer"
+								onclick={(e) => openProfilePopover(msg.user_id, e)}
+							>{getUserName(msg.user_id)}</button>
 							<span class="text-xs text-primary-light/40">{formatTime(msg.created_at)}</span>
 							{#if msg.edited_at}
 								<span class="text-xs text-primary-light/40">(edited)</span>
@@ -405,4 +425,12 @@
 
 {#if lightboxSrc}
 	<ImageLightbox src={lightboxSrc} alt={lightboxAlt} onClose={() => { lightboxSrc = null; }} />
+{/if}
+
+{#if popoverUserId && popoverAnchorRect}
+	<UserProfilePopover
+		userId={popoverUserId}
+		anchorRect={popoverAnchorRect}
+		onClose={() => { popoverUserId = null; popoverAnchorRect = null; }}
+	/>
 {/if}
