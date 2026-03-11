@@ -49,6 +49,7 @@ async fn test_chat_flow() {
         api: api.clone(),
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
     });
 
     let app = teidelum::chat::handlers::chat_routes(state);
@@ -177,6 +178,7 @@ async fn test_unread_tracking() {
         api: api.clone(),
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -308,6 +310,7 @@ async fn test_conversations_mark_read() {
         api: api.clone(),
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -394,6 +397,7 @@ async fn test_thread_metadata() {
         api: api.clone(),
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -495,6 +499,7 @@ async fn test_dm_conversation() {
         api: api.clone(),
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -596,6 +601,7 @@ async fn test_presence_update() {
         api: api.clone(),
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -664,6 +670,7 @@ async fn test_mention_extraction() {
         api: api.clone(),
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state.clone());
 
@@ -754,6 +761,7 @@ async fn test_reaction_lifecycle() {
         api: api.clone(),
         hub: hub.clone(),
         dm_create_lock: tokio::sync::Mutex::new(()),
+        reads_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 

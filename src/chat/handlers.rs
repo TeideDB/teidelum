@@ -17,6 +17,8 @@ pub struct ChatState {
     /// Serializes DM channel creation to prevent TOCTOU races (check-then-insert
     /// without DB-level unique constraints).
     pub dm_create_lock: Mutex<()>,
+    /// Serializes channel_reads upserts to prevent TOCTOU races.
+    pub reads_lock: Mutex<()>,
 }
 
 // ── Auth ──
@@ -593,33 +595,40 @@ pub async fn conversations_history(
         }
     }
 
-    // Update channel_reads for this user
+    // Update channel_reads for this user (locked to prevent TOCTOU duplicates)
     let now = now_timestamp();
-    let read_check = format!(
-        "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
-        req.channel, claims.user_id
-    );
-    let has_existing = state
-        .api
-        .query_router()
-        .query_sync(&read_check)
-        .map(|r| !r.rows.is_empty())
-        .unwrap_or(false);
+    {
+        let _reads_guard = state.reads_lock.lock().await;
+        let read_check = format!(
+            "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
+            req.channel, claims.user_id
+        );
+        let has_existing = state
+            .api
+            .query_router()
+            .query_sync(&read_check)
+            .map(|r| !r.rows.is_empty())
+            .unwrap_or(false);
 
-    if has_existing {
-        let update_sql =
-            format!(
-            "UPDATE channel_reads SET last_read_ts = '{}' WHERE channel_id = {} AND user_id = {}",
-            escape_sql(&now), req.channel, claims.user_id
-        );
-        let _ = state.api.query_router().query_sync(&update_sql);
-    } else {
-        let insert_sql =
-            format!(
-            "INSERT INTO channel_reads (channel_id, user_id, last_read_ts) VALUES ({}, {}, '{}')",
-            req.channel, claims.user_id, escape_sql(&now)
-        );
-        let _ = state.api.query_router().query_sync(&insert_sql);
+        if has_existing {
+            let update_sql =
+                format!(
+                "UPDATE channel_reads SET last_read_ts = '{}' WHERE channel_id = {} AND user_id = {}",
+                escape_sql(&now), req.channel, claims.user_id
+            );
+            if let Err(e) = state.api.query_router().query_sync(&update_sql) {
+                tracing::warn!("channel_reads update failed: {e}");
+            }
+        } else {
+            let insert_sql =
+                format!(
+                "INSERT INTO channel_reads (channel_id, user_id, last_read_ts) VALUES ({}, {}, '{}')",
+                req.channel, claims.user_id, escape_sql(&now)
+            );
+            if let Err(e) = state.api.query_router().query_sync(&insert_sql) {
+                tracing::warn!("channel_reads insert failed: {e}");
+            }
+        }
     }
 
     slack::ok(json!({"messages": messages, "has_more": messages.len() == limit}))
@@ -639,7 +648,7 @@ pub async fn conversations_replies(
          m.deleted_at, m.edited_at, m.created_at, u.username \
          FROM messages m \
          JOIN users u ON m.user_id = u.id \
-         WHERE m.channel_id = {} AND (m.id = {} OR m.thread_id = {}) \
+         WHERE m.channel_id = {} AND (m.id = {} OR m.thread_id = {}) AND m.deleted_at = '' \
          ORDER BY m.id ASC",
         req.channel, req.ts, req.ts
     );
@@ -656,17 +665,12 @@ pub async fn conversations_replies(
         .rows
         .iter()
         .map(|row| {
-            let deleted = match &row[5] {
-                crate::connector::Value::Null => false,
-                crate::connector::Value::String(s) if s.is_empty() => false,
-                _ => true,
-            };
             json!({
                 "ts": row[0].to_json(),
                 "channel": row[1].to_json(),
                 "user": row[2].to_json(),
                 "thread_ts": row[3].to_json(),
-                "text": if deleted { serde_json::Value::String("[deleted]".into()) } else { row[4].to_json() },
+                "text": row[4].to_json(),
                 "edited_ts": row[6].to_json(),
                 "created_at": row[7].to_json(),
                 "username": row[8].to_json(),
@@ -1059,9 +1063,15 @@ pub async fn conversations_mark_read(
         return slack::err("channel_not_found");
     }
 
-    let ts = req.ts.unwrap_or_else(now_timestamp);
+    let now = now_timestamp();
+    let ts = match req.ts {
+        Some(t) if t > now => now.clone(),
+        Some(t) => t,
+        None => now,
+    };
 
-    // Upsert channel_reads
+    // Upsert channel_reads (locked to prevent TOCTOU duplicates)
+    let _reads_guard = state.reads_lock.lock().await;
     let check_sql = format!(
         "SELECT user_id FROM channel_reads WHERE channel_id = {} AND user_id = {}",
         req.channel, claims.user_id
