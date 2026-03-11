@@ -7,14 +7,24 @@ marked.setOptions({
 	gfm: true // GitHub-flavored markdown
 });
 
+/** Highlight @mentions before markdown rendering */
+function highlightMentions(text: string): string {
+	return text.replace(
+		/@(\w+)/g,
+		'<span class="mention">@$1</span>'
+	);
+}
+
 /** Render markdown text to sanitized HTML */
 export function renderMarkdown(text: string): string {
-	const html = marked.parse(text, { async: false }) as string;
+	const withMentions = highlightMentions(text);
+	const html = marked.parse(withMentions, { async: false }) as string;
 	return DOMPurify.sanitize(html, {
 		ALLOWED_TAGS: [
 			'p', 'br', 'strong', 'em', 'del', 'code', 'pre',
-			'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3'
+			'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3',
+			'span'
 		],
-		ALLOWED_ATTR: ['href', 'target', 'rel']
+		ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
 	});
 }

@@ -3161,7 +3161,7 @@ git commit -m "feat(chat-ui): add markdown rendering for messages with sanitizat
 **Files:**
 - Modify: `teidelum/ui/src/lib/markdown.ts`
 
-- [ ] **Step 1: Add mention highlighting to markdown processing**
+- [x] **Step 1: Add mention highlighting to markdown processing**
 
 Update `src/lib/markdown.ts` to detect `@username` patterns and wrap them in a highlight span before markdown rendering:
 
@@ -3197,7 +3197,7 @@ export function renderMarkdown(text: string): string {
 }
 ```
 
-- [ ] **Step 2: Add mention styles to app.css**
+- [x] **Step 2: Add mention styles to app.css**
 
 Add to `src/app.css`:
 
@@ -3207,11 +3207,11 @@ Add to `src/app.css`:
 }
 ```
 
-- [ ] **Step 3: Verify build**
+- [x] **Step 3: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/markdown.ts teidelum/ui/src/app.css
