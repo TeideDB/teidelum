@@ -626,8 +626,6 @@ pub async fn users_update_settings(
         );
         let _ = state.api.query_router().query_sync(&insert);
     }
-    drop(_guard);
-
     let mut sets = Vec::new();
     if let Some(ref theme) = req.theme {
         if !["dark", "light"].contains(&theme.as_str()) {
@@ -1558,7 +1556,7 @@ pub async fn conversations_mark_read(
             if t.parse::<u64>().is_err() {
                 return slack::err("invalid_arguments");
             }
-            if t > now { now.clone() } else { t }
+            if t.parse::<u64>().unwrap() > now.parse::<u64>().unwrap() { now.clone() } else { t }
         }
         None => now,
     };
@@ -2256,7 +2254,7 @@ pub async fn reactions_add(
 ) -> Response {
     // Get channel from message
     let check = format!(
-        "SELECT channel_id FROM messages WHERE id = {}",
+        "SELECT channel_id FROM messages WHERE id = {} AND deleted_at = ''",
         req.timestamp
     );
     let result = match state.api.query_router().query_sync(&check) {
@@ -2705,7 +2703,7 @@ pub async fn pins_add(
 
     // Verify message exists in this channel
     let check = format!(
-        "SELECT id FROM messages WHERE id = {} AND channel_id = {}",
+        "SELECT id FROM messages WHERE id = {} AND channel_id = {} AND deleted_at = ''",
         req.message_id, req.channel
     );
     match state.api.query_router().query_sync(&check) {
@@ -2921,6 +2919,7 @@ pub async fn links_unfurl(
             || { let s = ip.segments(); s[0] == 0 && s[1] == 0 && s[2] == 0 && s[3] == 0 && s[4] == 0 && s[5] == 0xffff } // IPv4-mapped
     }
 
+    let mut resolved: Vec<std::net::SocketAddr> = Vec::new();
     if let Some(host) = url.host_str() {
         let host_trimmed = host.trim_matches(|c| c == '[' || c == ']');
         if host_trimmed == "localhost" || host_trimmed == "::1" || host_trimmed == "0.0.0.0" {
@@ -2939,7 +2938,7 @@ pub async fn links_unfurl(
         // Resolve hostname and check resolved IPs to prevent DNS rebinding
         let port = url.port().unwrap_or(if url.scheme() == "https" { 443 } else { 80 });
         let addr_str = format!("{}:{}", host_trimmed, port);
-        let resolved: Vec<std::net::SocketAddr> = tokio::net::lookup_host(&addr_str)
+        resolved = tokio::net::lookup_host(&addr_str)
             .await
             .map(|addrs| addrs.collect())
             .unwrap_or_default();
@@ -2966,12 +2965,16 @@ pub async fn links_unfurl(
         }
     }
 
-    // Fetch with timeout
-    let client = reqwest::Client::builder()
+    // Fetch with timeout; pin resolved IPs to prevent DNS rebinding on redirects
+    let mut builder = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .unwrap_or_default();
+        .redirect(reqwest::redirect::Policy::limited(3));
+    if let Some(host) = url.host_str() {
+        for addr in &resolved {
+            builder = builder.resolve(host, *addr);
+        }
+    }
+    let client = builder.build().unwrap_or_default();
 
     let resp = match client.get(req.url.clone()).send().await {
         Ok(r) => r,
