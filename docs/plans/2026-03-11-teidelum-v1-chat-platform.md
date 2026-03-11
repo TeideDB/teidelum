@@ -2250,13 +2250,13 @@ Simple modal listing all keyboard shortcuts.
 - Modify: `ui/src/routes/(app)/+layout.svelte`
 - Modify: `ui/src/lib/components/Sidebar.svelte`
 
-- [ ] **Step 1: Add responsive layout**
+- [x] **Step 1: Add responsive layout**
 
 - Sidebar: hidden by default on `<768px`, hamburger button to toggle
 - Thread/ChannelInfo panel: full-screen overlay on mobile
 - Touch-friendly tap targets (min 44px)
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ---
 

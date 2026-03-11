@@ -195,7 +195,7 @@
 
 	<!-- Side panel: Thread or Channel Info -->
 	{#if threadMessage}
-		<div class="w-96 flex-shrink-0 border-l border-primary-dark/40">
+		<div class="fixed inset-0 z-40 bg-navy md:relative md:inset-auto md:z-auto md:w-96 md:flex-shrink-0 md:border-l md:border-primary-dark/40">
 			<ThreadPanel
 				{channelId}
 				parentMessage={threadMessage}
@@ -203,7 +203,7 @@
 			/>
 		</div>
 	{:else if showChannelInfo && $activeChannel}
-		<div class="w-96 flex-shrink-0 border-l border-primary-dark/40">
+		<div class="fixed inset-0 z-40 bg-navy md:relative md:inset-auto md:z-auto md:w-96 md:flex-shrink-0 md:border-l md:border-primary-dark/40">
 			<ChannelInfoPanel
 				channel={$activeChannel}
 				onClose={() => (showChannelInfo = false)}

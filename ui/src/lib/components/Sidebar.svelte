@@ -182,7 +182,7 @@
 		<div class="relative border-b border-primary-dark/40 px-4 py-2">
 			<button
 				onclick={() => (showUserMenu = !showUserMenu)}
-				class="flex w-full items-center gap-2 rounded px-1 py-1 text-left text-sm text-primary-lighter hover:bg-primary-darker/60"
+				class="flex w-full items-center gap-2 rounded px-1 py-2.5 md:py-1 text-left text-sm text-primary-lighter hover:bg-primary-darker/60"
 			>
 				<Avatar url={$auth.user.avatar_url ?? ''} name={$auth.user.display_name || $auth.user.username || ''} size="sm" />
 				<span class="truncate">{$auth.user.display_name || $auth.user.username}</span>
@@ -195,7 +195,7 @@
 				<div class="absolute bottom-full left-2 right-2 mb-1 rounded-md bg-navy-light shadow-lg ring-1 ring-primary-dark/60 z-50">
 					<button
 						onclick={openStatusModal}
-						class="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading rounded-t-md"
+						class="flex w-full items-center gap-2 px-3 py-3 md:py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading rounded-t-md"
 					>
 						{#if $auth.user?.status_emoji}
 							<span>{$auth.user.status_emoji}</span>
@@ -211,7 +211,7 @@
 							showUserMenu = false;
 							goto('/settings');
 						}}
-						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading"
+						class="flex w-full items-center px-3 py-3 md:py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading"
 					>
 						Settings
 					</button>
@@ -220,7 +220,7 @@
 							showUserMenu = false;
 							handleLogout();
 						}}
-						class="flex w-full items-center px-3 py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading rounded-b-md"
+						class="flex w-full items-center px-3 py-3 md:py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading rounded-b-md"
 					>
 						Sign out
 					</button>
@@ -266,7 +266,7 @@
 				<button
 					onclick={() => navigateToChannel(channel)}
 					oncontextmenu={(e) => handleContextMenu(e, channel)}
-					class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
+					class="flex w-full items-center justify-between rounded px-2 py-2.5 md:py-1 text-left text-sm transition {isActive(channel.id)
 						? 'bg-primary text-white'
 						: channel.archived_at
 							? 'text-primary-light/30 hover:bg-primary-darker/60 hover:text-primary-lighter/60'
@@ -311,7 +311,7 @@
 				{#each $dmChannels as channel}
 					<button
 						onclick={() => navigateToChannel(channel)}
-						class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
+						class="flex w-full items-center justify-between rounded px-2 py-2.5 md:py-1 text-left text-sm transition {isActive(channel.id)
 							? 'bg-primary text-white'
 							: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading'}"
 					>
