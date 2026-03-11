@@ -1307,6 +1307,20 @@ pub async fn conversations_invite(
         return slack::err("channel_not_found");
     }
 
+    // Check if channel is archived
+    let arch_sql = format!(
+        "SELECT archived_at FROM channels WHERE id = {}",
+        req.channel
+    );
+    if let Ok(r) = state.api.query_router().query_sync(&arch_sql) {
+        if let Some(row) = r.rows.first() {
+            let archived = row[0].to_json().as_str().unwrap_or("").to_string();
+            if !archived.is_empty() {
+                return slack::err("channel_archived");
+            }
+        }
+    }
+
     // Check if target user exists
     let check = format!("SELECT id FROM users WHERE id = {}", req.user);
     match state.api.query_router().query_sync(&check) {
@@ -1317,6 +1331,9 @@ pub async fn conversations_invite(
         }
         _ => {}
     }
+
+    // Lock to prevent TOCTOU race on duplicate membership
+    let _join_guard = state.channel_join_lock.lock().await;
 
     // Check if already a member
     if is_channel_member(&state, req.channel, req.user) {
@@ -1585,10 +1602,12 @@ pub async fn conversations_mark_read(
     let now = now_timestamp();
     let ts = match req.ts {
         Some(t) => {
-            if t.parse::<u64>().is_err() {
-                return slack::err("invalid_arguments");
-            }
-            if t.parse::<u64>().unwrap() > now.parse::<u64>().unwrap() {
+            let ts_val = match t.parse::<u64>() {
+                Ok(v) => v,
+                Err(_) => return slack::err("invalid_arguments"),
+            };
+            let now_val: u64 = now.parse().unwrap_or(0);
+            if ts_val > now_val {
                 now.clone()
             } else {
                 t
@@ -1892,6 +1911,10 @@ fn upsert_channel_setting(
     field: &str,
     value: &str,
 ) -> Result<(), String> {
+    // Validate field name against allowlist to prevent SQL injection
+    if !matches!(field, "muted" | "notification_level") {
+        return Err(format!("invalid field: {field}"));
+    }
     let now = now_timestamp();
     let check_sql = format!(
         "SELECT channel_id FROM channel_settings WHERE channel_id = {} AND user_id = {}",

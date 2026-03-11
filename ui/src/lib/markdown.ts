@@ -79,7 +79,7 @@ const markedInstance = new Marked({
 	gfm: true // GitHub-flavored markdown
 });
 
-// Custom renderer for code blocks with Shiki highlighting and copy button
+// Custom renderer for code blocks with Shiki highlighting
 markedInstance.use({
 	renderer: {
 		code({ text, lang }: { text: string; lang?: string }) {
@@ -90,7 +90,7 @@ markedInstance.use({
 				.replace(/</g, '&lt;')
 				.replace(/>/g, '&gt;')
 				.replace(/"/g, '&quot;');
-			return `<div class="code-block-wrapper">${language ? `<span class="code-block-lang">${language}</span>` : ''}<button class="code-copy-btn" data-code="${escapedText}">Copy</button>${highlighted}</div>`;
+			return `<div class="code-block-wrapper" data-code="${escapedText}">${language ? `<span class="code-block-lang">${language}</span>` : ''}${highlighted}</div>`;
 		}
 	}
 });
@@ -109,12 +109,17 @@ function highlightMentions(html: string): string {
 export function renderMarkdown(text: string): string {
 	const html = markedInstance.parse(text, { async: false }) as string;
 	const withMentions = highlightMentions(html);
-	return DOMPurify.sanitize(withMentions, {
+	const sanitized = DOMPurify.sanitize(withMentions, {
 		ALLOWED_TAGS: [
 			'p', 'br', 'strong', 'em', 'del', 'code', 'pre',
 			'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3',
-			'span', 'div', 'button'
+			'span', 'div'
 		],
 		ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'data-code']
 	});
+	// Inject copy buttons into code block wrappers after sanitization
+	return sanitized.replace(
+		/<div class="code-block-wrapper" data-code="([^"]*)">/g,
+		'<div class="code-block-wrapper" data-code="$1"><button class="code-copy-btn" data-code="$1">Copy</button>'
+	);
 }
