@@ -1414,15 +1414,17 @@ pub async fn reactions_remove(
         })
         .unwrap_or(false);
 
-    if actually_deleted {
-        let event = crate::chat::events::ServerEvent::ReactionRemoved {
-            channel: channel_id.to_string(),
-            user: claims.user_id.to_string(),
-            reaction: req.name,
-            item_ts: req.timestamp.to_string(),
-        };
-        state.hub.broadcast_to_channel(channel_id, &event).await;
+    if !actually_deleted {
+        return slack::err("no_reaction");
     }
+
+    let event = crate::chat::events::ServerEvent::ReactionRemoved {
+        channel: channel_id.to_string(),
+        user: claims.user_id.to_string(),
+        reaction: req.name,
+        item_ts: req.timestamp.to_string(),
+    };
+    state.hub.broadcast_to_channel(channel_id, &event).await;
 
     slack::ok(json!({}))
 }

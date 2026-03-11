@@ -497,3 +497,137 @@ async fn test_presence_update() {
     assert_eq!(body["ok"], false);
     assert_eq!(body["error"], "invalid_presence");
 }
+
+#[tokio::test]
+async fn test_mention_extraction() {
+    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-12345");
+    let tmp = tempfile::tempdir().unwrap();
+    let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
+    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    let api = std::sync::Arc::new(api);
+    let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
+    let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
+        api: api.clone(),
+        hub: hub.clone(),
+    });
+    let app = teidelum::chat::handlers::chat_routes(state.clone());
+
+    // Register alice and bob
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "alice_m", "password": "secret123", "email": "alice_m@test.com"}),
+        None,
+    )).await.unwrap();
+    let token_a = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "bob_m", "password": "secret123", "email": "bob_m@test.com"}),
+        None,
+    )).await.unwrap();
+    let _token_b = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Alice creates channel
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.create",
+        json!({"name": "mention-test"}),
+        Some(&token_a),
+    )).await.unwrap();
+    let ch_id: i64 = body_json(resp).await["channel"]["id"].as_str().unwrap().parse().unwrap();
+
+    // Alice posts message mentioning bob
+    let _ = app.clone().oneshot(post_json(
+        "/api/slack/chat.postMessage",
+        json!({"channel": ch_id, "text": "hey @bob_m check this out"}),
+        Some(&token_a),
+    )).await.unwrap();
+
+    // Verify mention was stored by querying mentions table directly
+    let sql = "SELECT message_id, user_id FROM mentions";
+    let result = state.api.query_router().query_sync(sql).unwrap();
+    assert!(!result.rows.is_empty(), "expected mention rows");
+
+    // Post message without mentions
+    let before_count = result.rows.len();
+    let _ = app.clone().oneshot(post_json(
+        "/api/slack/chat.postMessage",
+        json!({"channel": ch_id, "text": "no mentions here"}),
+        Some(&token_a),
+    )).await.unwrap();
+
+    let result = state.api.query_router().query_sync(sql).unwrap();
+    assert_eq!(result.rows.len(), before_count, "no new mentions should be added");
+}
+
+#[tokio::test]
+async fn test_reaction_lifecycle() {
+    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-12345");
+    let tmp = tempfile::tempdir().unwrap();
+    let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
+    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    let api = std::sync::Arc::new(api);
+    let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
+    let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
+        api: api.clone(),
+        hub: hub.clone(),
+    });
+    let app = teidelum::chat::handlers::chat_routes(state);
+
+    // Register
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/auth.register",
+        json!({"username": "frank", "password": "secret123", "email": "frank@test.com"}),
+        None,
+    )).await.unwrap();
+    let token = body_json(resp).await["token"].as_str().unwrap().to_string();
+
+    // Create channel and post message
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/conversations.create",
+        json!({"name": "reaction-test"}),
+        Some(&token),
+    )).await.unwrap();
+    let ch_id: i64 = body_json(resp).await["channel"]["id"].as_str().unwrap().parse().unwrap();
+
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/chat.postMessage",
+        json!({"channel": ch_id, "text": "react to this"}),
+        Some(&token),
+    )).await.unwrap();
+    let msg_ts = body_json(resp).await["message"]["ts"].as_str().unwrap().to_string();
+    let msg_id: i64 = msg_ts.parse().unwrap();
+
+    // Add reaction
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/reactions.add",
+        json!({"timestamp": msg_id, "name": "thumbsup"}),
+        Some(&token),
+    )).await.unwrap();
+    assert_eq!(body_json(resp).await["ok"], true);
+
+    // Add same reaction again — should return already_reacted
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/reactions.add",
+        json!({"timestamp": msg_id, "name": "thumbsup"}),
+        Some(&token),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    assert!(body["ok"] == true || body["error"] == "already_reacted");
+
+    // Remove reaction
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/reactions.remove",
+        json!({"timestamp": msg_id, "name": "thumbsup"}),
+        Some(&token),
+    )).await.unwrap();
+    assert_eq!(body_json(resp).await["ok"], true);
+
+    // Remove again — should fail (not found)
+    let resp = app.clone().oneshot(post_json(
+        "/api/slack/reactions.remove",
+        json!({"timestamp": msg_id, "name": "thumbsup"}),
+        Some(&token),
+    )).await.unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+}

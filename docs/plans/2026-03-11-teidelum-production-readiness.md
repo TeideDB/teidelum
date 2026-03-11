@@ -875,7 +875,7 @@ git commit -m "test: add integration tests for DMs and presence"
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Add mention extraction test**
+- [x] **Step 1: Add mention extraction test**
 
 ```rust
 #[tokio::test]
@@ -940,7 +940,7 @@ async fn test_mention_extraction() {
 }
 ```
 
-- [ ] **Step 2: Add reaction lifecycle test**
+- [x] **Step 2: Add reaction lifecycle test**
 
 ```rust
 #[tokio::test]
@@ -1018,7 +1018,7 @@ async fn test_reaction_lifecycle() {
 }
 ```
 
-- [ ] **Step 3: Run all tests**
+- [x] **Step 3: Run all tests**
 
 ```bash
 cargo test -- --nocapture
@@ -1026,7 +1026,7 @@ cargo test -- --nocapture
 
 Expected: All tests pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/chat_integration.rs
