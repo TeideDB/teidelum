@@ -1603,7 +1603,7 @@ git commit -m "feat(chat-ui): add auth guard to root layout with redirect logic"
 - Create: `teidelum/ui/src/routes/(app)/+layout.svelte`
 - Create: `teidelum/ui/src/routes/(app)/+page.svelte` (redirect to first channel)
 
-- [ ] **Step 1: Create app layout with sidebar + main area**
+- [x] **Step 1: Create app layout with sidebar + main area**
 
 Create `src/routes/(app)/+layout.svelte`:
 
@@ -1666,11 +1666,11 @@ Create `src/routes/(app)/+page.svelte` (landing redirect):
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/\(app\)/
