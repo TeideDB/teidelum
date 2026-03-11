@@ -1345,11 +1345,11 @@ Follow the existing handler patterns. `pins.add`: check membership, SELECT-befor
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Write test**
+- [x] **Step 1: Write test**
 
 Pin a message, list pins, verify. Pin same message again (idempotent). Unpin, verify removed.
 
-- [ ] **Step 2: Run tests, commit**
+- [x] **Step 2: Run tests, commit**
 
 ---
 

@@ -1378,3 +1378,133 @@ async fn test_set_role() {
         "non-owner should not setRole"
     );
 }
+
+#[tokio::test]
+async fn test_pins_add_list_remove() {
+    let (app, _tmp) = setup().await;
+    let token = register_and_login(&app, "pinner", "pass1234", "pinner@test.com").await;
+
+    // Create channel and post a message
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "pin-test"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let ch_id = body_json(resp).await["channel"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/chat.postMessage",
+            json!({"channel": ch_id, "text": "pin me"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let msg_ts = body_json(resp).await["message"]["ts"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // Pin the message
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/pins.add",
+            json!({"channel": ch_id, "timestamp": msg_ts}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(body_json(resp).await["ok"], true, "pins.add should succeed");
+
+    // List pins — should have 1 item
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/pins.list",
+            json!({"channel": ch_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let items = body["items"].as_array().unwrap();
+    assert_eq!(items.len(), 1, "should have 1 pinned message");
+    assert_eq!(items[0]["message"]["ts"], msg_ts);
+    assert_eq!(items[0]["message"]["text"], "pin me");
+
+    // Pin same message again (idempotent) — should still succeed
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/pins.add",
+            json!({"channel": ch_id, "timestamp": msg_ts}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        body_json(resp).await["ok"],
+        true,
+        "duplicate pin should be idempotent"
+    );
+
+    // List again — still 1 item (not duplicated)
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/pins.list",
+            json!({"channel": ch_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(
+        body["items"].as_array().unwrap().len(),
+        1,
+        "idempotent pin should not duplicate"
+    );
+
+    // Unpin the message
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/pins.remove",
+            json!({"channel": ch_id, "timestamp": msg_ts}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        body_json(resp).await["ok"],
+        true,
+        "pins.remove should succeed"
+    );
+
+    // List pins — should be empty
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/pins.list",
+            json!({"channel": ch_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(
+        body["items"].as_array().unwrap().len(),
+        0,
+        "pins should be empty after unpin"
+    );
+}
