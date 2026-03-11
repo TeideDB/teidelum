@@ -48,6 +48,7 @@ async fn test_chat_flow() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
 
     let app = teidelum::chat::handlers::chat_routes(state);
@@ -175,6 +176,7 @@ async fn test_unread_tracking() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -305,6 +307,7 @@ async fn test_conversations_mark_read() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -390,6 +393,7 @@ async fn test_thread_metadata() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -490,6 +494,7 @@ async fn test_dm_conversation() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -590,6 +595,7 @@ async fn test_presence_update() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 
@@ -657,6 +663,7 @@ async fn test_mention_extraction() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state.clone());
 
@@ -746,6 +753,7 @@ async fn test_reaction_lifecycle() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
     let app = teidelum::chat::handlers::chat_routes(state);
 

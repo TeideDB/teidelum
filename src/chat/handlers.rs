@@ -7,12 +7,16 @@ use axum::{extract::State, response::Response, Extension, Json};
 use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub type AppState = Arc<ChatState>;
 
 pub struct ChatState {
     pub api: Arc<TeidelumApi>,
     pub hub: Arc<crate::chat::hub::Hub>,
+    /// Serializes DM channel creation to prevent TOCTOU races (check-then-insert
+    /// without DB-level unique constraints).
+    pub dm_create_lock: Mutex<()>,
 }
 
 // ── Auth ──
@@ -890,6 +894,10 @@ pub async fn conversations_open(
         _ => {}
     }
 
+    // Serialize DM creation to prevent TOCTOU race (check-then-insert without
+    // DB-level unique constraints could create duplicate DM channels).
+    let _dm_guard = state.dm_create_lock.lock().await;
+
     // Look for existing DM between these two users
     // Use subquery instead of double-JOIN (TeideDB doesn't support multiple JOINs on same table)
     let dm_name = format!(
@@ -905,9 +913,52 @@ pub async fn conversations_open(
     match state.api.query_router().query_sync(&sql) {
         Ok(r) if !r.rows.is_empty() => {
             let row = &r.rows[0];
+            let channel_id = row[0].to_json();
+
+            // Repair membership if a prior partial failure left it incomplete
+            let channel_id_val: i64 = channel_id
+                .as_str()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            if channel_id_val > 0 {
+                let now = now_timestamp();
+                for uid in [claims.user_id, other_user] {
+                    let check = format!(
+                        "SELECT user_id FROM channel_members WHERE channel_id = {channel_id_val} AND user_id = {uid}"
+                    );
+                    match state.api.query_router().query_sync(&check) {
+                        Ok(mr) if mr.rows.is_empty() => {
+                            let repair = format!(
+                                "INSERT INTO channel_members (channel_id, user_id, role, joined_at) \
+                                 VALUES ({channel_id_val}, {uid}, 'member', '{now}')"
+                            );
+                            if let Err(e) = state.api.query_router().query_sync(&repair) {
+                                tracing::error!("dm membership repair failed: {e}");
+                                return slack::err("internal_error");
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("dm membership check failed: {e}");
+                            return slack::err("internal_error");
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            // Sync repaired membership to the in-memory hub cache
+            // so that broadcasts and typing checks work immediately
+            let mut members = std::collections::HashSet::new();
+            members.insert(claims.user_id);
+            members.insert(other_user);
+            state
+                .hub
+                .set_channel_members(channel_id_val, members)
+                .await;
+
             return slack::ok(json!({
                 "channel": {
-                    "id": row[0].to_json(),
+                    "id": channel_id,
                     "name": row[1].to_json(),
                     "kind": "dm",
                 },
@@ -950,6 +1001,17 @@ pub async fn conversations_open(
         );
         if let Err(e) = state.api.query_router().query_sync(&member_sql) {
             tracing::error!("dm member insert failed: {e}");
+            // Clean up member rows first to avoid orphan memberships
+            // (channel_members must be deleted before channels)
+            let cleanup_members =
+                format!("DELETE FROM channel_members WHERE channel_id = {id}");
+            if let Err(ce) = state.api.query_router().query_sync(&cleanup_members) {
+                tracing::error!("dm member cleanup also failed: {ce}");
+            }
+            let cleanup = format!("DELETE FROM channels WHERE id = {id}");
+            if let Err(ce) = state.api.query_router().query_sync(&cleanup) {
+                tracing::error!("dm channel cleanup also failed: {ce}");
+            }
             return slack::err("internal_error");
         }
     }

@@ -29,6 +29,7 @@ pub fn build_router(
     let chat_state: crate::chat::handlers::AppState = Arc::new(ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        dm_create_lock: tokio::sync::Mutex::new(()),
     });
 
     // Data API routes (protected by optional API key)
