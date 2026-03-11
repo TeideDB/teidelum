@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import * as api from '$lib/api';
 	import { auth, refreshCurrentUser } from '$lib/stores/auth';
+	import { theme as themeStore } from '$lib/stores/theme';
 	import type { UserSettings } from '$lib/types';
 
 	type Tab = 'profile' | 'account' | 'notifications' | 'appearance';
@@ -104,6 +105,7 @@
 		settingsErr = '';
 		const res = await api.usersUpdateSettings({ theme });
 		if (res.ok) {
+			themeStore.set(theme as 'dark' | 'light');
 			settingsMsg = 'Appearance settings saved.';
 		} else {
 			settingsErr = res.error || 'Failed to save settings.';

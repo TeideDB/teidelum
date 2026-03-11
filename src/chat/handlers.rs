@@ -841,7 +841,7 @@ pub async fn conversations_list(
 ) -> Response {
     // List channels the user is a member of
     let sql = format!(
-        "SELECT c.id, c.name, c.kind, c.topic, c.created_at \
+        "SELECT c.id, c.name, c.kind, c.topic, c.description, c.archived_at, c.created_at \
          FROM channels c \
          JOIN channel_members cm ON c.id = cm.channel_id \
          WHERE cm.user_id = {}",
@@ -910,7 +910,9 @@ pub async fn conversations_list(
                 "name": row[1].to_json(),
                 "kind": row[2].to_json(),
                 "topic": row[3].to_json(),
-                "created_at": row[4].to_json(),
+                "description": row[4].to_json(),
+                "archived_at": row[5].to_json(),
+                "created_at": row[6].to_json(),
                 "unread_count": unread_count,
                 "muted": muted,
                 "notification_level": notification_level,
@@ -2664,8 +2666,8 @@ pub async fn conversations_directory(
 pub struct PinAddRequest {
     #[serde(deserialize_with = "deserialize_id")]
     pub channel: i64,
-    #[serde(deserialize_with = "deserialize_id")]
-    pub timestamp: i64,
+    #[serde(alias = "timestamp", deserialize_with = "deserialize_id")]
+    pub message_id: i64,
 }
 
 pub async fn pins_add(
@@ -2680,7 +2682,7 @@ pub async fn pins_add(
     // Verify message exists in this channel
     let check = format!(
         "SELECT id FROM messages WHERE id = {} AND channel_id = {}",
-        req.timestamp, req.channel
+        req.message_id, req.channel
     );
     match state.api.query_router().query_sync(&check) {
         Ok(r) if r.rows.is_empty() => return slack::err("message_not_found"),
@@ -2694,7 +2696,7 @@ pub async fn pins_add(
     // Idempotent: check if already pinned
     let dup = format!(
         "SELECT message_id FROM pinned_messages WHERE channel_id = {} AND message_id = {}",
-        req.channel, req.timestamp
+        req.channel, req.message_id
     );
     if let Ok(r) = state.api.query_router().query_sync(&dup) {
         if !r.rows.is_empty() {
@@ -2706,7 +2708,7 @@ pub async fn pins_add(
     let insert = format!(
         "INSERT INTO pinned_messages (channel_id, message_id, user_id, created_at) \
          VALUES ({}, {}, {}, '{now}')",
-        req.channel, req.timestamp, claims.user_id
+        req.channel, req.message_id, claims.user_id
     );
     if let Err(e) = state.api.query_router().query_sync(&insert) {
         tracing::error!("pin insert failed: {e}");
@@ -2715,7 +2717,7 @@ pub async fn pins_add(
 
     let event = crate::chat::events::ServerEvent::MessagePinned {
         channel: req.channel.to_string(),
-        message_id: req.timestamp.to_string(),
+        message_id: req.message_id.to_string(),
         user: claims.user_id.to_string(),
     };
     state.hub.broadcast_to_channel(req.channel, &event).await;
@@ -2727,8 +2729,8 @@ pub async fn pins_add(
 pub struct PinRemoveRequest {
     #[serde(deserialize_with = "deserialize_id")]
     pub channel: i64,
-    #[serde(deserialize_with = "deserialize_id")]
-    pub timestamp: i64,
+    #[serde(alias = "timestamp", deserialize_with = "deserialize_id")]
+    pub message_id: i64,
 }
 
 pub async fn pins_remove(
@@ -2742,7 +2744,7 @@ pub async fn pins_remove(
 
     let delete = format!(
         "DELETE FROM pinned_messages WHERE channel_id = {} AND message_id = {}",
-        req.channel, req.timestamp
+        req.channel, req.message_id
     );
     if let Err(e) = state.api.query_router().query_sync(&delete) {
         tracing::error!("pin delete failed: {e}");
@@ -2751,7 +2753,7 @@ pub async fn pins_remove(
 
     let event = crate::chat::events::ServerEvent::MessageUnpinned {
         channel: req.channel.to_string(),
-        message_id: req.timestamp.to_string(),
+        message_id: req.message_id.to_string(),
         user: claims.user_id.to_string(),
     };
     state.hub.broadcast_to_channel(req.channel, &event).await;
@@ -2877,16 +2879,28 @@ pub async fn links_unfurl(
 
     // Block private/reserved IPs (SSRF protection)
     if let Some(host) = url.host_str() {
-        if host == "localhost" || host == "::1" {
+        let host_trimmed = host.trim_matches(|c| c == '[' || c == ']');
+        if host_trimmed == "localhost" || host_trimmed == "::1" || host_trimmed == "0.0.0.0" {
             return slack::err("blocked_url");
         }
-        if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+        if let Ok(ip) = host_trimmed.parse::<std::net::Ipv4Addr>() {
             let octets = ip.octets();
             let blocked = octets[0] == 10
                 || (octets[0] == 172 && (16..=31).contains(&octets[1]))
                 || (octets[0] == 192 && octets[1] == 168)
                 || octets[0] == 127
+                || octets[0] == 0
                 || (octets[0] == 169 && octets[1] == 254);
+            if blocked {
+                return slack::err("blocked_url");
+            }
+        }
+        if let Ok(ip) = host_trimmed.parse::<std::net::Ipv6Addr>() {
+            let blocked = ip.is_loopback()
+                || ip.is_unspecified()
+                || { let s = ip.segments(); s[0] & 0xfe00 == 0xfc00 } // unique local (fc00::/7)
+                || { let s = ip.segments(); s[0] & 0xffc0 == 0xfe80 } // link-local (fe80::/10)
+                || { let s = ip.segments(); s[0] == 0 && s[1] == 0 && s[2] == 0 && s[3] == 0 && s[4] == 0 && s[5] == 0xffff }; // IPv4-mapped
             if blocked {
                 return slack::err("blocked_url");
             }
@@ -2914,6 +2928,13 @@ pub async fn links_unfurl(
         Ok(r) => r,
         Err(_) => return slack::err("fetch_failed"),
     };
+
+    // Reject responses that declare a large content-length before downloading
+    if let Some(len) = resp.content_length() {
+        if len > 1_000_000 {
+            return slack::err("fetch_failed");
+        }
+    }
 
     let body = match resp.text().await {
         Ok(b) if b.len() <= 1_000_000 => b,

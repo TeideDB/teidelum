@@ -317,8 +317,11 @@ export function pinsRemove(channel: Id, message_id: Id): Promise<OkResponse> {
 export async function pinsList(channel: Id): Promise<{ ok: boolean; pins?: Message[]; error?: string }> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const res = await call<any>('pins.list', { channel });
-	if (res.ok && res.pins) {
-		res.pins = res.pins.map(mapMessage);
+	if (res.ok && res.items) {
+		// Backend returns Slack-compatible {items: [{message: {...}, pinned_by, pinned_at}]}
+		// Extract and flatten to Message[] for frontend use
+		res.pins = res.items.map((item: { message: Record<string, unknown> }) => mapMessage(item.message));
+		delete res.items;
 	}
 	return res;
 }

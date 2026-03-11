@@ -104,6 +104,6 @@ export function renderMarkdown(text: string): string {
 			'a', 'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3',
 			'span', 'div', 'button'
 		],
-		ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'data-code', 'color']
+		ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'data-code']
 	});
 }

@@ -58,6 +58,8 @@ export function initUserWsListeners(): () => void {
 				user: Id;
 				display_name: string;
 				avatar_url: string;
+				status_text: string;
+				status_emoji: string;
 			};
 			if (data.user) {
 				users.update((map) => {
@@ -67,7 +69,9 @@ export function initUserWsListeners(): () => void {
 						newMap.set(data.user, {
 							...existing,
 							display_name: data.display_name,
-							avatar_url: data.avatar_url
+							avatar_url: data.avatar_url,
+							status_text: data.status_text,
+							status_emoji: data.status_emoji
 						});
 					}
 					return newMap;
