@@ -1762,3 +1762,200 @@ async fn test_links_unfurl() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn test_mute_unmute() {
+    let (app, _tmp) = setup().await;
+    let token = register_and_login(&app, "alice", "pass123", "alice@test.com").await;
+
+    // Create a channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "test-mute"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let channel_id = body["channel"]["id"].as_str().unwrap().to_string();
+
+    // Initially, channel should not be muted
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.list",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
+    assert_eq!(ch["muted"], "false", "channel should default to not muted");
+
+    // Mute the channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.mute",
+            json!({"channel": channel_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Verify muted in conversations.list
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.list",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
+    assert_eq!(ch["muted"], "true", "channel should be muted after mute call");
+
+    // Unmute the channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.unmute",
+            json!({"channel": channel_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Verify unmuted in conversations.list
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.list",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
+    assert_eq!(ch["muted"], "false", "channel should be unmuted after unmute call");
+}
+
+#[tokio::test]
+async fn test_set_notification_level() {
+    let (app, _tmp) = setup().await;
+    let token = register_and_login(&app, "bob", "pass123", "bob@test.com").await;
+
+    // Create a channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "test-notif"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+    let channel_id = body["channel"]["id"].as_str().unwrap().to_string();
+
+    // Default notification_level should be "all"
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.list",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
+    assert_eq!(ch["notification_level"], "all", "default notification level should be 'all'");
+
+    // Set notification level to "mentions"
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.setNotification",
+            json!({"channel": channel_id, "level": "mentions"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Verify in conversations.list
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.list",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
+    assert_eq!(ch["notification_level"], "mentions", "notification level should be 'mentions'");
+
+    // Set to "none"
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.setNotification",
+            json!({"channel": channel_id, "level": "none"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+
+    // Verify "none"
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.list",
+            json!({}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    let channels = body["channels"].as_array().unwrap();
+    let ch = channels.iter().find(|c| c["id"].as_str().unwrap() == channel_id).unwrap();
+    assert_eq!(ch["notification_level"], "none", "notification level should be 'none'");
+
+    // Invalid level should fail
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.setNotification",
+            json!({"channel": channel_id, "level": "invalid"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "invalid_level");
+}

@@ -2032,15 +2032,15 @@ In unreads store or a new listener: when a message arrives and tab is hidden, ca
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Write test for mute/unmute**
+- [x] **Step 1: Write test for mute/unmute**
 
 Create channel, mute it, verify `conversations.list` returns `muted: "true"`. Unmute, verify `muted: "false"`.
 
-- [ ] **Step 2: Write test for setNotification**
+- [x] **Step 2: Write test for setNotification**
 
 Set notification level to "mentions", verify returned in `conversations.list`.
 
-- [ ] **Step 3: Run tests, commit**
+- [x] **Step 3: Run tests, commit**
 
 ---
 
