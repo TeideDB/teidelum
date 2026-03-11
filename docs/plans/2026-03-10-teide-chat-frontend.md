@@ -561,7 +561,7 @@ git commit -m "feat(chat-ui): add typed API client for all Slack-compatible endp
 **Files:**
 - Create: `teidelum/ui/src/lib/ws.ts`
 
-- [ ] **Step 1: Implement WebSocket client with reconnect and event dispatch**
+- [x] **Step 1: Implement WebSocket client with reconnect and event dispatch**
 
 Create `src/lib/ws.ts`:
 
@@ -678,12 +678,12 @@ export function sendPing() {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 Expected: compiles with no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/ws.ts
