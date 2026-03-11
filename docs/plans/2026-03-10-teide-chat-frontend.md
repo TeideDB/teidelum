@@ -2251,7 +2251,7 @@ git commit -m "feat(chat-ui): add MessageInput component with typing indicator a
 **Files:**
 - Create: `teidelum/ui/src/routes/(app)/[channel]/+page.svelte`
 
-- [ ] **Step 1: Implement channel page combining MessageList and MessageInput**
+- [x] **Step 1: Implement channel page combining MessageList and MessageInput**
 
 Create `src/routes/(app)/[channel]/+page.svelte`:
 
@@ -2337,11 +2337,11 @@ Create `src/routes/(app)/[channel]/+page.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/\(app\)/\[channel\]/+page.svelte
