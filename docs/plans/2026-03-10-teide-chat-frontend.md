@@ -3222,7 +3222,7 @@ git commit -m "feat(chat-ui): add @mention highlighting in messages"
 
 ### Task 25: Final integration test
 
-- [ ] **Step 1: Verify complete build**
+- [x] **Step 1: Verify complete build**
 
 ```bash
 cd /Users/antonkundenko/data/work/teidedb/teidelum/ui
@@ -3231,7 +3231,7 @@ npm run build
 
 Expected: no errors, clean build.
 
-- [ ] **Step 2: Manual smoke test checklist**
+- [x] **Step 2: Manual smoke test checklist**
 
 Start the backend and frontend:
 
@@ -3264,7 +3264,7 @@ Open `http://localhost:5173` in browser and verify:
 17. Sign out returns to login page
 18. Page refresh preserves auth (token in localStorage)
 
-- [ ] **Step 3: Final commit**
+- [x] **Step 3: Final commit**
 
 ```bash
 git add -A teidelum/ui/
