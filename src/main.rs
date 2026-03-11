@@ -21,6 +21,10 @@ struct Cli {
     #[arg(long, default_value = "127.0.0.1")]
     bind: String,
 
+    /// Also serve MCP over stdio (for piped MCP clients)
+    #[arg(long)]
+    stdio: bool,
+
     /// Data directory
     #[arg(long, env = "TEIDELUM_DATA", default_value = "data")]
     data: PathBuf,
@@ -72,10 +76,8 @@ async fn main() -> Result<()> {
     let hub = Arc::new(teidelum::chat::hub::Hub::new());
 
     if let Some(port) = cli.port {
-        // HTTP mode: run REST API + stdio MCP in parallel
+        // HTTP mode: run REST API (+ optional stdio MCP if stdin is a pipe)
         let api = Arc::new(api);
-
-        let server = Teidelum::new_with_shared(api.clone());
 
         let http_handle = tokio::spawn({
             let api = api.clone();
@@ -84,23 +86,35 @@ async fn main() -> Result<()> {
             async move { teidelum::server::start(api, hub, &bind, port).await }
         });
 
-        tracing::info!(
-            "teidelum ready — serving MCP over stdio + HTTP on {}:{}",
-            cli.bind,
-            port
-        );
+        // Only serve MCP over stdio if explicitly requested via --stdio flag
+        let stdin_is_pipe = cli.stdio;
+        if stdin_is_pipe {
+            let server = Teidelum::new_with_shared(api.clone());
+            tracing::info!(
+                "teidelum ready — serving MCP over stdio + HTTP on {}:{}",
+                cli.bind,
+                port
+            );
 
-        let mcp_handle = tokio::spawn(async move {
-            let service = server.serve(stdio()).await.inspect_err(|e| {
-                tracing::error!("MCP serving error: {:?}", e);
-            })?;
-            service.waiting().await?;
-            Ok::<_, anyhow::Error>(())
-        });
+            let mcp_handle = tokio::spawn(async move {
+                let service = server.serve(stdio()).await.inspect_err(|e| {
+                    tracing::error!("MCP serving error: {:?}", e);
+                })?;
+                service.waiting().await?;
+                Ok::<_, anyhow::Error>(())
+            });
 
-        tokio::select! {
-            r = http_handle => r??,
-            r = mcp_handle => r??,
+            tokio::select! {
+                r = http_handle => r??,
+                r = mcp_handle => r??,
+            }
+        } else {
+            tracing::info!(
+                "teidelum ready — serving HTTP on {}:{} (MCP available at /mcp)",
+                cli.bind,
+                port
+            );
+            http_handle.await??;
         }
     } else {
         tracing::info!("teidelum ready — serving MCP over stdio");
