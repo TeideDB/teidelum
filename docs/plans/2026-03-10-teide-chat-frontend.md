@@ -2829,7 +2829,7 @@ git commit -m "feat(chat-ui): add SearchModal component with Cmd+K shortcut"
 **Files:**
 - Create: `teidelum/ui/src/lib/components/UserPresence.svelte`
 
-- [ ] **Step 1: Implement presence indicator**
+- [x] **Step 1: Implement presence indicator**
 
 Create `src/lib/components/UserPresence.svelte`:
 
@@ -2859,11 +2859,11 @@ Create `src/lib/components/UserPresence.svelte`:
 ></span>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/UserPresence.svelte
