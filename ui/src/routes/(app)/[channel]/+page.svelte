@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import MessageList from '$lib/components/MessageList.svelte';
 	import MessageInput from '$lib/components/MessageInput.svelte';
+	import TypingIndicator from '$lib/components/TypingIndicator.svelte';
 	import ThreadPanel from '$lib/components/ThreadPanel.svelte';
 	import ChannelInfoPanel from '$lib/components/ChannelInfoPanel.svelte';
 	import { setActiveChannel, activeChannel } from '$lib/stores/channels';
@@ -177,6 +178,9 @@
 
 		<!-- Messages -->
 		<MessageList {channelId} onOpenThread={openThread} {pinnedMessageIds} />
+
+		<!-- Typing indicator -->
+		<TypingIndicator {channelId} />
 
 		<!-- Input -->
 		{#if !isArchived}

@@ -1540,7 +1540,7 @@ Small smiley icon button that opens EmojiPicker, inserts selected emoji at curso
 - Create: `ui/src/lib/components/TypingIndicator.svelte`
 - Modify: `ui/src/routes/(app)/[channel]/+page.svelte`
 
-- [ ] **Step 1: Create TypingIndicator component**
+- [x] **Step 1: Create TypingIndicator component**
 
 ```svelte
 <script lang="ts">
@@ -1604,11 +1604,11 @@ Small smiley icon button that opens EmojiPicker, inserts selected emoji at curso
 {/if}
 ```
 
-- [ ] **Step 2: Add to channel page**
+- [x] **Step 2: Add to channel page**
 
 Place `<TypingIndicator channelId={$activeChannelId} />` between MessageList and MessageInput.
 
-- [ ] **Step 3: Type check, commit**
+- [x] **Step 3: Type check, commit**
 
 ---
 
