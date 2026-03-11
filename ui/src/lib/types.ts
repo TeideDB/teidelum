@@ -8,6 +8,8 @@ export interface User {
 	email: string;
 	avatar_url: string;
 	status: string;
+	status_text?: string;
+	status_emoji?: string;
 	is_bot: boolean;
 	created_at: string;
 }
@@ -132,7 +134,8 @@ export type WsEventType =
 	| 'typing'
 	| 'presence_change'
 	| 'member_joined_channel'
-	| 'member_left_channel';
+	| 'member_left_channel'
+	| 'user_profile_updated';
 
 export interface WsEvent {
 	type: WsEventType;

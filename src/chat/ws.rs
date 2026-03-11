@@ -60,6 +60,8 @@ async fn handle_socket(state: AppState, claims: auth::Claims, socket: WebSocket)
     let presence = ServerEvent::PresenceChange {
         user: user_id.to_string(),
         presence: "online".to_string(),
+        status_text: None,
+        status_emoji: None,
     };
     let online = state.hub.online_users().await;
     for uid in online {
@@ -137,6 +139,8 @@ async fn handle_socket(state: AppState, claims: auth::Claims, socket: WebSocket)
         let offline = ServerEvent::PresenceChange {
             user: user_id.to_string(),
             presence: "offline".to_string(),
+            status_text: None,
+            status_emoji: None,
         };
         let online = state.hub.online_users().await;
         for uid in online {

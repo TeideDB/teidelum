@@ -72,7 +72,7 @@ git commit -m "feat: add user_settings table schema"
 - Modify: `src/chat/handlers.rs`
 - Modify: `src/chat/events.rs`
 
-- [ ] **Step 1: Add UserProfileUpdated event to ServerEvent**
+- [x] **Step 1: Add UserProfileUpdated event to ServerEvent**
 
 In `src/chat/events.rs`, add variant to `ServerEvent`:
 
@@ -87,11 +87,11 @@ UserProfileUpdated {
 },
 ```
 
-- [ ] **Step 2: Add WsEventType to frontend types**
+- [x] **Step 2: Add WsEventType to frontend types**
 
 In `ui/src/lib/types.ts`, add `'user_profile_updated'` to the `WsEventType` union.
 
-- [ ] **Step 3: Write the handler**
+- [x] **Step 3: Write the handler**
 
 In `src/chat/handlers.rs`, add:
 
@@ -226,7 +226,7 @@ PresenceChange {
 
 Update `users_set_presence` handler to fetch and include `status_text`/`status_emoji` in the broadcast.
 
-- [ ] **Step 4: Register the route**
+- [x] **Step 4: Register the route**
 
 In `chat_routes()`, add to the authed router:
 
@@ -234,12 +234,12 @@ In `chat_routes()`, add to the authed router:
 .route("/users.updateProfile", axum::routing::post(users_update_profile))
 ```
 
-- [ ] **Step 5: Run `cargo check`**
+- [x] **Step 5: Run `cargo check`**
 
 Run: `cargo check`
 Expected: PASS (compiles)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/chat/handlers.rs src/chat/events.rs src/chat/models.rs

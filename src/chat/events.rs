@@ -46,7 +46,23 @@ pub enum ServerEvent {
     Typing { channel: String, user: String },
 
     #[serde(rename = "presence_change")]
-    PresenceChange { user: String, presence: String },
+    PresenceChange {
+        user: String,
+        presence: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        status_text: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        status_emoji: Option<String>,
+    },
+
+    #[serde(rename = "user_profile_updated")]
+    UserProfileUpdated {
+        user: String,
+        display_name: String,
+        avatar_url: String,
+        status_text: String,
+        status_emoji: String,
+    },
 
     #[serde(rename = "member_joined_channel")]
     MemberJoinedChannel { channel: String, user: String },

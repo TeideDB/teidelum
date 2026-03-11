@@ -137,8 +137,8 @@ pub async fn auth_register(
     let now = now_timestamp();
 
     let insert_sql = format!(
-        "INSERT INTO users (id, username, display_name, email, password_hash, avatar_url, status, is_bot, created_at) \
-         VALUES ({id}, '{username}', '{display}', '{email}', '{hash}', '', 'offline', false, '{now}')",
+        "INSERT INTO users (id, username, display_name, email, password_hash, avatar_url, status, status_text, status_emoji, is_bot, created_at) \
+         VALUES ({id}, '{username}', '{display}', '{email}', '{hash}', '', 'offline', '', '', false, '{now}')",
         username = escape_sql(&req.username),
         display = escape_sql(&display_name),
         email = escape_sql(&req.email),
@@ -247,7 +247,7 @@ pub async fn users_list(
     State(state): State<AppState>,
     Extension(_claims): Extension<Claims>,
 ) -> Response {
-    let sql = "SELECT id, username, display_name, email, avatar_url, status, is_bot FROM users";
+    let sql = "SELECT id, username, display_name, email, avatar_url, status, is_bot, status_text, status_emoji FROM users";
     let result = match state.api.query_router().query_sync(sql) {
         Ok(r) => r,
         Err(e) => {
@@ -268,6 +268,8 @@ pub async fn users_list(
                 "avatar_url": row[4].to_json(),
                 "status": row[5].to_json(),
                 "is_bot": row[6].to_json(),
+                "status_text": row[7].to_json(),
+                "status_emoji": row[8].to_json(),
             })
         })
         .collect();
@@ -281,7 +283,7 @@ pub async fn users_info(
     Json(req): Json<UserInfoRequest>,
 ) -> Response {
     let sql = format!(
-        "SELECT id, username, display_name, email, avatar_url, status, is_bot \
+        "SELECT id, username, display_name, email, avatar_url, status, is_bot, status_text, status_emoji \
          FROM users WHERE id = {}",
         req.user
     );
@@ -307,6 +309,8 @@ pub async fn users_info(
             "avatar_url": row[4].to_json(),
             "status": row[5].to_json(),
             "is_bot": row[6].to_json(),
+            "status_text": row[7].to_json(),
+            "status_emoji": row[8].to_json(),
         }
     }))
 }
@@ -338,10 +342,26 @@ pub async fn users_set_presence(
         return slack::err("internal_error");
     }
 
+    // Fetch status fields for broadcast
+    let fetch = format!(
+        "SELECT status_text, status_emoji FROM users WHERE id = {}",
+        claims.user_id
+    );
+    let (status_text, status_emoji) = match state.api.query_router().query_sync(&fetch) {
+        Ok(r) if !r.rows.is_empty() => {
+            let st = r.rows[0][0].to_json().as_str().unwrap_or("").to_string();
+            let se = r.rows[0][1].to_json().as_str().unwrap_or("").to_string();
+            (Some(st).filter(|s| !s.is_empty()), Some(se).filter(|s| !s.is_empty()))
+        }
+        _ => (None, None),
+    };
+
     // Broadcast presence change
     let event = crate::chat::events::ServerEvent::PresenceChange {
         user: claims.user_id.to_string(),
         presence: req.presence,
+        status_text,
+        status_emoji,
     };
     let online = state.hub.online_users().await;
     for uid in online {
@@ -354,6 +374,99 @@ pub async fn users_set_presence(
 #[derive(Deserialize)]
 pub struct SetPresenceRequest {
     pub presence: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateProfileRequest {
+    #[serde(default)]
+    pub display_name: Option<String>,
+    #[serde(default)]
+    pub avatar_url: Option<String>,
+    #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
+    pub status_text: Option<String>,
+    #[serde(default)]
+    pub status_emoji: Option<String>,
+}
+
+pub async fn users_update_profile(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<UpdateProfileRequest>,
+) -> Response {
+    let mut sets = Vec::new();
+    if let Some(ref name) = req.display_name {
+        sets.push(format!("display_name = '{}'", escape_sql(name)));
+    }
+    if let Some(ref url) = req.avatar_url {
+        sets.push(format!("avatar_url = '{}'", escape_sql(url)));
+    }
+    if let Some(ref email) = req.email {
+        let check = format!(
+            "SELECT id FROM users WHERE email = '{}' AND id != {}",
+            escape_sql(email),
+            claims.user_id
+        );
+        match state.api.query_router().query_sync(&check) {
+            Ok(r) if !r.rows.is_empty() => return slack::err("email_taken"),
+            Err(e) => {
+                tracing::error!("email check failed: {e}");
+                return slack::err("internal_error");
+            }
+            _ => {}
+        }
+        sets.push(format!("email = '{}'", escape_sql(email)));
+    }
+    if let Some(ref text) = req.status_text {
+        sets.push(format!("status_text = '{}'", escape_sql(text)));
+    }
+    if let Some(ref emoji) = req.status_emoji {
+        sets.push(format!("status_emoji = '{}'", escape_sql(emoji)));
+    }
+
+    if sets.is_empty() {
+        return slack::err("no_changes");
+    }
+
+    let sql = format!(
+        "UPDATE users SET {} WHERE id = {}",
+        sets.join(", "),
+        claims.user_id
+    );
+
+    if let Err(e) = state.api.query_router().query_sync(&sql) {
+        tracing::error!("update profile failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    // Fetch updated user for broadcast
+    let fetch = format!(
+        "SELECT display_name, avatar_url, status_text, status_emoji FROM users WHERE id = {}",
+        claims.user_id
+    );
+    if let Ok(r) = state.api.query_router().query_sync(&fetch) {
+        if let Some(row) = r.rows.first() {
+            let display_name = row[0].to_json().as_str().unwrap_or("").to_string();
+            let avatar_url = row[1].to_json().as_str().unwrap_or("").to_string();
+            let status_text = row[2].to_json().as_str().unwrap_or("").to_string();
+            let status_emoji = row[3].to_json().as_str().unwrap_or("").to_string();
+
+            let event = crate::chat::events::ServerEvent::UserProfileUpdated {
+                user: claims.user_id.to_string(),
+                display_name,
+                avatar_url,
+                status_text,
+                status_emoji,
+            };
+            let online = state.hub.online_users().await;
+            for uid in online {
+                state.hub.send_to_user(uid, &event).await;
+            }
+        }
+    }
+
+    slack::ok(json!({}))
 }
 
 // ── Conversations ──
@@ -1812,6 +1925,10 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/users.setPresence",
             axum::routing::post(users_set_presence),
+        )
+        .route(
+            "/users.updateProfile",
+            axum::routing::post(users_update_profile),
         )
         // Reactions
         .route("/reactions.add", axum::routing::post(reactions_add))

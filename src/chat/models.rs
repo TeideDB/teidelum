@@ -7,6 +7,7 @@ const CREATE_TABLES: &[&str] = &[
     "CREATE TABLE users (
         id BIGINT, username VARCHAR, display_name VARCHAR, email VARCHAR,
         password_hash VARCHAR, avatar_url VARCHAR, status VARCHAR,
+        status_text VARCHAR, status_emoji VARCHAR,
         is_bot BOOLEAN, created_at VARCHAR
     )",
     "CREATE TABLE channels (
