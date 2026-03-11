@@ -64,6 +64,19 @@ pub enum ServerEvent {
         status_emoji: String,
     },
 
+    #[serde(rename = "channel_updated")]
+    ChannelUpdated {
+        channel: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        topic: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        description: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        archived_at: Option<String>,
+    },
+
     #[serde(rename = "member_joined_channel")]
     MemberJoinedChannel { channel: String, user: String },
 

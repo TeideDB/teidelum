@@ -1036,3 +1036,127 @@ async fn test_user_settings() {
     let body = body_json(resp).await;
     assert_eq!(body["settings"]["theme"], "light");
 }
+
+#[tokio::test]
+async fn test_conversations_update() {
+    let (app, _tmp) = setup().await;
+    let token = register_and_login(&app, "updater", "secret123", "updater@test.com").await;
+
+    // Create channel (creator is owner)
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "update-test"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let ch_id: i64 = body_json(resp).await["channel"]["id"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    // Update topic and description
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.update",
+            json!({"channel": ch_id, "topic": "new topic", "description": "new desc"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true, "update should succeed for owner");
+
+    // Verify via conversations.info
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.info",
+            json!({"channel": ch_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["channel"]["topic"], "new topic");
+    assert_eq!(body["channel"]["description"], "new desc");
+
+    // Update name
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.update",
+            json!({"channel": ch_id, "name": "renamed-channel"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true, "rename should succeed");
+
+    // Verify new name
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.info",
+            json!({"channel": ch_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["channel"]["name"], "renamed-channel");
+
+    // Non-member should fail
+    let token2 = register_and_login(&app, "outsider", "secret123", "outsider@test.com").await;
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.update",
+            json!({"channel": ch_id, "topic": "hacked"}),
+            Some(&token2),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "non-member should not update");
+
+    // Regular member should fail
+    let _ = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.join",
+            json!({"channel": ch_id}),
+            Some(&token2),
+        ))
+        .await
+        .unwrap();
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.update",
+            json!({"channel": ch_id, "topic": "hacked"}),
+            Some(&token2),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "regular member should not update");
+
+    // No changes should fail
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.update",
+            json!({"channel": ch_id}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "empty update should fail");
+}

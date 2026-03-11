@@ -705,8 +705,8 @@ pub async fn conversations_create(
     let topic = req.topic.unwrap_or_default();
 
     let insert = format!(
-        "INSERT INTO channels (id, name, kind, topic, created_by, created_at) \
-         VALUES ({id}, '{name}', '{kind}', '{topic}', {created_by}, '{now}')",
+        "INSERT INTO channels (id, name, kind, topic, description, archived_at, created_by, created_at) \
+         VALUES ({id}, '{name}', '{kind}', '{topic}', '', '', {created_by}, '{now}')",
         name = escape_sql(&req.name),
         kind = escape_sql(&req.kind),
         topic = escape_sql(&topic),
@@ -825,7 +825,7 @@ pub async fn conversations_info(
     }
 
     let sql = format!(
-        "SELECT id, name, kind, topic, created_by, created_at \
+        "SELECT id, name, kind, topic, description, archived_at, created_by, created_at \
          FROM channels WHERE id = {}",
         req.channel
     );
@@ -848,8 +848,10 @@ pub async fn conversations_info(
             "name": row[1].to_json(),
             "kind": row[2].to_json(),
             "topic": row[3].to_json(),
-            "created_by": row[4].to_json(),
-            "created_at": row[5].to_json(),
+            "description": row[4].to_json(),
+            "archived_at": row[5].to_json(),
+            "created_by": row[6].to_json(),
+            "created_at": row[7].to_json(),
         }
     }))
 }
@@ -1346,8 +1348,8 @@ pub async fn conversations_open(
     );
 
     let insert_channel = format!(
-        "INSERT INTO channels (id, name, kind, topic, created_by, created_at) \
-         VALUES ({id}, '{name}', 'dm', '', {created_by}, '{now}')",
+        "INSERT INTO channels (id, name, kind, topic, description, archived_at, created_by, created_at) \
+         VALUES ({id}, '{name}', 'dm', '', '', '', {created_by}, '{now}')",
         name = escape_sql(&dm_name),
         created_by = claims.user_id,
     );
@@ -1466,6 +1468,87 @@ pub async fn conversations_mark_read(
             return slack::err("internal_error");
         }
     }
+
+    slack::ok(json!({}))
+}
+
+// ── Channel Update ──
+
+#[derive(Deserialize)]
+pub struct ConversationsUpdateRequest {
+    #[serde(deserialize_with = "deserialize_id")]
+    pub channel: i64,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub topic: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+pub async fn conversations_update(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<ConversationsUpdateRequest>,
+) -> Response {
+    // Check caller is owner or admin
+    let role_sql = format!(
+        "SELECT role FROM channel_members WHERE channel_id = {} AND user_id = {}",
+        req.channel, claims.user_id
+    );
+    let role = match state.api.query_router().query_sync(&role_sql) {
+        Ok(r) if !r.rows.is_empty() => {
+            r.rows[0][0].to_json().as_str().unwrap_or("member").to_string()
+        }
+        _ => return slack::err("not_in_channel"),
+    };
+    if role != "owner" && role != "admin" {
+        return slack::err("not_authorized");
+    }
+
+    let mut sets = Vec::new();
+    if let Some(ref name) = req.name {
+        // Check name uniqueness
+        let check = format!(
+            "SELECT id FROM channels WHERE name = '{}' AND id != {}",
+            escape_sql(name), req.channel
+        );
+        match state.api.query_router().query_sync(&check) {
+            Ok(r) if !r.rows.is_empty() => return slack::err("name_taken"),
+            _ => {}
+        }
+        sets.push(format!("name = '{}'", escape_sql(name)));
+    }
+    if let Some(ref topic) = req.topic {
+        sets.push(format!("topic = '{}'", escape_sql(topic)));
+    }
+    if let Some(ref desc) = req.description {
+        sets.push(format!("description = '{}'", escape_sql(desc)));
+    }
+
+    if sets.is_empty() {
+        return slack::err("no_changes");
+    }
+
+    let sql = format!(
+        "UPDATE channels SET {} WHERE id = {}",
+        sets.join(", "),
+        req.channel
+    );
+    if let Err(e) = state.api.query_router().query_sync(&sql) {
+        tracing::error!("channel update failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    // Broadcast
+    let event = crate::chat::events::ServerEvent::ChannelUpdated {
+        channel: req.channel.to_string(),
+        name: req.name,
+        topic: req.topic,
+        description: req.description,
+        archived_at: None,
+    };
+    state.hub.broadcast_to_channel(req.channel, &event).await;
 
     slack::ok(json!({}))
 }
@@ -2106,6 +2189,10 @@ pub fn chat_routes(state: AppState) -> Router {
         .route(
             "/conversations.markRead",
             axum::routing::post(conversations_mark_read),
+        )
+        .route(
+            "/conversations.update",
+            axum::routing::post(conversations_update),
         )
         // Chat
         .route("/chat.postMessage", axum::routing::post(chat_post_message))

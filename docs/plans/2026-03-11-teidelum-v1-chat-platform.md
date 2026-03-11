@@ -885,7 +885,7 @@ git commit -m "feat: add description and archived_at columns to channels schema"
 - Modify: `src/chat/handlers.rs`
 - Modify: `src/chat/events.rs`
 
-- [ ] **Step 1: Add ChannelUpdated event**
+- [x] **Step 1: Add ChannelUpdated event**
 
 In `src/chat/events.rs`:
 
@@ -904,7 +904,7 @@ ChannelUpdated {
 },
 ```
 
-- [ ] **Step 2: Write conversations_update handler**
+- [x] **Step 2: Write conversations_update handler**
 
 In `src/chat/handlers.rs`:
 
@@ -988,13 +988,13 @@ pub async fn conversations_update(
 }
 ```
 
-- [ ] **Step 3: Register route**
+- [x] **Step 3: Register route**
 
 ```rust
 .route("/conversations.update", axum::routing::post(conversations_update))
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/chat/handlers.rs src/chat/events.rs
