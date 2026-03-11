@@ -121,10 +121,18 @@
 					onclick={() => navigateToChannel(channel)}
 					class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
 						? 'bg-primary text-white'
-						: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white'}"
+						: channel.archived_at
+							? 'text-primary-light/30 hover:bg-primary-darker/60 hover:text-primary-lighter/60'
+							: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-white'}"
 				>
-					<span class="truncate">
-						<span class="mr-1 text-primary-light/40">#</span>
+					<span class="flex items-center truncate">
+						{#if channel.archived_at}
+							<svg class="mr-1 h-3 w-3 text-primary-light/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+							</svg>
+						{:else}
+							<span class="mr-1 text-primary-light/40">#</span>
+						{/if}
 						{channel.name}
 					</span>
 					{#if getUnreadCount(channel.id) > 0}

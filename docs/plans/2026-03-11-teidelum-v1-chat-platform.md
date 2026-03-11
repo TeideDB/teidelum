@@ -1204,7 +1204,7 @@ git commit -m "test: add integration tests for channel management endpoints"
 - Modify: `ui/src/routes/(app)/[channel]/+page.svelte`
 - Modify: `ui/src/lib/stores/channels.ts`
 
-- [ ] **Step 1: Add API functions and types**
+- [x] **Step 1: Add API functions and types**
 
 Add to `types.ts`: `description` and `archived_at` to `Channel` interface. Add `'channel_updated'` to `WsEventType`.
 
@@ -1230,7 +1230,7 @@ export function conversationsSetRole(channel: Id, user: Id, role: string): Promi
 }
 ```
 
-- [ ] **Step 2: Add channel_updated WS listener in channels store**
+- [x] **Step 2: Add channel_updated WS listener in channels store**
 
 ```typescript
 unsubs.push(
@@ -1252,7 +1252,7 @@ unsubs.push(
 );
 ```
 
-- [ ] **Step 3: Create ChannelInfoPanel component**
+- [x] **Step 3: Create ChannelInfoPanel component**
 
 Create `ui/src/lib/components/ChannelInfoPanel.svelte`:
 - Shows channel name, kind badge, topic, description, created by, created date
@@ -1262,7 +1262,7 @@ Create `ui/src/lib/components/ChannelInfoPanel.svelte`:
 - "Add people" button opens invite modal
 - Close button (X)
 
-- [ ] **Step 4: Wire into channel page**
+- [x] **Step 4: Wire into channel page**
 
 In `ui/src/routes/(app)/[channel]/+page.svelte`:
 - Add state: `let showChannelInfo = false`
@@ -1270,12 +1270,12 @@ In `ui/src/routes/(app)/[channel]/+page.svelte`:
 - When `showChannelInfo` is true, show ChannelInfoPanel instead of ThreadPanel
 - When ThreadPanel opens, close ChannelInfoPanel and vice versa
 
-- [ ] **Step 5: Show archived state in sidebar**
+- [x] **Step 5: Show archived state in sidebar**
 
 In `Sidebar.svelte`: dim archived channels, show archive icon.
 In channel page: if channel is archived, show read-only banner and disable MessageInput.
 
-- [ ] **Step 6: Run type check and commit**
+- [x] **Step 6: Run type check and commit**
 
 ```bash
 cd ui && npx svelte-check

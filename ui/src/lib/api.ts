@@ -141,6 +141,25 @@ export function conversationsMarkRead(channel: Id, ts?: string): Promise<OkRespo
 	return call('conversations.markRead', body);
 }
 
+export function conversationsUpdate(
+	channel: Id,
+	updates: { name?: string; topic?: string; description?: string }
+): Promise<OkResponse> {
+	return call('conversations.update', { channel, ...updates });
+}
+
+export function conversationsArchive(channel: Id): Promise<OkResponse> {
+	return call('conversations.archive', { channel });
+}
+
+export function conversationsUnarchive(channel: Id): Promise<OkResponse> {
+	return call('conversations.unarchive', { channel });
+}
+
+export function conversationsSetRole(channel: Id, user: Id, role: string): Promise<OkResponse> {
+	return call('conversations.setRole', { channel, user, role });
+}
+
 // === Chat ===
 
 export async function chatPostMessage(

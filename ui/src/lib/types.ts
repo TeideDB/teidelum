@@ -19,6 +19,8 @@ export interface Channel {
 	name: string;
 	kind: 'public' | 'private' | 'dm';
 	topic: string;
+	description?: string;
+	archived_at?: string;
 	created_by: Id;
 	created_at: string;
 	member_count?: number;
@@ -147,7 +149,8 @@ export type WsEventType =
 	| 'presence_change'
 	| 'member_joined_channel'
 	| 'member_left_channel'
-	| 'user_profile_updated';
+	| 'user_profile_updated'
+	| 'channel_updated';
 
 export interface WsEvent {
 	type: WsEventType;

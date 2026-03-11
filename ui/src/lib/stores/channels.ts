@@ -1,7 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import * as api from '$lib/api';
 import * as ws from '$lib/ws';
-import type { Channel, Id } from '$lib/types';
+import type { Channel, Id, WsEvent } from '$lib/types';
 import { unreads } from './unreads';
 
 export const channels = writable<Channel[]>([]);
@@ -96,6 +96,36 @@ export function initChannelWsListeners(): () => void {
 	unsubs.push(
 		ws.on('member_left_channel', () => {
 			loadChannels();
+		})
+	);
+	unsubs.push(
+		ws.on('channel_updated', (event: WsEvent) => {
+			const data = event as unknown as {
+				channel: Id;
+				name?: string;
+				topic?: string;
+				description?: string;
+				archived_at?: string;
+			};
+			if (data.channel) {
+				channels.update((list) =>
+					list.map((ch) =>
+						ch.id === data.channel
+							? {
+									...ch,
+									...(data.name && { name: data.name }),
+									...(data.topic !== undefined && { topic: data.topic }),
+									...(data.description !== undefined && {
+										description: data.description
+									}),
+									...(data.archived_at !== undefined && {
+										archived_at: data.archived_at
+									})
+								}
+							: ch
+					)
+				);
+			}
 		})
 	);
 	return () => unsubs.forEach((fn) => fn());
