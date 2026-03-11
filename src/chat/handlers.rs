@@ -4,9 +4,61 @@ use crate::chat::id::next_id;
 use crate::chat::models::{escape_sql, now_timestamp};
 use crate::chat::slack;
 use axum::{extract::State, response::Response, Extension, Json};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use serde_json::json;
 use std::sync::Arc;
+
+/// Deserialize an i64 from either a JSON number or a JSON string (Slack convention).
+fn deserialize_id<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
+    use serde::de;
+    struct IdVisitor;
+    impl<'de> de::Visitor<'de> for IdVisitor {
+        type Value = i64;
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            f.write_str("an integer or string-encoded integer")
+        }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<i64, E> { Ok(v) }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<i64, E> { Ok(v as i64) }
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<i64, E> {
+            v.parse().map_err(de::Error::custom)
+        }
+    }
+    d.deserialize_any(IdVisitor)
+}
+
+/// Deserialize a Vec<i64> where each element may be a number or string.
+fn deserialize_id_vec<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<i64>, D::Error> {
+    use serde::de;
+    let values: Vec<serde_json::Value> = Vec::deserialize(d)?;
+    values
+        .into_iter()
+        .map(|v| match v {
+            serde_json::Value::Number(n) => n.as_i64().ok_or_else(|| de::Error::custom("invalid id")),
+            serde_json::Value::String(s) => s.parse().map_err(de::Error::custom),
+            _ => Err(de::Error::custom("expected number or string")),
+        })
+        .collect()
+}
+
+/// Deserialize an optional i64 that may be a number, string, or absent.
+fn deserialize_opt_id<'de, D: Deserializer<'de>>(d: D) -> Result<Option<i64>, D::Error> {
+    use serde::de;
+    struct OptIdVisitor;
+    impl<'de> de::Visitor<'de> for OptIdVisitor {
+        type Value = Option<i64>;
+        fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            f.write_str("an integer, string-encoded integer, or null")
+        }
+        fn visit_none<E: de::Error>(self) -> Result<Option<i64>, E> { Ok(None) }
+        fn visit_unit<E: de::Error>(self) -> Result<Option<i64>, E> { Ok(None) }
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<Option<i64>, E> { Ok(Some(v)) }
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Option<i64>, E> { Ok(Some(v as i64)) }
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Option<i64>, E> {
+            v.parse().map(Some).map_err(de::Error::custom)
+        }
+    }
+    d.deserialize_any(OptIdVisitor)
+}
 use tokio::sync::Mutex;
 
 pub type AppState = Arc<ChatState>;
@@ -261,6 +313,7 @@ pub async fn users_info(
 
 #[derive(Deserialize)]
 pub struct UserInfoRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub user: i64,
 }
 
@@ -498,10 +551,11 @@ pub async fn conversations_info(
 
 #[derive(Deserialize)]
 pub struct HistoryRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub channel: i64,
     #[serde(default = "default_history_limit")]
     pub limit: usize,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_id")]
     pub before: Option<i64>,
 }
 
@@ -683,7 +737,9 @@ pub async fn conversations_replies(
 
 #[derive(Deserialize)]
 pub struct RepliesRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub channel: i64,
+    #[serde(deserialize_with = "deserialize_id")]
     pub ts: i64,
 }
 
@@ -830,7 +886,9 @@ pub async fn conversations_invite(
 
 #[derive(Deserialize)]
 pub struct InviteRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub channel: i64,
+    #[serde(deserialize_with = "deserialize_id")]
     pub user: i64,
 }
 
@@ -1033,11 +1091,13 @@ pub async fn conversations_open(
 
 #[derive(Deserialize)]
 pub struct ConversationsOpenRequest {
+    #[serde(deserialize_with = "deserialize_id_vec")]
     pub users: Vec<i64>,
 }
 
 #[derive(Deserialize)]
 pub struct ChannelIdRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub channel: i64,
 }
 
@@ -1045,6 +1105,7 @@ pub struct ChannelIdRequest {
 
 #[derive(Deserialize)]
 pub struct MarkReadRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub channel: i64,
     #[serde(default)]
     pub ts: Option<String>,
@@ -1202,9 +1263,10 @@ pub async fn chat_post_message(
 
 #[derive(Deserialize)]
 pub struct PostMessageRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub channel: i64,
     pub text: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_opt_id")]
     pub thread_ts: Option<i64>,
 }
 
@@ -1296,6 +1358,7 @@ pub async fn chat_update(
 
 #[derive(Deserialize)]
 pub struct ChatUpdateRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub ts: i64,
     pub text: String,
 }
@@ -1365,6 +1428,7 @@ pub async fn chat_delete(
 
 #[derive(Deserialize)]
 pub struct ChatDeleteRequest {
+    #[serde(deserialize_with = "deserialize_id")]
     pub ts: i64,
 }
 
@@ -1515,6 +1579,7 @@ pub async fn reactions_remove(
 #[derive(Deserialize)]
 pub struct ReactionRequest {
     pub name: String,
+    #[serde(deserialize_with = "deserialize_id")]
     pub timestamp: i64,
 }
 
