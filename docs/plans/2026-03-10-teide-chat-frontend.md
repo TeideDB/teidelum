@@ -1684,7 +1684,7 @@ git commit -m "feat(chat-ui): add app layout shell with sidebar and main content
 **Files:**
 - Create: `teidelum/ui/src/lib/components/Sidebar.svelte`
 
-- [ ] **Step 1: Implement sidebar with channel list, DM list, unread badges, create channel**
+- [x] **Step 1: Implement sidebar with channel list, DM list, unread badges, create channel**
 
 Create `src/lib/components/Sidebar.svelte`:
 
@@ -1882,11 +1882,11 @@ Create `src/lib/components/Sidebar.svelte`:
 {/if}
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/Sidebar.svelte
