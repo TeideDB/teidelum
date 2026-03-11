@@ -2277,32 +2277,32 @@ Listen for `dragover`/`dragleave`/`drop` events on the message area. Show overla
 
 ### Task F.1: Full test run
 
-- [ ] **Step 1: Run all backend tests**
+- [x] **Step 1: Run all backend tests**
 
 ```bash
 cargo test -- --test-threads=1
 ```
 
-- [ ] **Step 2: Run clippy**
+- [x] **Step 2: Run clippy**
 
 ```bash
 cargo clippy -- -D warnings
 ```
 
-- [ ] **Step 3: Run frontend type check**
+- [x] **Step 3: Run frontend type check**
 
 ```bash
 cd ui && npx svelte-check
 ```
 
-- [ ] **Step 4: Build production**
+- [x] **Step 4: Build production**
 
 ```bash
 cd ui && npm run build
 cargo build --release
 ```
 
-- [ ] **Step 5: Manual smoke test**
+- [x] **Step 5: Manual smoke test**
 
 Start server, create accounts, test: settings, channel management, message edit/delete/pin, autocomplete, emoji picker, image preview, code highlighting, link previews, typing indicators, notifications, search filters, channel directory, theme toggle, mobile layout, drag-drop upload.
 

@@ -21,8 +21,8 @@ fn create_user(api: &TeidelumApi, username: &str, is_bot: bool) -> i64 {
     let id = teidelum::chat::id::next_id();
     let now = teidelum::chat::models::now_timestamp();
     let sql = format!(
-        "INSERT INTO users (id, username, display_name, email, password_hash, avatar_url, status, is_bot, created_at) \
-         VALUES ({id}, '{username}', '{username}', '{username}@test.com', 'hash', '', 'offline', {is_bot}, '{now}')"
+        "INSERT INTO users (id, username, display_name, email, password_hash, avatar_url, status, status_text, status_emoji, is_bot, created_at) \
+         VALUES ({id}, '{username}', '{username}', '{username}@test.com', 'hash', '', 'offline', '', '', {is_bot}, '{now}')"
     );
     api.query_router().query_sync(&sql).unwrap();
     id
@@ -33,8 +33,8 @@ fn create_channel(api: &TeidelumApi, name: &str, user_id: i64) -> i64 {
     let id = teidelum::chat::id::next_id();
     let now = teidelum::chat::models::now_timestamp();
     let sql = format!(
-        "INSERT INTO channels (id, name, kind, topic, created_by, created_at) \
-         VALUES ({id}, '{name}', 'public', '', {user_id}, '{now}')"
+        "INSERT INTO channels (id, name, kind, topic, description, archived_at, created_by, created_at) \
+         VALUES ({id}, '{name}', 'public', '', '', '', {user_id}, '{now}')"
     );
     api.query_router().query_sync(&sql).unwrap();
 
