@@ -1641,11 +1641,11 @@ git commit -m "test: add integration tests for users.search and conversations.au
 **Files:**
 - Modify: `src/chat/handlers.rs`
 
-- [ ] **Step 1: Add reqwest dependency**
+- [x] **Step 1: Add reqwest dependency**
 
 In `Cargo.toml`, add `reqwest = { version = "0.12", features = ["json"] }` if not already present.
 
-- [ ] **Step 2: Write links_unfurl handler**
+- [x] **Step 2: Write links_unfurl handler**
 
 ```rust
 pub async fn links_unfurl(
@@ -1757,17 +1757,17 @@ pub struct LinksUnfurlRequest {
 }
 ```
 
-- [ ] **Step 3: Register route**
+- [x] **Step 3: Register route**
 
 ```rust
 .route("/links.unfurl", axum::routing::post(links_unfurl))
 ```
 
-- [ ] **Step 4: Add regex dependency if not present**
+- [x] **Step 4: Add regex dependency if not present**
 
 In `Cargo.toml`: `regex = "1"`
 
-- [ ] **Step 5: Run `cargo check`, commit**
+- [x] **Step 5: Run `cargo check`, commit**
 
 ---
 

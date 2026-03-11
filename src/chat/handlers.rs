@@ -2581,6 +2581,119 @@ fn is_channel_member(state: &AppState, channel_id: i64, user_id: i64) -> bool {
     }
 }
 
+// ── Link Unfurling ──
+
+static UNFURL_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, serde_json::Value)>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+#[derive(Deserialize)]
+pub struct LinksUnfurlRequest {
+    pub url: String,
+}
+
+pub async fn links_unfurl(
+    State(_state): State<AppState>,
+    Extension(_claims): Extension<Claims>,
+    Json(req): Json<LinksUnfurlRequest>,
+) -> Response {
+    // Validate URL
+    let url = match url::Url::parse(&req.url) {
+        Ok(u) => u,
+        Err(_) => return slack::err("invalid_url"),
+    };
+
+    if url.scheme() != "http" && url.scheme() != "https" {
+        return slack::err("invalid_url");
+    }
+
+    // Block private/reserved IPs (SSRF protection)
+    if let Some(host) = url.host_str() {
+        if host == "localhost" || host == "::1" {
+            return slack::err("blocked_url");
+        }
+        if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+            let octets = ip.octets();
+            let blocked = octets[0] == 10
+                || (octets[0] == 172 && (16..=31).contains(&octets[1]))
+                || (octets[0] == 192 && octets[1] == 168)
+                || octets[0] == 127
+                || (octets[0] == 169 && octets[1] == 254);
+            if blocked {
+                return slack::err("blocked_url");
+            }
+        }
+    }
+
+    // Check cache
+    {
+        let cache = UNFURL_CACHE.lock().unwrap();
+        if let Some((ts, cached)) = cache.get(&req.url) {
+            if ts.elapsed() < std::time::Duration::from_secs(3600) {
+                return slack::ok(cached.clone());
+            }
+        }
+    }
+
+    // Fetch with timeout
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .redirect(reqwest::redirect::Policy::limited(3))
+        .build()
+        .unwrap_or_default();
+
+    let resp = match client.get(req.url.clone()).send().await {
+        Ok(r) => r,
+        Err(_) => return slack::err("fetch_failed"),
+    };
+
+    let body = match resp.text().await {
+        Ok(b) if b.len() <= 1_000_000 => b,
+        _ => return slack::err("fetch_failed"),
+    };
+
+    // Parse OG tags (simple regex-based)
+    fn og_tag(html: &str, property: &str) -> Option<String> {
+        let pattern = format!(
+            r#"<meta[^>]*property=["']og:{}["'][^>]*content=["']([^"']*)["']"#,
+            property
+        );
+        regex::Regex::new(&pattern)
+            .ok()?
+            .captures(html)
+            .map(|c| c[1].to_string())
+    }
+
+    let title = og_tag(&body, "title").or_else(|| {
+        let re = regex::Regex::new(r"<title[^>]*>([^<]+)</title>").ok()?;
+        re.captures(&body).map(|c| c[1].to_string())
+    });
+
+    let result = json!({
+        "title": title,
+        "description": og_tag(&body, "description"),
+        "image": og_tag(&body, "image"),
+        "site_name": og_tag(&body, "site_name"),
+    });
+
+    // Cache the result
+    {
+        let mut cache = UNFURL_CACHE.lock().unwrap();
+        if cache.len() >= 1000 {
+            cache.retain(|_, (ts, _)| ts.elapsed() < std::time::Duration::from_secs(3600));
+            if cache.len() >= 1000 {
+                let keys: Vec<_> = cache.keys().take(500).cloned().collect();
+                for k in keys {
+                    cache.remove(&k);
+                }
+            }
+        }
+        cache.insert(req.url, (std::time::Instant::now(), result.clone()));
+    }
+
+    slack::ok(result)
+}
+
 // ── Routes ──
 
 use axum::{middleware, Router};
@@ -2688,6 +2801,8 @@ pub fn chat_routes(state: AppState) -> Router {
         .route("/pins.add", axum::routing::post(pins_add))
         .route("/pins.remove", axum::routing::post(pins_remove))
         .route("/pins.list", axum::routing::post(pins_list))
+        // Links
+        .route("/links.unfurl", axum::routing::post(links_unfurl))
         // Search
         .route("/search.messages", axum::routing::post(search_messages))
         // Files
