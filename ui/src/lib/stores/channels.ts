@@ -5,10 +5,12 @@ import type { Channel, Id, WsEvent } from '$lib/types';
 import { unreads } from './unreads';
 
 export const channels = writable<Channel[]>([]);
+export const channelsLoaded = writable(false);
 export const activeChannelId = writable<Id | null>(null);
 
 export function resetChannels() {
 	channels.set([]);
+	channelsLoaded.set(false);
 	activeChannelId.set(null);
 }
 
@@ -29,6 +31,7 @@ export async function loadChannels() {
 	const res = await api.conversationsList();
 	if (res.ok && res.channels) {
 		channels.set(res.channels);
+		channelsLoaded.set(true);
 		// Seed unread counts from server on initial load
 		const unreadMap = new Map<Id, number>();
 		for (const ch of res.channels) {

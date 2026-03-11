@@ -10,6 +10,7 @@
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 	import LinkPreview from '$lib/components/LinkPreview.svelte';
 	import UserProfilePopover from '$lib/components/UserProfilePopover.svelte';
+	import Skeleton from '$lib/components/Skeleton.svelte';
 	import type { Message, Id } from '$lib/types';
 
 	const URL_REGEX = /https?:\/\/[^\s<>"')\]]+/g;
@@ -228,10 +229,15 @@
 	}}
 >
 	{#if loading && messages.length === 0}
-		<div class="flex h-full items-center justify-center text-primary-light/50">Loading messages...</div>
+		<div class="px-1 py-2">
+			<Skeleton variant="message" count={5} />
+		</div>
 	{:else if messages.length === 0}
-		<div class="flex h-full items-center justify-center text-primary-light/50">
-			No messages yet. Start the conversation!
+		<div class="flex h-full flex-col items-center justify-center gap-2 text-primary-light/50">
+			<svg class="h-10 w-10 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+			</svg>
+			<span class="text-sm">No messages yet. Start the conversation!</span>
 		</div>
 	{:else}
 		{#if loading && hasMore}

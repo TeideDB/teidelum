@@ -2182,22 +2182,22 @@ In `app.css`, define `--bg-primary`, `--bg-secondary`, `--text-primary`, `--text
 - Modify: `ui/src/lib/components/MessageList.svelte`
 - Modify: `ui/src/lib/components/Sidebar.svelte`
 
-- [ ] **Step 1: Create Skeleton component**
+- [x] **Step 1: Create Skeleton component**
 
 Shimmer animation CSS + shaped placeholders (message block, channel bar).
 
-- [ ] **Step 2: Show skeletons during loading**
+- [x] **Step 2: Show skeletons during loading**
 
 In MessageList: show 4 message skeletons while `loading` is true and messages are empty.
 In Sidebar: show channel list skeletons while channels haven't loaded.
 
-- [ ] **Step 3: Add empty states**
+- [x] **Step 3: Add empty states**
 
 Empty channel: friendly "No messages yet" message.
 No search results: "No messages found."
 No DMs: "No direct messages yet."
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ---
 

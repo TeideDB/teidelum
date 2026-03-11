@@ -6,7 +6,8 @@
 		activeChannelId,
 		setActiveChannel,
 		createChannel,
-		loadChannels
+		loadChannels,
+		channelsLoaded
 	} from '$lib/stores/channels';
 	import { unreads } from '$lib/stores/unreads';
 	import { auth, doLogout } from '$lib/stores/auth';
@@ -15,6 +16,7 @@
 	import Avatar from '$lib/components/Avatar.svelte';
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
 	import ChannelDirectory from '$lib/components/ChannelDirectory.svelte';
+	import Skeleton from '$lib/components/Skeleton.svelte';
 	import type { Channel } from '$lib/types';
 
 	let showCreateModal = $state(false);
@@ -255,6 +257,11 @@
 				</div>
 			</div>
 
+			{#if !$channelsLoaded}
+				<Skeleton variant="channel" count={5} />
+			{:else if $nonDmChannels.length === 0}
+				<p class="px-3 py-2 text-xs text-primary-light/40">No channels yet</p>
+			{:else}
 			{#each $nonDmChannels as channel}
 				<button
 					onclick={() => navigateToChannel(channel)}
@@ -289,6 +296,7 @@
 					{/if}
 				</button>
 			{/each}
+			{/if}
 		</div>
 
 		<!-- DMs section -->
@@ -297,21 +305,25 @@
 				<span class="text-xs font-semibold uppercase tracking-wide text-primary-light/50">Direct Messages</span>
 			</div>
 
-			{#each $dmChannels as channel}
-				<button
-					onclick={() => navigateToChannel(channel)}
-					class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
-						? 'bg-primary text-white'
-						: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading'}"
-				>
-					<span class="truncate">{getDmDisplayName(channel)}</span>
-					{#if getUnreadCount(channel.id) > 0}
-						<span class="ml-1 rounded-full bg-primary-light px-1.5 text-xs font-bold text-white">
-							{getUnreadCount(channel.id)}
-						</span>
-					{/if}
-				</button>
-			{/each}
+			{#if $channelsLoaded && $dmChannels.length === 0}
+				<p class="px-3 py-2 text-xs text-primary-light/40">No direct messages yet</p>
+			{:else}
+				{#each $dmChannels as channel}
+					<button
+						onclick={() => navigateToChannel(channel)}
+						class="flex w-full items-center justify-between rounded px-2 py-1 text-left text-sm transition {isActive(channel.id)
+							? 'bg-primary text-white'
+							: 'text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading'}"
+					>
+						<span class="truncate">{getDmDisplayName(channel)}</span>
+						{#if getUnreadCount(channel.id) > 0}
+							<span class="ml-1 rounded-full bg-primary-light px-1.5 text-xs font-bold text-white">
+								{getUnreadCount(channel.id)}
+							</span>
+						{/if}
+					</button>
+				{/each}
+			{/if}
 		</div>
 	</div>
 </div>
