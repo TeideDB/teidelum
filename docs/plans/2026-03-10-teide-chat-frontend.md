@@ -2538,7 +2538,7 @@ git commit -m "feat(chat-ui): add ThreadPanel component for threaded replies"
 **Files:**
 - Create: `teidelum/ui/src/lib/components/ReactionPicker.svelte`
 
-- [ ] **Step 1: Implement simple reaction picker**
+- [x] **Step 1: Implement simple reaction picker**
 
 Create `src/lib/components/ReactionPicker.svelte`. A minimal picker with common reactions (no full emoji picker for MVP):
 
@@ -2590,11 +2590,11 @@ Create `src/lib/components/ReactionPicker.svelte`. A minimal picker with common 
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/components/ReactionPicker.svelte
