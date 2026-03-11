@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import SearchModal from '$lib/components/SearchModal.svelte';
+	import ConnectionStatus from '$lib/components/ConnectionStatus.svelte';
 	import { loadChannels, initChannelWsListeners, activeChannelId } from '$lib/stores/channels';
 	import { loadUsers, initUserWsListeners } from '$lib/stores/users';
 	import { initMessageWsListeners } from '$lib/stores/messages';
@@ -67,6 +68,8 @@
 </script>
 
 <svelte:window onkeydown={handleGlobalKeydown} />
+
+<ConnectionStatus />
 
 <div class="flex h-screen overflow-hidden bg-navy">
 	<!-- Sidebar -->

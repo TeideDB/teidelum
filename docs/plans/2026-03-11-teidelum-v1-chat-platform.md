@@ -2208,7 +2208,7 @@ No DMs: "No direct messages yet."
 - Modify: `ui/src/lib/ws.ts`
 - Modify: `ui/src/routes/(app)/+layout.svelte`
 
-- [ ] **Step 1: Export connection state from ws.ts**
+- [x] **Step 1: Export connection state from ws.ts**
 
 ```typescript
 export const connectionState = writable<'connected' | 'reconnecting' | 'disconnected'>('disconnected');
@@ -2216,11 +2216,11 @@ export const connectionState = writable<'connected' | 'reconnecting' | 'disconne
 
 Update in `doConnect.onopen`, `onclose`, etc.
 
-- [ ] **Step 2: Create ConnectionStatus component**
+- [x] **Step 2: Create ConnectionStatus component**
 
 Fixed bar at top. Yellow for reconnecting, green flash for connected, red for disconnected.
 
-- [ ] **Step 3: Add to app layout, commit**
+- [x] **Step 3: Add to app layout, commit**
 
 ---
 

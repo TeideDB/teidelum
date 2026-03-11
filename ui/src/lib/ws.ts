@@ -1,4 +1,8 @@
+import { writable } from 'svelte/store';
 import type { WsEvent, WsEventType } from './types';
+
+export type ConnectionState = 'connected' | 'reconnecting' | 'disconnected';
+export const connectionState = writable<ConnectionState>('disconnected');
 
 type EventCallback = (event: WsEvent) => void;
 
@@ -29,6 +33,7 @@ export function disconnect() {
 		ws.close();
 		ws = null;
 	}
+	connectionState.set('disconnected');
 	// Don't clear listeners here - they are managed by component cleanup callbacks
 	// Clearing them would break re-login without page reload since onMount won't re-fire
 }
@@ -53,6 +58,7 @@ function doConnect() {
 
 	ws.onopen = () => {
 		reconnectDelay = 1000;
+		connectionState.set('connected');
 	};
 
 	ws.onmessage = (event) => {
@@ -67,7 +73,10 @@ function doConnect() {
 	ws.onclose = () => {
 		ws = null;
 		if (!intentionalClose) {
+			connectionState.set('reconnecting');
 			scheduleReconnect();
+		} else {
+			connectionState.set('disconnected');
 		}
 	};
 
