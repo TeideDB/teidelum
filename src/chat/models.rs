@@ -34,6 +34,10 @@ const CREATE_TABLES: &[&str] = &[
         filename VARCHAR, mime_type VARCHAR, size_bytes BIGINT,
         storage_path VARCHAR, created_at VARCHAR
     )",
+    "CREATE TABLE user_settings (
+        user_id BIGINT, theme VARCHAR, notification_default VARCHAR,
+        timezone VARCHAR, created_at VARCHAR
+    )",
 ];
 
 /// All FK relationships for the chat data model.
@@ -130,6 +134,13 @@ fn chat_relationships() -> Vec<Relationship> {
             to_col: "id".into(),
             relation: "uploaded_in".into(),
         },
+        Relationship {
+            from_table: "user_settings".into(),
+            from_col: "user_id".into(),
+            to_table: "users".into(),
+            to_col: "id".into(),
+            relation: "settings_for".into(),
+        },
     ]
 }
 
@@ -214,7 +225,7 @@ mod tests {
     #[test]
     fn test_chat_relationships_valid() {
         let rels = chat_relationships();
-        assert_eq!(rels.len(), 13);
+        assert_eq!(rels.len(), 14);
         // All identifiers should be valid
         for rel in &rels {
             assert!(

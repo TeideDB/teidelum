@@ -23,7 +23,7 @@
 **Files:**
 - Modify: `src/chat/models.rs`
 
-- [ ] **Step 1: Add user_settings table to CREATE_TABLES**
+- [x] **Step 1: Add user_settings table to CREATE_TABLES**
 
 In `src/chat/models.rs`, add to the `CREATE_TABLES` array:
 
@@ -34,7 +34,7 @@ In `src/chat/models.rs`, add to the `CREATE_TABLES` array:
 )",
 ```
 
-- [ ] **Step 2: Add FK relationship for user_settings**
+- [x] **Step 2: Add FK relationship for user_settings**
 
 In `chat_relationships()`, add:
 
@@ -48,16 +48,16 @@ Relationship {
 },
 ```
 
-- [ ] **Step 3: Update relationship count test**
+- [x] **Step 3: Update relationship count test**
 
 Update `test_chat_relationships_valid` assertion from 13 to 14.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `cargo test --lib chat::models -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/chat/models.rs
