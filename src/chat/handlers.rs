@@ -2298,6 +2298,186 @@ pub async fn search_messages(
 
 // ── Helpers ──
 
+// ── Pins ──
+
+#[derive(Deserialize)]
+pub struct PinAddRequest {
+    #[serde(deserialize_with = "deserialize_id")]
+    pub channel: i64,
+    #[serde(deserialize_with = "deserialize_id")]
+    pub timestamp: i64,
+}
+
+pub async fn pins_add(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<PinAddRequest>,
+) -> Response {
+    if !is_channel_member(&state, req.channel, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
+    // Verify message exists in this channel
+    let check = format!(
+        "SELECT id FROM messages WHERE id = {} AND channel_id = {}",
+        req.timestamp, req.channel
+    );
+    match state.api.query_router().query_sync(&check) {
+        Ok(r) if r.rows.is_empty() => return slack::err("message_not_found"),
+        Err(e) => {
+            tracing::error!("pin check failed: {e}");
+            return slack::err("internal_error");
+        }
+        _ => {}
+    }
+
+    // Idempotent: check if already pinned
+    let dup = format!(
+        "SELECT message_id FROM pinned_messages WHERE channel_id = {} AND message_id = {}",
+        req.channel, req.timestamp
+    );
+    if let Ok(r) = state.api.query_router().query_sync(&dup) {
+        if !r.rows.is_empty() {
+            return slack::ok(json!({}));
+        }
+    }
+
+    let now = now_timestamp();
+    let insert = format!(
+        "INSERT INTO pinned_messages (channel_id, message_id, user_id, created_at) \
+         VALUES ({}, {}, {}, '{now}')",
+        req.channel, req.timestamp, claims.user_id
+    );
+    if let Err(e) = state.api.query_router().query_sync(&insert) {
+        tracing::error!("pin insert failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    let event = crate::chat::events::ServerEvent::MessagePinned {
+        channel: req.channel.to_string(),
+        message_id: req.timestamp.to_string(),
+        user: claims.user_id.to_string(),
+    };
+    state.hub.broadcast_to_channel(req.channel, &event).await;
+
+    slack::ok(json!({}))
+}
+
+#[derive(Deserialize)]
+pub struct PinRemoveRequest {
+    #[serde(deserialize_with = "deserialize_id")]
+    pub channel: i64,
+    #[serde(deserialize_with = "deserialize_id")]
+    pub timestamp: i64,
+}
+
+pub async fn pins_remove(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<PinRemoveRequest>,
+) -> Response {
+    if !is_channel_member(&state, req.channel, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
+    let delete = format!(
+        "DELETE FROM pinned_messages WHERE channel_id = {} AND message_id = {}",
+        req.channel, req.timestamp
+    );
+    if let Err(e) = state.api.query_router().query_sync(&delete) {
+        tracing::error!("pin delete failed: {e}");
+        return slack::err("internal_error");
+    }
+
+    let event = crate::chat::events::ServerEvent::MessageUnpinned {
+        channel: req.channel.to_string(),
+        message_id: req.timestamp.to_string(),
+        user: claims.user_id.to_string(),
+    };
+    state.hub.broadcast_to_channel(req.channel, &event).await;
+
+    slack::ok(json!({}))
+}
+
+#[derive(Deserialize)]
+pub struct PinListRequest {
+    #[serde(deserialize_with = "deserialize_id")]
+    pub channel: i64,
+}
+
+pub async fn pins_list(
+    State(state): State<AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(req): Json<PinListRequest>,
+) -> Response {
+    if !is_channel_member(&state, req.channel, claims.user_id) {
+        return slack::err("channel_not_found");
+    }
+
+    let sql = format!(
+        "SELECT message_id, user_id, created_at FROM pinned_messages WHERE channel_id = {} ORDER BY created_at DESC",
+        req.channel
+    );
+    let pins = match state.api.query_router().query_sync(&sql) {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("pins list failed: {e}");
+            return slack::err("internal_error");
+        }
+    };
+
+    let mut items = Vec::new();
+    for row in &pins.rows {
+        let message_id = match &row[0] {
+            crate::connector::Value::Int(v) => *v,
+            _ => continue,
+        };
+        let pinned_by = match &row[1] {
+            crate::connector::Value::Int(v) => v.to_string(),
+            _ => continue,
+        };
+        let pinned_at = match &row[2] {
+            crate::connector::Value::String(v) => v.clone(),
+            _ => continue,
+        };
+
+        // Fetch the message content
+        let msg_sql = format!(
+            "SELECT id, user_id, content, created_at FROM messages WHERE id = {}",
+            message_id
+        );
+        if let Ok(msg_r) = state.api.query_router().query_sync(&msg_sql) {
+            if let Some(msg_row) = msg_r.rows.first() {
+                let msg_user = match &msg_row[1] {
+                    crate::connector::Value::Int(v) => v.to_string(),
+                    _ => continue,
+                };
+                let msg_text = match &msg_row[2] {
+                    crate::connector::Value::String(v) => v.clone(),
+                    _ => String::new(),
+                };
+                let msg_ts = match &msg_row[3] {
+                    crate::connector::Value::String(v) => v.clone(),
+                    _ => continue,
+                };
+
+                items.push(json!({
+                    "message": {
+                        "ts": message_id.to_string(),
+                        "user": msg_user,
+                        "text": msg_text,
+                        "created_at": msg_ts,
+                    },
+                    "pinned_by": pinned_by,
+                    "pinned_at": pinned_at,
+                }));
+            }
+        }
+    }
+
+    slack::ok(json!({ "items": items }))
+}
+
 fn is_channel_member(state: &AppState, channel_id: i64, user_id: i64) -> bool {
     let sql = format!(
         "SELECT channel_id FROM channel_members WHERE channel_id = {} AND user_id = {}",
@@ -2406,6 +2586,10 @@ pub fn chat_routes(state: AppState) -> Router {
         // Reactions
         .route("/reactions.add", axum::routing::post(reactions_add))
         .route("/reactions.remove", axum::routing::post(reactions_remove))
+        // Pins
+        .route("/pins.add", axum::routing::post(pins_add))
+        .route("/pins.remove", axum::routing::post(pins_remove))
+        .route("/pins.list", axum::routing::post(pins_list))
         // Search
         .route("/search.messages", axum::routing::post(search_messages))
         // Files

@@ -82,6 +82,20 @@ pub enum ServerEvent {
 
     #[serde(rename = "member_left_channel")]
     MemberLeftChannel { channel: String, user: String },
+
+    #[serde(rename = "message_pinned")]
+    MessagePinned {
+        channel: String,
+        message_id: String,
+        user: String,
+    },
+
+    #[serde(rename = "message_unpinned")]
+    MessageUnpinned {
+        channel: String,
+        message_id: String,
+        user: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]

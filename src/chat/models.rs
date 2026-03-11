@@ -40,6 +40,9 @@ const CREATE_TABLES: &[&str] = &[
         user_id BIGINT, theme VARCHAR, notification_default VARCHAR,
         timezone VARCHAR, created_at VARCHAR
     )",
+    "CREATE TABLE pinned_messages (
+        channel_id BIGINT, message_id BIGINT, user_id BIGINT, created_at VARCHAR
+    )",
 ];
 
 /// All FK relationships for the chat data model.
@@ -143,6 +146,27 @@ fn chat_relationships() -> Vec<Relationship> {
             to_col: "id".into(),
             relation: "settings_for".into(),
         },
+        Relationship {
+            from_table: "pinned_messages".into(),
+            from_col: "message_id".into(),
+            to_table: "messages".into(),
+            to_col: "id".into(),
+            relation: "pinned".into(),
+        },
+        Relationship {
+            from_table: "pinned_messages".into(),
+            from_col: "channel_id".into(),
+            to_table: "channels".into(),
+            to_col: "id".into(),
+            relation: "pinned_in".into(),
+        },
+        Relationship {
+            from_table: "pinned_messages".into(),
+            from_col: "user_id".into(),
+            to_table: "users".into(),
+            to_col: "id".into(),
+            relation: "pinned_by".into(),
+        },
     ]
 }
 
@@ -227,7 +251,7 @@ mod tests {
     #[test]
     fn test_chat_relationships_valid() {
         let rels = chat_relationships();
-        assert_eq!(rels.len(), 14);
+        assert_eq!(rels.len(), 17);
         // All identifiers should be valid
         for rel in &rels {
             assert!(

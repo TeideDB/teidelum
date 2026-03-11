@@ -1294,7 +1294,7 @@ git commit -m "feat: add ChannelInfoPanel with edit, archive, and member managem
 - Modify: `src/chat/handlers.rs`
 - Modify: `src/chat/events.rs`
 
-- [ ] **Step 1: Add pinned_messages table**
+- [x] **Step 1: Add pinned_messages table**
 
 In `models.rs` `CREATE_TABLES`:
 
@@ -1314,7 +1314,7 @@ Relationship { from_table: "pinned_messages".into(), from_col: "user_id".into(),
 
 Update relationship count in test.
 
-- [ ] **Step 2: Add WebSocket events**
+- [x] **Step 2: Add WebSocket events**
 
 ```rust
 #[serde(rename = "message_pinned")]
@@ -1324,11 +1324,11 @@ MessagePinned { channel: String, message_id: String, user: String },
 MessageUnpinned { channel: String, message_id: String, user: String },
 ```
 
-- [ ] **Step 3: Write pins.add, pins.remove, pins.list handlers**
+- [x] **Step 3: Write pins.add, pins.remove, pins.list handlers**
 
 Follow the existing handler patterns. `pins.add`: check membership, SELECT-before-INSERT for idempotency, broadcast `MessagePinned`. `pins.remove`: check membership, DELETE, broadcast `MessageUnpinned`. `pins.list`: SELECT with JOIN-like pattern (separate queries for pin metadata + message content).
 
-- [ ] **Step 4: Register routes**
+- [x] **Step 4: Register routes**
 
 ```rust
 .route("/pins.add", axum::routing::post(pins_add))
@@ -1336,7 +1336,7 @@ Follow the existing handler patterns. `pins.add`: check membership, SELECT-befor
 .route("/pins.list", axum::routing::post(pins_list))
 ```
 
-- [ ] **Step 5: Run `cargo check`, commit**
+- [x] **Step 5: Run `cargo check`, commit**
 
 ---
 
