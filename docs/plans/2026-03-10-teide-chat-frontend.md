@@ -1400,7 +1400,7 @@ git commit -m "feat(chat-ui): add login page"
 **Files:**
 - Create: `teidelum/ui/src/routes/register/+page.svelte`
 
-- [ ] **Step 1: Implement register page**
+- [x] **Step 1: Implement register page**
 
 Create `src/routes/register/+page.svelte`:
 
@@ -1521,11 +1521,11 @@ Create `src/routes/register/+page.svelte`:
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/routes/register/+page.svelte
