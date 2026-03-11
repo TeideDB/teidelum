@@ -72,7 +72,7 @@ async fn handle_socket(state: AppState, claims: auth::Claims, socket: WebSocket)
     let user_id_clone = user_id;
 
     // Task: forward hub events to WebSocket
-    let send_task = tokio::spawn(async move {
+    let mut send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
             if ws_sink
                 .send(Message::Text((*msg).clone().into()))
@@ -85,7 +85,7 @@ async fn handle_socket(state: AppState, claims: auth::Claims, socket: WebSocket)
     });
 
     // Task: process incoming client messages
-    let recv_task = tokio::spawn(async move {
+    let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_stream.next().await {
             match msg {
                 Message::Text(text) => {
@@ -125,10 +125,10 @@ async fn handle_socket(state: AppState, claims: auth::Claims, socket: WebSocket)
         }
     });
 
-    // Wait for either task to finish
+    // Wait for either task to finish, then abort the other to prevent leaks
     tokio::select! {
-        _ = send_task => {},
-        _ = recv_task => {},
+        _ = &mut send_task => { recv_task.abort(); },
+        _ = &mut recv_task => { send_task.abort(); },
     }
 
     // Cleanup

@@ -73,6 +73,10 @@ pub struct ChatState {
     pub reads_lock: Mutex<()>,
     /// Serializes channel_settings upserts to prevent TOCTOU races.
     pub settings_lock: Mutex<()>,
+    /// Serializes channel creation to prevent duplicate names from TOCTOU races.
+    pub channel_create_lock: Mutex<()>,
+    /// Serializes channel join to prevent duplicate membership from TOCTOU races.
+    pub channel_join_lock: Mutex<()>,
 }
 
 // ── Auth ──
@@ -781,6 +785,9 @@ pub async fn conversations_create(
         return slack::err("invalid_kind");
     }
 
+    // Lock to prevent TOCTOU race on channel name uniqueness
+    let _create_guard = state.channel_create_lock.lock().await;
+
     // Check if channel name already exists
     let check = format!(
         "SELECT id FROM channels WHERE name = '{}'",
@@ -1069,6 +1076,9 @@ pub async fn conversations_history(
         }
     }
 
+    // Enrich messages with reactions
+    enrich_reactions(&state, &mut messages);
+
     // Update channel_reads for this user (locked to prevent TOCTOU duplicates)
     let now = now_timestamp();
     {
@@ -1135,7 +1145,7 @@ pub async fn conversations_replies(
         }
     };
 
-    let messages: Vec<serde_json::Value> = result
+    let mut messages: Vec<serde_json::Value> = result
         .rows
         .iter()
         .map(|row| {
@@ -1151,6 +1161,8 @@ pub async fn conversations_replies(
             })
         })
         .collect();
+
+    enrich_reactions(&state, &mut messages);
 
     slack::ok(json!({"messages": messages}))
 }
@@ -1201,6 +1213,9 @@ pub async fn conversations_join(
     if !archived_at.is_empty() {
         return slack::err("channel_archived");
     }
+
+    // Lock to prevent TOCTOU race on duplicate membership
+    let _join_guard = state.channel_join_lock.lock().await;
 
     // Check if already a member
     if is_channel_member(&state, req.channel, claims.user_id) {
@@ -2861,6 +2876,54 @@ pub async fn pins_list(
     }
 
     slack::ok(json!({ "items": items }))
+}
+
+/// Fetch reactions for a list of messages and attach them as a `reactions` array on each message JSON.
+/// Each reaction is grouped by emoji: `{ "name": "thumbsup", "count": 2, "users": ["1","3"] }`.
+fn enrich_reactions(state: &AppState, messages: &mut [serde_json::Value]) {
+    for msg in messages.iter_mut() {
+        let msg_id_str = msg["ts"].as_str().unwrap_or("0");
+        let msg_id: i64 = msg_id_str.parse().unwrap_or(0);
+        if msg_id == 0 {
+            continue;
+        }
+        let sql = format!(
+            "SELECT emoji, user_id FROM reactions WHERE message_id = {}",
+            msg_id
+        );
+        if let Ok(result) = state.api.query_router().query_sync(&sql) {
+            if result.rows.is_empty() {
+                continue;
+            }
+            // Group by emoji
+            let mut groups: std::collections::HashMap<String, Vec<String>> =
+                std::collections::HashMap::new();
+            for row in &result.rows {
+                let emoji = match &row[0] {
+                    crate::connector::Value::String(v) => v.clone(),
+                    _ => continue,
+                };
+                let uid = match &row[1] {
+                    crate::connector::Value::Int(v) => v.to_string(),
+                    _ => continue,
+                };
+                groups.entry(emoji).or_default().push(uid);
+            }
+            let reactions: Vec<serde_json::Value> = groups
+                .into_iter()
+                .map(|(name, users)| {
+                    json!({
+                        "name": name,
+                        "count": users.len(),
+                        "users": users,
+                    })
+                })
+                .collect();
+            msg.as_object_mut()
+                .unwrap()
+                .insert("reactions".to_string(), serde_json::json!(reactions));
+        }
+    }
 }
 
 fn is_channel_member(state: &AppState, channel_id: i64, user_id: i64) -> bool {
