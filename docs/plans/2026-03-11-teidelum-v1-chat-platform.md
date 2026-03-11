@@ -1170,23 +1170,23 @@ git commit -m "feat: add archive, unarchive, setRole endpoints and block posting
 **Files:**
 - Modify: `tests/chat_integration.rs`
 
-- [ ] **Step 1: Write test for conversations.update**
+- [x] **Step 1: Write test for conversations.update**
 
 Test: create channel, update name/topic as owner, verify via conversations.info. Try update as non-owner, verify failure.
 
-- [ ] **Step 2: Write test for archive/unarchive**
+- [x] **Step 2: Write test for archive/unarchive**
 
 Test: archive channel as owner, try posting (should fail), unarchive, post again (should work).
 
-- [ ] **Step 3: Write test for setRole**
+- [x] **Step 3: Write test for setRole**
 
 Test: owner sets member to admin, admin can update channel topic, member cannot.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/chat_integration.rs

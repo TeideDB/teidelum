@@ -1160,3 +1160,221 @@ async fn test_conversations_update() {
     let body = body_json(resp).await;
     assert_eq!(body["ok"], false, "empty update should fail");
 }
+
+#[tokio::test]
+async fn test_archive_unarchive() {
+    let (app, _tmp) = setup().await;
+    let token_owner = register_and_login(&app, "archowner", "secret123", "archowner@test.com").await;
+    let token_member =
+        register_and_login(&app, "archmember", "secret123", "archmember@test.com").await;
+
+    // Create channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "archive-test"}),
+            Some(&token_owner),
+        ))
+        .await
+        .unwrap();
+    let ch_id: i64 = body_json(resp).await["channel"]["id"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    // Member joins
+    let _ = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.join",
+            json!({"channel": ch_id}),
+            Some(&token_member),
+        ))
+        .await
+        .unwrap();
+
+    // Non-owner cannot archive
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.archive",
+            json!({"channel": ch_id}),
+            Some(&token_member),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false, "member should not archive");
+
+    // Owner archives
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.archive",
+            json!({"channel": ch_id}),
+            Some(&token_owner),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(body_json(resp).await["ok"], true);
+
+    // Posting to archived channel should fail
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/chat.postMessage",
+            json!({"channel": ch_id, "text": "should fail"}),
+            Some(&token_owner),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "channel_archived");
+
+    // Owner unarchives
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.unarchive",
+            json!({"channel": ch_id}),
+            Some(&token_owner),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(body_json(resp).await["ok"], true);
+
+    // Posting should work again
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/chat.postMessage",
+            json!({"channel": ch_id, "text": "back alive"}),
+            Some(&token_owner),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(body_json(resp).await["ok"], true);
+}
+
+#[tokio::test]
+async fn test_set_role() {
+    let (app, _tmp) = setup().await;
+    let token_owner =
+        register_and_login(&app, "roleowner", "secret123", "roleowner@test.com").await;
+
+    // Register member and get their user_id
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.register",
+            json!({"username": "rolemember", "password": "secret123", "email": "rolemember@test.com"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let member_body = body_json(resp).await;
+    let token_member = member_body["token"].as_str().unwrap().to_string();
+    let member_id: i64 = member_body["user_id"].as_str().unwrap().parse().unwrap();
+
+    // Create channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "role-test"}),
+            Some(&token_owner),
+        ))
+        .await
+        .unwrap();
+    let ch_id: i64 = body_json(resp).await["channel"]["id"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    // Member joins
+    let _ = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.join",
+            json!({"channel": ch_id}),
+            Some(&token_member),
+        ))
+        .await
+        .unwrap();
+
+    // Member cannot update channel topic (they are just a member)
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.update",
+            json!({"channel": ch_id, "topic": "member topic"}),
+            Some(&token_member),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        body_json(resp).await["ok"],
+        false,
+        "member should not update"
+    );
+
+    // Owner promotes member to admin
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.setRole",
+            json!({"channel": ch_id, "user": member_id, "role": "admin"}),
+            Some(&token_owner),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(body_json(resp).await["ok"], true, "setRole should succeed");
+
+    // Admin can now update channel topic
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.update",
+            json!({"channel": ch_id, "topic": "admin topic"}),
+            Some(&token_member),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        body_json(resp).await["ok"],
+        true,
+        "admin should be able to update"
+    );
+
+    // Verify topic was updated
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.info",
+            json!({"channel": ch_id}),
+            Some(&token_owner),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(body_json(resp).await["channel"]["topic"], "admin topic");
+
+    // Member cannot setRole (not owner)
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.setRole",
+            json!({"channel": ch_id, "user": member_id, "role": "member"}),
+            Some(&token_member),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(
+        body_json(resp).await["ok"],
+        false,
+        "non-owner should not setRole"
+    );
+}
