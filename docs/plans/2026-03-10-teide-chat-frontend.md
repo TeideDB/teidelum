@@ -346,7 +346,7 @@ git commit -m "feat(chat-ui): add shared TypeScript types for API and WebSocket"
 **Files:**
 - Create: `teidelum/ui/src/lib/api.ts`
 
-- [ ] **Step 1: Implement typed API client**
+- [x] **Step 1: Implement typed API client**
 
 Create `src/lib/api.ts`. This is the single entry point for all API calls. Every method calls `POST /api/slack/<method>` with JSON body and Bearer token.
 
@@ -542,12 +542,12 @@ export function fileDownloadUrl(fileId: Id, filename: string): string {
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cd /Users/antonkundenko/data/work/teidedb/teidelum/ui && npm run build`
 Expected: compiles with no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add teidelum/ui/src/lib/api.ts
