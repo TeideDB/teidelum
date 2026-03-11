@@ -11,9 +11,10 @@
 		channelId: Id;
 		threadTs?: Id;
 		placeholder?: string;
+		onEditLast?: () => void;
 	}
 
-	let { channelId, threadTs, placeholder = 'Type a message...' }: Props = $props();
+	let { channelId, threadTs, placeholder = 'Type a message...', onEditLast }: Props = $props();
 
 	let text = $state('');
 	let textarea: HTMLTextAreaElement | undefined = $state();
@@ -43,6 +44,11 @@
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			handleSend();
+		}
+
+		if (e.key === 'ArrowUp' && !text.trim() && onEditLast) {
+			e.preventDefault();
+			onEditLast();
 		}
 	}
 

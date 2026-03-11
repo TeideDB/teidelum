@@ -20,6 +20,7 @@
 	let showChannelInfo = $state(false);
 	let pinnedMessages = $state<Message[]>([]);
 	let showPinnedDropdown = $state(false);
+	let messageListRef: MessageList | undefined = $state();
 
 	const pinnedMessageIds = $derived(new Set(pinnedMessages.map((m) => m.id)));
 
@@ -177,7 +178,7 @@
 		{/if}
 
 		<!-- Messages -->
-		<MessageList {channelId} onOpenThread={openThread} {pinnedMessageIds} />
+		<MessageList bind:this={messageListRef} {channelId} onOpenThread={openThread} {pinnedMessageIds} />
 
 		<!-- Typing indicator -->
 		<TypingIndicator {channelId} />
@@ -187,6 +188,7 @@
 			<MessageInput
 				{channelId}
 				placeholder={$activeChannel ? `Message #${$activeChannel.name}` : 'Type a message...'}
+				onEditLast={() => messageListRef?.editLastOwnMessage()}
 			/>
 		{/if}
 	</div>

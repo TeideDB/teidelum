@@ -2230,17 +2230,17 @@ Fixed bar at top. Yellow for reconnecting, green flash for connected, red for di
 - Modify: `ui/src/routes/(app)/+layout.svelte`
 - Create: `ui/src/lib/components/ShortcutsModal.svelte`
 
-- [ ] **Step 1: Add keyboard listeners**
+- [x] **Step 1: Add keyboard listeners**
 
 - `Cmd+Shift+A`: navigate to next channel with unreads
 - `Up arrow` (empty input): trigger edit of last own message
 - `Cmd+/`: show shortcuts help modal
 
-- [ ] **Step 2: Create ShortcutsModal**
+- [x] **Step 2: Create ShortcutsModal**
 
 Simple modal listing all keyboard shortcuts.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ---
 

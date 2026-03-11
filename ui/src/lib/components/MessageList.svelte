@@ -154,6 +154,15 @@
 	}
 
 	// Inline edit handlers
+	export function editLastOwnMessage() {
+		const ownMessages = messages.filter(
+			(m) => m.user_id === currentUserId && !m.thread_ts
+		);
+		if (ownMessages.length > 0) {
+			startEdit(ownMessages[ownMessages.length - 1]);
+		}
+	}
+
 	function startEdit(msg: Message) {
 		editingMessageId = msg.id;
 		editText = msg.text;
