@@ -21,7 +21,7 @@ fn deserialize_id<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
             Ok(v)
         }
         fn visit_u64<E: de::Error>(self, v: u64) -> Result<i64, E> {
-            Ok(v as i64)
+            i64::try_from(v).map_err(|_| de::Error::custom("id overflow"))
         }
         fn visit_str<E: de::Error>(self, v: &str) -> Result<i64, E> {
             v.parse().map_err(de::Error::custom)
@@ -65,7 +65,7 @@ fn deserialize_opt_id<'de, D: Deserializer<'de>>(d: D) -> Result<Option<i64>, D:
             Ok(Some(v))
         }
         fn visit_u64<E: de::Error>(self, v: u64) -> Result<Option<i64>, E> {
-            Ok(Some(v as i64))
+            Ok(Some(i64::try_from(v).map_err(|_| de::Error::custom("id overflow"))?))
         }
         fn visit_str<E: de::Error>(self, v: &str) -> Result<Option<i64>, E> {
             v.parse().map(Some).map_err(de::Error::custom)
@@ -2721,7 +2721,8 @@ pub async fn conversations_directory(
 
     if let Some(ref q) = req.query {
         if !q.is_empty() {
-            sql.push_str(&format!(" AND name LIKE '%{}%'", escape_sql(q)));
+            let escaped_like = escape_sql(q).replace('%', "\\%").replace('_', "\\_");
+            sql.push_str(&format!(" AND name LIKE '%{escaped_like}%'"));
         }
     }
 
