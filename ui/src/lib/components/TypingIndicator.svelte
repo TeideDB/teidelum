@@ -45,7 +45,7 @@
 </script>
 
 {#if displayNames.length > 0}
-	<div class="text-xs text-gray-400 px-4 h-5">
+	<div class="text-xs text-gray-400 px-4 h-5" aria-live="polite">
 		{#if displayNames.length === 1}
 			{displayNames[0]} is typing...
 		{:else if displayNames.length === 2}

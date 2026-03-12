@@ -880,7 +880,7 @@ git commit -m "fix: add error handling for reaction, edit, delete, and upload op
 - Modify: `ui/src/lib/components/TypingIndicator.svelte`
 - Modify: `ui/src/lib/components/ConnectionStatus.svelte`
 
-- [ ] **Step 1: Add aria-live to TypingIndicator**
+- [x] **Step 1: Add aria-live to TypingIndicator**
 
 Find the container div and add `aria-live="polite"`:
 
@@ -888,7 +888,7 @@ Find the container div and add `aria-live="polite"`:
 <div class="..." aria-live="polite">
 ```
 
-- [ ] **Step 2: Add aria-live to ConnectionStatus**
+- [x] **Step 2: Add aria-live to ConnectionStatus**
 
 Find the status banner div and add `aria-live="assertive"`:
 
@@ -896,12 +896,12 @@ Find the status banner div and add `aria-live="assertive"`:
 <div class="..." aria-live="assertive" role="alert">
 ```
 
-- [ ] **Step 3: Run type check**
+- [x] **Step 3: Run type check**
 
 Run: `cd ui && npx svelte-check`
 Expected: No new errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add ui/src/lib/components/TypingIndicator.svelte ui/src/lib/components/ConnectionStatus.svelte
