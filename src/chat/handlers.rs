@@ -816,7 +816,7 @@ pub async fn conversations_create(
     }
     if !name_trimmed
         .chars()
-        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
         return slack::err("invalid_name");
     }
@@ -1797,7 +1797,7 @@ pub async fn conversations_update(
         }
         if !name_trimmed
             .chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
         {
             return slack::err("invalid_name");
         }
