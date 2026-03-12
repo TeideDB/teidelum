@@ -1789,16 +1789,26 @@ pub async fn conversations_update(
 
     let mut sets = Vec::new();
     if let Some(ref name) = req.name {
+        let name_trimmed = name.trim();
+        if name_trimmed.is_empty() || name_trimmed.len() > 80 {
+            return slack::err("invalid_name");
+        }
+        if !name_trimmed
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return slack::err("invalid_name");
+        }
         let check = format!(
             "SELECT id FROM channels WHERE name = '{}' AND id != {}",
-            escape_sql(name),
+            escape_sql(name_trimmed),
             req.channel
         );
         match state.api.query_router().query_sync(&check) {
             Ok(r) if !r.rows.is_empty() => return slack::err("name_taken"),
             _ => {}
         }
-        sets.push(format!("name = '{}'", escape_sql(name)));
+        sets.push(format!("name = '{}'", escape_sql(name_trimmed)));
     }
     if let Some(ref topic) = req.topic {
         sets.push(format!("topic = '{}'", escape_sql(topic)));
@@ -2289,6 +2299,10 @@ pub async fn chat_update(
 
     if msg_user != claims.user_id {
         return slack::err("cant_update_message");
+    }
+
+    if req.text.len() > 40_000 {
+        return slack::err("msg_too_long");
     }
 
     let now = now_timestamp();

@@ -695,6 +695,12 @@ impl Teidelum {
             ));
         }
 
+        if params.text.len() > 40_000 {
+            return Ok(CallToolResult::error(vec![Content::text(
+                "Message text exceeds 40,000 character limit",
+            )]));
+        }
+
         let id = crate::chat::id::next_id();
         let now = crate::chat::models::now_timestamp();
         let text_escaped = crate::chat::models::escape_sql(&params.text);
@@ -814,6 +820,12 @@ impl Teidelum {
                 format!("bot is not a member of channel {}", params.channel),
                 None,
             ));
+        }
+
+        if params.text.len() > 40_000 {
+            return Ok(CallToolResult::error(vec![Content::text(
+                "Message text exceeds 40,000 character limit",
+            )]));
         }
 
         let id = crate::chat::id::next_id();
