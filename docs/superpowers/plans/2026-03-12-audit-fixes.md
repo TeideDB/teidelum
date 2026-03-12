@@ -251,7 +251,7 @@ git commit -m "fix: restrict CORS to specific methods and headers"
 **Files:**
 - Modify: `src/server.rs:59-67`
 
-- [ ] **Step 1: Add warning log**
+- [x] **Step 1: Add warning log**
 
 In `src/server.rs`, replace lines 59-67:
 
@@ -269,7 +269,7 @@ In `src/server.rs`, replace lines 59-67:
     }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/server.rs

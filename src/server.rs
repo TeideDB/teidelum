@@ -64,6 +64,8 @@ pub fn build_router(
                 async move { auth_check(req, next, key).await }
             }));
         }
+    } else {
+        tracing::warn!("TEIDELUM_API_KEY not set — data API and MCP endpoints are unauthenticated");
     }
 
     // Chat routes (protected by JWT, not API key)
