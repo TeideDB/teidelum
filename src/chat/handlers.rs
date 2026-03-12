@@ -714,7 +714,7 @@ pub async fn users_search(
     let limit = req.limit.min(100);
     let sql = format!(
         "SELECT id, username, display_name, avatar_url FROM users \
-         WHERE username LIKE '%{query_escaped}%' OR display_name LIKE '%{query_escaped}%' \
+         WHERE LOWER(username) LIKE '%{query_escaped}%' OR LOWER(display_name) LIKE '%{query_escaped}%' \
          LIMIT {limit}",
     );
     let result = match state.api.query_router().query_sync(&sql) {
@@ -758,7 +758,7 @@ pub async fn conversations_autocomplete(
         .replace('_', "\\_");
     let limit = req.limit.min(100);
     let sql = format!(
-        "SELECT id, name, topic FROM channels WHERE kind = 'public' AND name LIKE '{query_escaped}%' LIMIT {limit}",
+        "SELECT id, name, topic FROM channels WHERE kind = 'public' AND LOWER(name) LIKE '{query_escaped}%' LIMIT {limit}",
     );
     let result = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r,

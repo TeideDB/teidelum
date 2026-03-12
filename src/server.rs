@@ -64,6 +64,8 @@ pub fn build_router(
                 let key = key.clone();
                 async move { auth_check(req, next, key).await }
             }));
+        } else {
+            tracing::warn!("TEIDELUM_API_KEY is set but empty — data API and MCP endpoints are unauthenticated");
         }
     } else {
         tracing::warn!("TEIDELUM_API_KEY not set — data API and MCP endpoints are unauthenticated");
@@ -144,7 +146,10 @@ pub async fn start(
         Ok(s) if !s.is_empty() => {
             anyhow::bail!("TEIDE_CHAT_SECRET must be at least 32 bytes (got {})", s.len());
         }
-        _ => {
+        Ok(_) => {
+            tracing::warn!("TEIDE_CHAT_SECRET is set but empty — chat auth will not work");
+        }
+        Err(_) => {
             tracing::warn!("TEIDE_CHAT_SECRET not set — chat auth will not work");
         }
     }
