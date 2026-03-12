@@ -900,27 +900,69 @@ pub async fn conversations_list(
         }
     };
 
+    // Batch: fetch all channel_reads for this user
+    let reads_sql = format!(
+        "SELECT channel_id, last_read_ts FROM channel_reads WHERE user_id = {}",
+        claims.user_id
+    );
+    let reads_map: std::collections::HashMap<String, String> = state
+        .api
+        .query_router()
+        .query_sync(&reads_sql)
+        .ok()
+        .map(|r| {
+            r.rows
+                .iter()
+                .filter_map(|row| {
+                    let ch = match &row[0] {
+                        crate::connector::Value::Int(n) => n.to_string(),
+                        _ => return None,
+                    };
+                    let ts = row[1].to_json().as_str().unwrap_or("").to_string();
+                    Some((ch, ts))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Batch: fetch all channel_settings for this user
+    let settings_sql = format!(
+        "SELECT channel_id, muted, notification_level FROM channel_settings WHERE user_id = {}",
+        claims.user_id
+    );
+    let settings_map: std::collections::HashMap<String, (String, String)> = state
+        .api
+        .query_router()
+        .query_sync(&settings_sql)
+        .ok()
+        .map(|r| {
+            r.rows
+                .iter()
+                .filter_map(|row| {
+                    let ch = match &row[0] {
+                        crate::connector::Value::Int(n) => n.to_string(),
+                        _ => return None,
+                    };
+                    let muted = row[1].to_json().as_str().unwrap_or("false").to_string();
+                    let notif = row[2].to_json().as_str().unwrap_or("all").to_string();
+                    Some((ch, (muted, notif)))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     let channels: Vec<serde_json::Value> = result
         .rows
         .iter()
         .map(|row| {
-            let ch_id_val = &row[0];
-            let ch_id_str = match ch_id_val {
+            let ch_id_str = match &row[0] {
                 crate::connector::Value::Int(n) => n.to_string(),
-                _ => ch_id_val.to_json().as_str().unwrap_or("0").to_string(),
+                _ => row[0].to_json().as_str().unwrap_or("0").to_string(),
             };
 
-            // Get last_read_ts for this channel
-            let read_sql = format!(
-                "SELECT last_read_ts FROM channel_reads WHERE channel_id = {} AND user_id = {}",
-                ch_id_str, claims.user_id
-            );
-            let last_read_ts = state.api.query_router().query_sync(&read_sql).ok()
-                .and_then(|r| r.rows.first().map(|row| row[0].to_json()))
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .unwrap_or_default();
+            let last_read_ts = reads_map.get(&ch_id_str).cloned().unwrap_or_default();
 
-            // Count unread top-level messages (exclude thread replies to match history view)
+            // Count unread — still per-channel but unavoidable without GROUP BY support
             let unread_sql = if last_read_ts.is_empty() {
                 format!(
                     "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND thread_id = 0 AND deleted_at = ''",
@@ -937,17 +979,9 @@ pub async fn conversations_list(
                 .and_then(|v| v.as_str().and_then(|s| s.parse::<i64>().ok()))
                 .unwrap_or(0);
 
-            // Get channel_settings (muted, notification_level) for this user
-            let settings_sql = format!(
-                "SELECT muted, notification_level FROM channel_settings WHERE channel_id = {} AND user_id = {}",
-                ch_id_str, claims.user_id
-            );
-            let (muted, notification_level) = state.api.query_router().query_sync(&settings_sql).ok()
-                .and_then(|r| r.rows.first().map(|row| {
-                    let m = row[0].to_json().as_str().unwrap_or("false").to_string();
-                    let n = row[1].to_json().as_str().unwrap_or("all").to_string();
-                    (m, n)
-                }))
+            let (muted, notification_level) = settings_map
+                .get(&ch_id_str)
+                .cloned()
                 .unwrap_or_else(|| ("false".to_string(), "all".to_string()));
 
             json!({

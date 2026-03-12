@@ -328,7 +328,7 @@ git commit -m "fix: add message length limit and channel name validation"
 **Files:**
 - Modify: `src/chat/handlers.rs:866-953` (conversations_list)
 
-- [ ] **Step 1: Rewrite `conversations_list` to batch lookups**
+- [x] **Step 1: Rewrite `conversations_list` to batch lookups**
 
 Replace the per-channel queries with pre-fetched maps. The new implementation:
 
@@ -459,12 +459,12 @@ pub async fn conversations_list(
 
 This reduces from 3N+1 queries to N+3 queries (the unread COUNT per channel remains because TeideDB lacks grouped aggregation across channels).
 
-- [ ] **Step 2: Run integration tests**
+- [x] **Step 2: Run integration tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/chat/handlers.rs
