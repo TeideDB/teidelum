@@ -478,7 +478,7 @@ git commit -m "perf: batch channel_reads and channel_settings in conversations_l
 **Files:**
 - Modify: `src/chat/handlers.rs:1062-1095`
 
-- [ ] **Step 1: Replace per-message reply queries with batch approach**
+- [x] **Step 1: Replace per-message reply queries with batch approach**
 
 Replace the N+1 reply enrichment loop (lines 1062-1095) with:
 
@@ -530,12 +530,12 @@ Replace the N+1 reply enrichment loop (lines 1062-1095) with:
 
 Note: This is structurally similar but separates the querying from the JSON mutation, which avoids the nested `if let` within the mutable borrow. The query count remains the same (TeideDB doesn't support `IN` clauses), but the code is cleaner and ready for batch optimization when TeideDB adds `IN` support.
 
-- [ ] **Step 2: Run integration tests**
+- [x] **Step 2: Run integration tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/chat/handlers.rs

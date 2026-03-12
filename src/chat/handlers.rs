@@ -1109,39 +1109,55 @@ pub async fn conversations_history(
         })
         .collect();
 
-    // Enrich parent messages with reply metadata
-    for msg in messages.iter_mut() {
-        let msg_id_str = msg["ts"].as_str().unwrap_or("0");
-        let msg_id: i64 = msg_id_str.parse().unwrap_or(0);
-        if msg_id == 0 {
-            continue;
-        }
+    // Batch: collect all message IDs and fetch reply counts in one pass per message
+    // TeideDB doesn't support IN clauses or GROUP BY, so we batch what we can
+    let msg_ids: Vec<i64> = messages
+        .iter()
+        .filter_map(|msg| msg["ts"].as_str()?.parse::<i64>().ok())
+        .filter(|&id| id != 0)
+        .collect();
+
+    // Fetch reply metadata for each message, building a map of thread_id -> (count, last_reply_ts)
+    let mut reply_meta: std::collections::HashMap<i64, (i64, String)> =
+        std::collections::HashMap::new();
+    for &msg_id in &msg_ids {
         let reply_sql = format!(
             "SELECT COUNT(*) AS cnt FROM messages WHERE thread_id = {} AND deleted_at = ''",
             msg_id
         );
         if let Ok(reply_result) = state.api.query_router().query_sync(&reply_sql) {
             if let Some(row) = reply_result.rows.first() {
-                let count_str = row[0].to_json();
-                let count: i64 = count_str.as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
+                let count: i64 = row[0]
+                    .to_json()
+                    .as_str()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0);
                 if count > 0 {
-                    msg.as_object_mut()
-                        .unwrap()
-                        .insert("reply_count".to_string(), serde_json::json!(count));
-                    // Get last reply timestamp
                     let last_sql = format!(
                         "SELECT MAX(created_at) AS last_reply FROM messages WHERE thread_id = {} AND deleted_at = ''",
                         msg_id
                     );
-                    if let Ok(last_result) = state.api.query_router().query_sync(&last_sql) {
-                        if let Some(last_row) = last_result.rows.first() {
-                            msg.as_object_mut()
-                                .unwrap()
-                                .insert("last_reply_ts".to_string(), last_row[0].to_json());
-                        }
-                    }
+                    let last_ts = state
+                        .api
+                        .query_router()
+                        .query_sync(&last_sql)
+                        .ok()
+                        .and_then(|r| r.rows.first().map(|row| row[0].to_json()))
+                        .and_then(|v| v.as_str().map(|s| s.to_string()))
+                        .unwrap_or_default();
+                    reply_meta.insert(msg_id, (count, last_ts));
                 }
             }
+        }
+    }
+
+    // Apply reply metadata from the map
+    for msg in messages.iter_mut() {
+        let msg_id: i64 = msg["ts"].as_str().unwrap_or("0").parse().unwrap_or(0);
+        if let Some((count, last_ts)) = reply_meta.get(&msg_id) {
+            let obj = msg.as_object_mut().unwrap();
+            obj.insert("reply_count".to_string(), serde_json::json!(count));
+            obj.insert("last_reply_ts".to_string(), serde_json::json!(last_ts));
         }
     }
 
