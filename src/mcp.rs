@@ -232,6 +232,7 @@ pub struct ChatSearchParams {
 #[derive(Clone)]
 pub struct Teidelum {
     api: Arc<TeidelumApi>,
+    hub: Option<Arc<crate::chat::hub::Hub>>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -279,6 +280,7 @@ impl Teidelum {
     pub fn new(api: TeidelumApi) -> Self {
         Self {
             api: Arc::new(api),
+            hub: None,
             tool_router: Self::tool_router(),
         }
     }
@@ -286,6 +288,15 @@ impl Teidelum {
     pub fn new_with_shared(api: Arc<TeidelumApi>) -> Self {
         Self {
             api,
+            hub: None,
+            tool_router: Self::tool_router(),
+        }
+    }
+
+    pub fn new_with_hub(api: Arc<TeidelumApi>, hub: Arc<crate::chat::hub::Hub>) -> Self {
+        Self {
+            api,
+            hub: Some(hub),
             tool_router: Self::tool_router(),
         }
     }
@@ -714,6 +725,18 @@ impl Teidelum {
             tracing::warn!("MCP chat message indexing failed: {e}");
         }
 
+        // Broadcast via WebSocket if hub is available
+        if let Some(hub) = &self.hub {
+            let event = crate::chat::events::ServerEvent::Message {
+                channel: params.channel.to_string(),
+                user: bot_id.to_string(),
+                text: params.text.clone(),
+                ts: id.to_string(),
+                thread_ts: None,
+            };
+            hub.broadcast_to_channel(params.channel, &event).await;
+        }
+
         let result = serde_json::json!({
             "ok": true,
             "ts": id.to_string(),
@@ -824,6 +847,18 @@ impl Teidelum {
             tracing::warn!("MCP chat reply indexing failed: {e}");
         }
 
+        // Broadcast via WebSocket if hub is available
+        if let Some(hub) = &self.hub {
+            let event = crate::chat::events::ServerEvent::Message {
+                channel: params.channel.to_string(),
+                user: bot_id.to_string(),
+                text: params.text.clone(),
+                ts: id.to_string(),
+                thread_ts: Some(params.thread_ts.to_string()),
+            };
+            hub.broadcast_to_channel(params.channel, &event).await;
+        }
+
         let result = serde_json::json!({
             "ok": true,
             "ts": id.to_string(),
@@ -905,6 +940,17 @@ impl Teidelum {
             .query_router()
             .query_sync(&insert_sql)
             .map_err(|e| McpError::internal_error(format!("reaction insert failed: {e}"), None))?;
+
+        // Broadcast via WebSocket if hub is available
+        if let Some(hub) = &self.hub {
+            let event = crate::chat::events::ServerEvent::ReactionAdded {
+                channel: channel_id.to_string(),
+                user: bot_id.to_string(),
+                reaction: params.name.clone(),
+                item_ts: params.timestamp.to_string(),
+            };
+            hub.broadcast_to_channel(channel_id, &event).await;
+        }
 
         let result = serde_json::json!({"ok": true});
         Ok(CallToolResult::success(vec![Content::text(

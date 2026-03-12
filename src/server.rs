@@ -45,8 +45,9 @@ pub fn build_router(
 
     // MCP Streamable HTTP endpoint (also protected by optional API key)
     let mcp_api = api;
+    let mcp_hub = hub.clone();
     let mcp_service = StreamableHttpService::new(
-        move || Ok(Teidelum::new_with_shared(mcp_api.clone())),
+        move || Ok(Teidelum::new_with_hub(mcp_api.clone(), mcp_hub.clone())),
         Arc::new(LocalSessionManager::default()),
         StreamableHttpServerConfig {
             stateful_mode: true,

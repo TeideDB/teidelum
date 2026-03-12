@@ -652,7 +652,7 @@ git commit -m "perf: push search/autocomplete filtering to SQL with LIKE"
 - Modify: `src/mcp.rs:233-236` (struct), `src/mcp.rs:286-291` (new_with_shared), `src/mcp.rs:673-726` (chat_post_message), `src/mcp.rs:782-837` (chat_reply), `src/mcp.rs:839-913` (chat_react)
 - Modify: `src/server.rs:47-56` (MCP service creation)
 
-- [ ] **Step 1: Add `hub` field to `Teidelum` struct**
+- [x] **Step 1: Add `hub` field to `Teidelum` struct**
 
 In `src/mcp.rs`, update the struct and constructor:
 
@@ -684,7 +684,7 @@ Update `new_with_shared`:
     }
 ```
 
-- [ ] **Step 2: Add broadcast to `chat_post_message` MCP tool**
+- [x] **Step 2: Add broadcast to `chat_post_message` MCP tool**
 
 After the tantivy indexing in `chat_post_message` (after line 715), add:
 
@@ -702,7 +702,7 @@ After the tantivy indexing in `chat_post_message` (after line 715), add:
         }
 ```
 
-- [ ] **Step 3: Add broadcast to `chat_reply` MCP tool**
+- [x] **Step 3: Add broadcast to `chat_reply` MCP tool**
 
 After the tantivy indexing in `chat_reply` (after line 825), add:
 
@@ -720,7 +720,7 @@ After the tantivy indexing in `chat_reply` (after line 825), add:
         }
 ```
 
-- [ ] **Step 4: Add broadcast to `chat_react` MCP tool**
+- [x] **Step 4: Add broadcast to `chat_react` MCP tool**
 
 After the reaction insert in `chat_react` (after line 907), add:
 
@@ -737,7 +737,7 @@ After the reaction insert in `chat_react` (after line 907), add:
         }
 ```
 
-- [ ] **Step 5: Update `server.rs` to pass hub to MCP**
+- [x] **Step 5: Update `server.rs` to pass hub to MCP**
 
 In `src/server.rs`, change line 49 from `Teidelum::new_with_shared(mcp_api.clone())` to:
 
@@ -748,12 +748,12 @@ In `src/server.rs`, change line 49 from `Teidelum::new_with_shared(mcp_api.clone
         // ... rest unchanged
 ```
 
-- [ ] **Step 6: Run all tests**
+- [x] **Step 6: Run all tests**
 
 Run: `cargo test`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/mcp.rs src/server.rs
