@@ -274,7 +274,7 @@ pub async fn users_list(
     State(state): State<AppState>,
     Extension(_claims): Extension<Claims>,
 ) -> Response {
-    let sql = "SELECT id, username, display_name, email, avatar_url, status, is_bot, status_text, status_emoji FROM users";
+    let sql = "SELECT id, username, display_name, email, avatar_url, status, is_bot, status_text, status_emoji, created_at FROM users";
     let result = match state.api.query_router().query_sync(sql) {
         Ok(r) => r,
         Err(e) => {
@@ -297,6 +297,7 @@ pub async fn users_list(
                 "is_bot": row[6].to_json(),
                 "status_text": row[7].to_json(),
                 "status_emoji": row[8].to_json(),
+                "created_at": row[9].to_json(),
             })
         })
         .collect();
@@ -310,7 +311,7 @@ pub async fn users_info(
     Json(req): Json<UserInfoRequest>,
 ) -> Response {
     let sql = format!(
-        "SELECT id, username, display_name, email, avatar_url, status, is_bot, status_text, status_emoji \
+        "SELECT id, username, display_name, email, avatar_url, status, is_bot, status_text, status_emoji, created_at \
          FROM users WHERE id = {}",
         req.user
     );
@@ -338,6 +339,7 @@ pub async fn users_info(
             "is_bot": row[6].to_json(),
             "status_text": row[7].to_json(),
             "status_emoji": row[8].to_json(),
+            "created_at": row[9].to_json(),
         }
     }))
 }

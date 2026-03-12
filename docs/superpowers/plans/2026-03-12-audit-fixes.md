@@ -952,20 +952,20 @@ git commit -m "fix: include created_at in chat.postMessage response"
 **Files:**
 - Modify: `src/chat/handlers.rs` (users_list ~line 274, users_info ~line 309)
 
-- [ ] **Step 1: Add `created_at` to `users_list` SQL and response**
+- [x] **Step 1: Add `created_at` to `users_list` SQL and response**
 
 Find the `users_list` SQL SELECT and add `created_at` to the column list. Add it to the response JSON as well.
 
-- [ ] **Step 2: Add `created_at` to `users_info` SQL and response**
+- [x] **Step 2: Add `created_at` to `users_info` SQL and response**
 
 Same change for the `users_info` handler.
 
-- [ ] **Step 3: Run integration tests**
+- [x] **Step 3: Run integration tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/chat/handlers.rs
