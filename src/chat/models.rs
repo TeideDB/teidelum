@@ -217,7 +217,10 @@ pub fn escape_sql(s: &str) -> String {
 /// In addition to standard SQL escaping, escapes `%` and `_` wildcards
 /// so user input is treated as literal text.
 pub fn escape_sql_like(s: &str) -> String {
-    escape_sql(s).replace('%', "\\%").replace('_', "\\_")
+    escape_sql(s)
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
 }
 
 /// Format an optional string as SQL NULL or quoted value.
@@ -270,6 +273,16 @@ mod tests {
         // Null byte stripped
         assert_eq!(escape_sql("null\0byte"), "nullbyte");
         assert_eq!(escape_sql("combo\\' test"), "combo\\'' test");
+    }
+
+    #[test]
+    fn test_escape_sql_like() {
+        assert_eq!(escape_sql_like("hello"), "hello");
+        assert_eq!(escape_sql_like("100%"), "100\\%");
+        assert_eq!(escape_sql_like("under_score"), "under\\_score");
+        // Backslash must be escaped so LIKE ESCAPE '\' treats it as literal
+        assert_eq!(escape_sql_like("back\\slash"), "back\\\\slash");
+        assert_eq!(escape_sql_like("a\\%b"), "a\\\\\\%b");
     }
 
     #[test]
