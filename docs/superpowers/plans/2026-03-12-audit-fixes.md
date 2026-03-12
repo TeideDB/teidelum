@@ -68,7 +68,7 @@ git commit -m "fix: harden escape_sql against backslash injection and null bytes
 - Modify: `src/chat/auth.rs:38-41` (create_token), `src/chat/auth.rs:126-156` (tests)
 - Modify: `src/server.rs:120-135` (start function)
 
-- [ ] **Step 1: Write failing test for short secret rejection**
+- [x] **Step 1: Write failing test for short secret rejection**
 
 Add to `src/chat/auth.rs` tests:
 
@@ -79,12 +79,12 @@ fn test_jwt_short_secret_rejected() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cargo test test_jwt_short_secret_rejected -- --nocapture`
 Expected: FAIL — short secrets currently accepted
 
-- [ ] **Step 3: Add minimum length check to `create_token`**
+- [x] **Step 3: Add minimum length check to `create_token`**
 
 In `src/chat/auth.rs`, update the `create_token` function:
 
@@ -96,7 +96,7 @@ pub fn create_token(secret: &str, user_id: i64, username: &str, is_bot: bool) ->
     // ... rest unchanged
 ```
 
-- [ ] **Step 4: Update existing tests to use 32+ byte secrets**
+- [x] **Step 4: Update existing tests to use 32+ byte secrets**
 
 Update all test secrets in `src/chat/auth.rs`:
 
@@ -118,7 +118,7 @@ fn test_jwt_invalid_secret() {
 }
 ```
 
-- [ ] **Step 5: Add startup validation in `server.rs`**
+- [x] **Step 5: Add startup validation in `server.rs`**
 
 In `src/server.rs`, add at the start of `start()`:
 
@@ -142,12 +142,12 @@ pub async fn start(
     // ... rest unchanged
 ```
 
-- [ ] **Step 6: Run all tests**
+- [x] **Step 6: Run all tests**
 
 Run: `cargo test`
 Expected: All PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/chat/auth.rs src/server.rs

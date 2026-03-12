@@ -36,8 +36,8 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
 
 /// Create a JWT token for a user.
 pub fn create_token(secret: &str, user_id: i64, username: &str, is_bot: bool) -> Result<String> {
-    if secret.is_empty() {
-        bail!("JWT secret cannot be empty");
+    if secret.len() < 32 {
+        bail!("JWT secret must be at least 32 bytes");
     }
 
     let exp = std::time::SystemTime::now()
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_jwt_roundtrip() {
-        let secret = "test-secret-key";
+        let secret = "test-secret-key-that-is-at-least-32-bytes-long!!";
         let token = create_token(secret, 42, "alice", false).unwrap();
         let claims = validate_token(secret, &token).unwrap();
         assert_eq!(claims.user_id, 42);
@@ -145,8 +145,13 @@ mod tests {
 
     #[test]
     fn test_jwt_invalid_secret() {
-        let token = create_token("secret1", 1, "bob", false).unwrap();
-        assert!(validate_token("secret2", &token).is_err());
+        let token = create_token("secret-one-that-is-at-least-32-bytes!!", 1, "bob", false).unwrap();
+        assert!(validate_token("secret-two-that-is-at-least-32-bytes!!", &token).is_err());
+    }
+
+    #[test]
+    fn test_jwt_short_secret_rejected() {
+        assert!(create_token("short", 1, "bob", false).is_err());
     }
 
     #[test]

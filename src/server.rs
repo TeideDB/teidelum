@@ -123,6 +123,17 @@ pub async fn start(
     bind: &str,
     port: u16,
 ) -> anyhow::Result<()> {
+    // Validate TEIDE_CHAT_SECRET at startup
+    match std::env::var("TEIDE_CHAT_SECRET") {
+        Ok(s) if s.len() >= 32 => {}
+        Ok(s) if !s.is_empty() => {
+            anyhow::bail!("TEIDE_CHAT_SECRET must be at least 32 bytes (got {})", s.len());
+        }
+        _ => {
+            tracing::warn!("TEIDE_CHAT_SECRET not set — chat auth will not work");
+        }
+    }
+
     let ct = CancellationToken::new();
     let app = build_router(api, hub, ct.clone());
     let addr = format!("{bind}:{port}");
