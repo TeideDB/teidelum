@@ -87,7 +87,6 @@ pub fn build_router(
                 .allow_methods([
                     axum::http::Method::GET,
                     axum::http::Method::POST,
-                    axum::http::Method::DELETE,
                     axum::http::Method::OPTIONS,
                 ])
                 .allow_headers([
