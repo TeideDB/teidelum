@@ -42,7 +42,7 @@ cd ui && npm run tauri:build    # production build (creates native app bundle)
 ```bash
 cd ui && npm run build          # builds SPA to ui/build/
 cargo build --release           # builds server binary
-TEIDE_CHAT_SECRET=<secret> ./target/release/teidelum  # serves frontend + API on :3000
+TEIDE_CHAT_SECRET=<secret-min-32-bytes> ./target/release/teidelum  # serves frontend + API on :3000
 ```
 
 ## Architecture
@@ -110,6 +110,10 @@ SvelteKit SPA (SSR disabled) with TypeScript and Tailwind CSS. Uses `@sveltejs/a
 - **Store-Driven UI**: Svelte writable stores manage auth, channels, messages, users, and unreads. WebSocket events update stores in real time. All WS listener init functions return cleanup callbacks.
 - **Unread Tracking** (`chat/handlers.rs`): `channel_reads` table stores `last_read_ts` per user per channel. Updated on `conversations.history` fetch and `conversations.markRead`. Unread count computed in `conversations.list` by counting messages after `last_read_ts`.
 - **Thread Metadata**: `conversations.history` enriches parent messages with `reply_count` and `last_reply_ts` computed from the messages table. No denormalized columns — always computed fresh.
+- **MCP WebSocket Broadcasting** (`mcp.rs`): MCP chat tools (`chat_post_message`, `chat_reply`, `chat_react`) broadcast WebSocket events via the `Hub` when available. The `Teidelum` struct accepts an optional `Arc<Hub>` via `new_with_hub()`, allowing MCP-originated messages to appear in real time for connected UI clients.
+- **Input Validation** (`chat/handlers.rs`, `chat/auth.rs`): Passwords require minimum 8 characters. Channel names are trimmed, limited to 80 characters, and restricted to alphanumeric, hyphen, and underscore. Messages capped at 40,000 characters. JWT secrets must be at least 32 bytes. Server bails at startup if `TEIDE_CHAT_SECRET` is set but too short.
+- **SQL Escaping** (`chat/models.rs`): `escape_sql()` strips null bytes, escapes backslashes, and doubles single quotes. All user-supplied strings in chat SQL queries must pass through this function. For LIKE clauses, additionally escape `%` and `_` wildcards.
+- **CORS Policy** (`server.rs`): CORS allows any origin (local-first tool) but restricts methods to GET/POST/OPTIONS and headers to Authorization and Content-Type. Server warns at startup if `TEIDELUM_API_KEY` is unset.
 - **Static Frontend Serving** (`server.rs`): When `ui/build/` exists, Axum serves it as a fallback after API routes. SPA routing handled via `index.html` fallback. In dev, use Vite proxy instead.
 
 ### Testing

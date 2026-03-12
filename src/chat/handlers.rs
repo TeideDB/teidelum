@@ -708,12 +708,14 @@ pub async fn users_search(
     Extension(_claims): Extension<Claims>,
     Json(req): Json<UsersSearchRequest>,
 ) -> Response {
-    let query_escaped = escape_sql(&req.query.to_lowercase());
+    let query_escaped = escape_sql(&req.query.to_lowercase())
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    let limit = req.limit.min(100);
     let sql = format!(
         "SELECT id, username, display_name, avatar_url FROM users \
          WHERE username LIKE '%{query_escaped}%' OR display_name LIKE '%{query_escaped}%' \
-         LIMIT {}",
-        req.limit
+         LIMIT {limit}",
     );
     let result = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r,
@@ -751,10 +753,12 @@ pub async fn conversations_autocomplete(
     Extension(_claims): Extension<Claims>,
     Json(req): Json<ConversationsAutocompleteRequest>,
 ) -> Response {
-    let query_escaped = escape_sql(&req.query.to_lowercase());
+    let query_escaped = escape_sql(&req.query.to_lowercase())
+        .replace('%', "\\%")
+        .replace('_', "\\_");
+    let limit = req.limit.min(100);
     let sql = format!(
-        "SELECT id, name, topic FROM channels WHERE kind = 'public' AND name LIKE '{query_escaped}%' LIMIT {}",
-        req.limit
+        "SELECT id, name, topic FROM channels WHERE kind = 'public' AND name LIKE '{query_escaped}%' LIMIT {limit}",
     );
     let result = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r,
@@ -1104,8 +1108,8 @@ pub async fn conversations_history(
         })
         .collect();
 
-    // Batch: collect all message IDs and fetch reply counts in one pass per message
-    // TeideDB doesn't support IN clauses or GROUP BY, so we batch what we can
+    // Collect all message IDs and fetch reply counts per message.
+    // Still N queries (TeideDB lacks IN/GROUP BY), but separates querying from mutation.
     let msg_ids: Vec<i64> = messages
         .iter()
         .filter_map(|msg| msg["ts"].as_str()?.parse::<i64>().ok())
@@ -1776,10 +1780,15 @@ pub async fn conversations_update(
         return slack::err("not_authorized");
     }
 
+    // Hold lock across both uniqueness check and UPDATE to prevent TOCTOU race
+    let _name_guard = if req.name.is_some() {
+        Some(state.channel_create_lock.lock().await)
+    } else {
+        None
+    };
+
     let mut sets = Vec::new();
     if let Some(ref name) = req.name {
-        // Serialize with channel_create_lock to prevent TOCTOU race on name uniqueness
-        let _lock = state.channel_create_lock.lock().await;
         let check = format!(
             "SELECT id FROM channels WHERE name = '{}' AND id != {}",
             escape_sql(name),

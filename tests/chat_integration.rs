@@ -2301,3 +2301,117 @@ async fn test_conversations_directory() {
     );
     assert_eq!(channels[0]["name"].as_str().unwrap(), "public-alpha");
 }
+
+#[tokio::test]
+async fn test_password_too_short() {
+    let (app, _tmp) = setup().await;
+
+    // Registration with short password should fail
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.register",
+            json!({"username": "shortpw", "password": "1234567", "email": "short@test.com"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "password_too_short");
+
+    // 8-char password should succeed
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/auth.register",
+            json!({"username": "okpw", "password": "12345678", "email": "ok@test.com"}),
+            None,
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+}
+
+#[tokio::test]
+async fn test_message_too_long() {
+    let (app, _tmp) = setup().await;
+    let token = register_and_login(&app, "alice", "password123", "alice@test.com").await;
+
+    // Create channel
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "test-ch"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    let ch_id = body["channel"]["id"].as_str().unwrap().to_string();
+
+    // Post message exceeding 40,000 chars
+    let long_text = "x".repeat(40_001);
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/chat.postMessage",
+            json!({"channel": ch_id, "text": long_text}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "msg_too_long");
+}
+
+#[tokio::test]
+async fn test_channel_name_validation() {
+    let (app, _tmp) = setup().await;
+    let token = register_and_login(&app, "alice", "password123", "alice@test.com").await;
+
+    // Name with spaces should be rejected
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "bad name"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "invalid_name");
+
+    // Name too long (>80 chars) should be rejected
+    let long_name = "a".repeat(81);
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": long_name}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "invalid_name");
+
+    // Valid name should succeed
+    let resp = app
+        .clone()
+        .oneshot(post_json(
+            "/api/slack/conversations.create",
+            json!({"name": "valid-name_123"}),
+            Some(&token),
+        ))
+        .await
+        .unwrap();
+    let body = body_json(resp).await;
+    assert_eq!(body["ok"], true);
+}
