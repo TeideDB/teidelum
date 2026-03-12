@@ -185,11 +185,15 @@
 	}
 
 	async function toggleReaction(msg: Message, emoji: string) {
-		const existing = msg.reactions?.find((r) => r.name === emoji);
-		if (existing && currentUserId && existing.users.includes(currentUserId)) {
-			await reactionsRemove(emoji, msg.id);
-		} else {
-			await reactionsAdd(emoji, msg.id);
+		try {
+			const existing = msg.reactions?.find((r) => r.name === emoji);
+			if (existing && currentUserId && existing.users.includes(currentUserId)) {
+				await reactionsRemove(emoji, msg.id);
+			} else {
+				await reactionsAdd(emoji, msg.id);
+			}
+		} catch (err) {
+			console.error('Reaction failed:', err);
 		}
 	}
 
@@ -215,9 +219,13 @@
 
 	async function saveEdit() {
 		if (!editingMessageId || !editText.trim()) return;
-		await editMessage(editingMessageId, editText.trim());
-		editingMessageId = null;
-		editText = '';
+		try {
+			await editMessage(editingMessageId, editText.trim());
+			editingMessageId = null;
+			editText = '';
+		} catch (err) {
+			console.error('Edit failed:', err);
+		}
 	}
 
 	function handleEditKeydown(e: KeyboardEvent) {
@@ -232,8 +240,12 @@
 	// Delete handlers
 	async function confirmDelete() {
 		if (!deletingMessage) return;
-		await deleteMessage(deletingMessage.id);
-		deletingMessage = null;
+		try {
+			await deleteMessage(deletingMessage.id);
+			deletingMessage = null;
+		} catch (err) {
+			console.error('Delete failed:', err);
+		}
 	}
 
 	// Pin handlers

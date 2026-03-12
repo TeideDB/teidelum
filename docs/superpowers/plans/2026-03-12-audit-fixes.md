@@ -809,7 +809,7 @@ git commit -m "fix: add keyed {#each} blocks to prevent incorrect DOM reuse"
 - Modify: `ui/src/lib/components/MessageList.svelte` (~lines 187-237)
 - Modify: `ui/src/lib/components/FileUpload.svelte` (~line 28)
 
-- [ ] **Step 1: Add try/catch to `toggleReaction` in MessageList.svelte**
+- [x] **Step 1: Add try/catch to `toggleReaction` in MessageList.svelte**
 
 Wrap the reaction toggle in try/catch:
 
@@ -824,7 +824,7 @@ async function toggleReaction(messageId: Id, emoji: string) {
 }
 ```
 
-- [ ] **Step 2: Add try/catch to `saveEdit` and `confirmDelete`**
+- [x] **Step 2: Add try/catch to `saveEdit` and `confirmDelete`**
 
 Wrap both functions:
 
@@ -849,7 +849,7 @@ async function confirmDelete() {
 }
 ```
 
-- [ ] **Step 3: Add error callback to FileUpload.svelte**
+- [x] **Step 3: Add error callback to FileUpload.svelte**
 
 In the upload error handler, emit an event instead of just console.error:
 
@@ -860,12 +860,12 @@ In the upload error handler, emit an event instead of just console.error:
 }
 ```
 
-- [ ] **Step 4: Run type check**
+- [x] **Step 4: Run type check**
 
 Run: `cd ui && npx svelte-check`
 Expected: No new errors
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ui/src/lib/components/MessageList.svelte ui/src/lib/components/FileUpload.svelte
