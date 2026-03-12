@@ -716,7 +716,7 @@ impl Teidelum {
             )]));
         }
 
-        if params.text.len() > 40_000 {
+        if params.text.chars().count() > 40_000 {
             return Ok(CallToolResult::error(vec![Content::text(
                 "Message text exceeds 40,000 character limit",
             )]));
@@ -849,7 +849,7 @@ impl Teidelum {
             )]));
         }
 
-        if params.text.len() > 40_000 {
+        if params.text.chars().count() > 40_000 {
             return Ok(CallToolResult::error(vec![Content::text(
                 "Message text exceeds 40,000 character limit",
             )]));

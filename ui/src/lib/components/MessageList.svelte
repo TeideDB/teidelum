@@ -250,11 +250,19 @@
 
 	// Pin handlers
 	async function pinMessage(msg: Message) {
-		await pinsAdd(channelId, msg.id);
+		try {
+			await pinsAdd(channelId, msg.id);
+		} catch (err) {
+			console.error('Pin failed:', err);
+		}
 	}
 
 	async function unpinMessage(msg: Message) {
-		await pinsRemove(channelId, msg.id);
+		try {
+			await pinsRemove(channelId, msg.id);
+		} catch (err) {
+			console.error('Unpin failed:', err);
+		}
 	}
 
 	function extractUrls(text: string): string[] {

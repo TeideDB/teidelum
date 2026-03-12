@@ -1804,7 +1804,11 @@ pub async fn conversations_update(
         );
         match state.api.query_router().query_sync(&check) {
             Ok(r) if !r.rows.is_empty() => return slack::err("name_taken"),
-            _ => {}
+            Ok(_) => {}
+            Err(e) => {
+                tracing::error!("name uniqueness check failed: {e}");
+                return slack::err("internal_error");
+            }
         }
         sets.push(format!("name = '{}'", escape_sql(name_trimmed)));
     }
@@ -2165,7 +2169,7 @@ pub async fn chat_post_message(
         }
     }
 
-    if req.text.len() > 40_000 {
+    if req.text.chars().count() > 40_000 {
         return slack::err("msg_too_long");
     }
 
@@ -2299,7 +2303,7 @@ pub async fn chat_update(
         return slack::err("cant_update_message");
     }
 
-    if req.text.len() > 40_000 {
+    if req.text.chars().count() > 40_000 {
         return slack::err("msg_too_long");
     }
 
