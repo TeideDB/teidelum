@@ -11,7 +11,7 @@ use rmcp::transport::streamable_http_server::{
     session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
 };
 use tokio_util::sync::CancellationToken;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
 use crate::api::TeidelumApi;
@@ -75,7 +75,19 @@ pub fn build_router(
             axum::routing::get(crate::chat::files::files_download).with_state(chat_state.clone()),
         )
         .route("/ws", axum::routing::get(ws_upgrade).with_state(chat_state))
-        .layer(CorsLayer::permissive());
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods([
+                    axum::http::Method::GET,
+                    axum::http::Method::POST,
+                    axum::http::Method::OPTIONS,
+                ])
+                .allow_headers([
+                    axum::http::header::AUTHORIZATION,
+                    axum::http::header::CONTENT_TYPE,
+                ]),
+        );
 
     // Serve SvelteKit static build — fallback after API routes
     let ui_dir = std::path::Path::new("ui/build");

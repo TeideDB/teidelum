@@ -204,7 +204,7 @@ git commit -m "fix: enforce minimum 8-character password length"
 **Files:**
 - Modify: `src/server.rs:14,78`
 
-- [ ] **Step 1: Replace `CorsLayer::permissive()` with configured CORS**
+- [x] **Step 1: Replace `CorsLayer::permissive()` with configured CORS**
 
 In `src/server.rs`, replace line 78:
 
@@ -232,12 +232,12 @@ And replace `.layer(CorsLayer::permissive())`:
 
 Note: We keep `allow_origin(Any)` because this is a local-first tool where the frontend origin varies (localhost, Tauri, etc). The key improvement is restricting methods and headers to only what's needed.
 
-- [ ] **Step 2: Run integration tests**
+- [x] **Step 2: Run integration tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/server.rs
