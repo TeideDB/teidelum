@@ -117,7 +117,7 @@ pub async fn auth_register(
     if req.username.is_empty() || req.password.is_empty() || req.email.is_empty() {
         return slack::err("invalid_arguments");
     }
-    if req.password.len() < 8 {
+    if req.password.chars().count() < 8 {
         return slack::err("password_too_short");
     }
 
@@ -517,7 +517,7 @@ pub async fn users_change_password(
     if req.new_password.is_empty() {
         return slack::err("invalid_arguments");
     }
-    if req.new_password.len() < 8 {
+    if req.new_password.chars().count() < 8 {
         return slack::err("password_too_short");
     }
 
@@ -710,9 +710,7 @@ pub async fn users_search(
     Extension(_claims): Extension<Claims>,
     Json(req): Json<UsersSearchRequest>,
 ) -> Response {
-    let query_escaped = escape_sql(&req.query.to_lowercase())
-        .replace('%', "\\%")
-        .replace('_', "\\_");
+    let query_escaped = escape_sql(&req.query.to_lowercase());
     let limit = req.limit.min(100);
     let sql = format!(
         "SELECT id, username, display_name, avatar_url FROM users \
@@ -755,9 +753,7 @@ pub async fn conversations_autocomplete(
     Extension(_claims): Extension<Claims>,
     Json(req): Json<ConversationsAutocompleteRequest>,
 ) -> Response {
-    let query_escaped = escape_sql(&req.query.to_lowercase())
-        .replace('%', "\\%")
-        .replace('_', "\\_");
+    let query_escaped = escape_sql(&req.query.to_lowercase());
     let limit = req.limit.min(100);
     let sql = format!(
         "SELECT id, name, topic FROM channels WHERE kind = 'public' AND LOWER(name) LIKE '{query_escaped}%' LIMIT {limit}",
@@ -2847,7 +2843,7 @@ pub async fn conversations_directory(
 
     if let Some(ref q) = req.query {
         if !q.is_empty() {
-            let escaped_like = escape_sql(q).replace('%', "\\%").replace('_', "\\_");
+            let escaped_like = escape_sql(q);
             sql.push_str(&format!(" AND name LIKE '%{escaped_like}%'"));
         }
     }

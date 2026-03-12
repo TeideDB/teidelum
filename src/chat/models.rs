@@ -206,11 +206,11 @@ pub fn init_chat_tables(api: &TeidelumApi) -> Result<()> {
     Ok(())
 }
 
-/// Escape a string value for SQL: strip null bytes, escape backslashes, double single quotes.
+/// Escape a string value for SQL: strip null bytes and double single quotes.
+/// Note: TeideDB uses DuckDB dialect where backslash is NOT an escape character,
+/// so we must NOT double backslashes — that would corrupt stored data.
 pub fn escape_sql(s: &str) -> String {
-    s.replace('\0', "")
-        .replace('\\', "\\\\")
-        .replace('\'', "''")
+    s.replace('\0', "").replace('\'', "''")
 }
 
 /// Format an optional string as SQL NULL or quoted value.
@@ -258,10 +258,11 @@ mod tests {
         assert_eq!(escape_sql("hello"), "hello");
         assert_eq!(escape_sql("it's"), "it''s");
         assert_eq!(escape_sql("a''b"), "a''''b");
-        // Backslash and null byte
-        assert_eq!(escape_sql("back\\slash"), "back\\\\slash");
+        // Backslash preserved as-is (TeideDB/DuckDB dialect, not an escape char)
+        assert_eq!(escape_sql("back\\slash"), "back\\slash");
+        // Null byte stripped
         assert_eq!(escape_sql("null\0byte"), "nullbyte");
-        assert_eq!(escape_sql("combo\\' test"), "combo\\\\'' test");
+        assert_eq!(escape_sql("combo\\' test"), "combo\\'' test");
     }
 
     #[test]

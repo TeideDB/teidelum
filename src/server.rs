@@ -86,11 +86,19 @@ pub fn build_router(
                 .allow_methods([
                     axum::http::Method::GET,
                     axum::http::Method::POST,
+                    axum::http::Method::DELETE,
                     axum::http::Method::OPTIONS,
                 ])
                 .allow_headers([
                     axum::http::header::AUTHORIZATION,
                     axum::http::header::CONTENT_TYPE,
+                    axum::http::header::HeaderName::from_static("last-event-id"),
+                    axum::http::header::HeaderName::from_static("mcp-protocol-version"),
+                    axum::http::header::HeaderName::from_static("mcp-session-id"),
+                ])
+                .expose_headers([
+                    axum::http::header::HeaderName::from_static("mcp-session-id"),
+                    axum::http::header::HeaderName::from_static("mcp-protocol-version"),
                 ]),
         );
 
