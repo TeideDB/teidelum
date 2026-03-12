@@ -262,7 +262,7 @@
 			{:else if $nonDmChannels.length === 0}
 				<p class="px-3 py-2 text-xs text-primary-light/40">No channels yet</p>
 			{:else}
-			{#each $nonDmChannels as channel}
+			{#each $nonDmChannels as channel (channel.id)}
 				<button
 					onclick={() => navigateToChannel(channel)}
 					oncontextmenu={(e) => handleContextMenu(e, channel)}
@@ -308,7 +308,7 @@
 			{#if $channelsLoaded && $dmChannels.length === 0}
 				<p class="px-3 py-2 text-xs text-primary-light/40">No direct messages yet</p>
 			{:else}
-				{#each $dmChannels as channel}
+				{#each $dmChannels as channel (channel.id)}
 					<button
 						onclick={() => navigateToChannel(channel)}
 						class="flex w-full items-center justify-between rounded px-2 py-2.5 md:py-1 text-left text-sm transition {isActive(channel.id)

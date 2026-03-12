@@ -772,29 +772,29 @@ git commit -m "fix: broadcast WebSocket events from MCP chat tools"
 - Modify: `ui/src/lib/components/Sidebar.svelte` (~lines 265, 311)
 - Modify: `ui/src/lib/components/SearchModal.svelte` (~line 321)
 
-- [ ] **Step 1: Fix MessageList.svelte**
+- [x] **Step 1: Fix MessageList.svelte**
 
 Find `{#each messages as msg, idx}` and replace with `{#each messages as msg, idx (msg.id)}`.
 
-- [ ] **Step 2: Fix ThreadPanel.svelte**
+- [x] **Step 2: Fix ThreadPanel.svelte**
 
 Find `{#each replies as reply}` and replace with `{#each replies as reply (reply.id)}`.
 
-- [ ] **Step 3: Fix Sidebar.svelte**
+- [x] **Step 3: Fix Sidebar.svelte**
 
 Find `{#each $nonDmChannels as channel}` → `{#each $nonDmChannels as channel (channel.id)}`
 Find `{#each $dmChannels as channel}` → `{#each $dmChannels as channel (channel.id)}`
 
-- [ ] **Step 4: Fix SearchModal.svelte**
+- [x] **Step 4: Fix SearchModal.svelte**
 
 Find `{#each results as msg}` → `{#each results as msg (msg.id)}`
 
-- [ ] **Step 5: Run type check**
+- [x] **Step 5: Run type check**
 
 Run: `cd ui && npx svelte-check`
 Expected: No new errors
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ui/src/lib/components/MessageList.svelte ui/src/lib/components/ThreadPanel.svelte ui/src/lib/components/Sidebar.svelte ui/src/lib/components/SearchModal.svelte

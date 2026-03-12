@@ -318,7 +318,7 @@
 			{:else if query.trim() && results.length === 0}
 				<div class="p-4 text-center text-sm text-primary-light/50">No results found</div>
 			{:else}
-				{#each results as msg}
+				{#each results as msg (msg.id)}
 					<button
 						onclick={() => navigateToMessage(msg)}
 						class="flex w-full gap-3 border-b border-primary-dark/20 px-4 py-3 text-left transition hover:bg-navy-mid/50"

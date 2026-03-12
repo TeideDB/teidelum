@@ -288,7 +288,7 @@
 		{:else if replies.length === 0}
 			<div class="py-4 text-center text-sm text-primary-light/50">No replies yet</div>
 		{:else}
-			{#each replies as reply}
+			{#each replies as reply (reply.id)}
 				<div class="flex gap-3 py-2">
 					<div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
 						{getUserAvatar(reply.user_id)}

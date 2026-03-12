@@ -293,7 +293,7 @@
 			<div class="py-2 text-center text-sm text-primary-light/50">Loading older messages...</div>
 		{/if}
 
-		{#each messages as msg, idx}
+		{#each messages as msg, idx (msg.id)}
 			{#if shouldShowDateSeparator(idx)}
 				<div class="my-4 flex items-center">
 					<div class="flex-1 border-t border-primary-dark/40"></div>
