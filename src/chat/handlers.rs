@@ -2231,6 +2231,7 @@ pub async fn chat_post_message(
             "channel": req.channel.to_string(),
             "user": claims.user_id.to_string(),
             "text": req.text,
+            "created_at": now,
         }
     }))
 }

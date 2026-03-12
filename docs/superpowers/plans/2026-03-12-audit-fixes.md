@@ -917,7 +917,7 @@ git commit -m "fix: add ARIA live regions for typing indicator and connection st
 **Files:**
 - Modify: `src/chat/handlers.rs:2164-2171`
 
-- [ ] **Step 1: Add `created_at` to the response**
+- [x] **Step 1: Add `created_at` to the response**
 
 Replace the response at line 2164:
 
@@ -933,12 +933,12 @@ Replace the response at line 2164:
     }))
 ```
 
-- [ ] **Step 2: Run integration tests**
+- [x] **Step 2: Run integration tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/chat/handlers.rs
