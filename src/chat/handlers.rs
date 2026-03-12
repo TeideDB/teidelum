@@ -809,13 +809,24 @@ pub async fn conversations_create(
         return slack::err("invalid_kind");
     }
 
+    let name_trimmed = req.name.trim().to_string();
+    if name_trimmed.is_empty() || name_trimmed.len() > 80 {
+        return slack::err("invalid_name");
+    }
+    if !name_trimmed
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
+        return slack::err("invalid_name");
+    }
+
     // Lock to prevent TOCTOU race on channel name uniqueness
     let _create_guard = state.channel_create_lock.lock().await;
 
     // Check if channel name already exists
     let check = format!(
         "SELECT id FROM channels WHERE name = '{}'",
-        escape_sql(&req.name)
+        escape_sql(&name_trimmed)
     );
     match state.api.query_router().query_sync(&check) {
         Ok(r) if !r.rows.is_empty() => return slack::err("name_taken"),
@@ -833,7 +844,7 @@ pub async fn conversations_create(
     let insert = format!(
         "INSERT INTO channels (id, name, kind, topic, description, archived_at, created_by, created_at) \
          VALUES ({id}, '{name}', '{kind}', '{topic}', '', '', {created_by}, '{now}')",
-        name = escape_sql(&req.name),
+        name = escape_sql(&name_trimmed),
         kind = escape_sql(&req.kind),
         topic = escape_sql(&topic),
         created_by = claims.user_id,
@@ -863,7 +874,7 @@ pub async fn conversations_create(
     slack::created(json!({
         "channel": {
             "id": id.to_string(),
-            "name": req.name,
+            "name": name_trimmed,
             "kind": req.kind,
         }
     }))
@@ -2090,6 +2101,10 @@ pub async fn chat_post_message(
             tracing::error!("archived check failed: {e}");
             return slack::err("internal_error");
         }
+    }
+
+    if req.text.len() > 40_000 {
+        return slack::err("msg_too_long");
     }
 
     let id = next_id();

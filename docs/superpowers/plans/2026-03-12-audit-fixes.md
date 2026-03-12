@@ -283,7 +283,7 @@ git commit -m "fix: warn when TEIDELUM_API_KEY is unset"
 **Files:**
 - Modify: `src/chat/handlers.rs` (chat_post_message ~line 2060, conversations_create ~line 796)
 
-- [ ] **Step 1: Add message length limit in `chat_post_message`**
+- [x] **Step 1: Add message length limit in `chat_post_message`**
 
 After the archived check (~line 2087), add:
 
@@ -293,7 +293,7 @@ After the archived check (~line 2087), add:
     }
 ```
 
-- [ ] **Step 2: Add channel name validation in `conversations_create`**
+- [x] **Step 2: Add channel name validation in `conversations_create`**
 
 After the existing empty check for channel name, add:
 
@@ -307,12 +307,12 @@ After the existing empty check for channel name, add:
     }
 ```
 
-- [ ] **Step 3: Run integration tests**
+- [x] **Step 3: Run integration tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/chat/handlers.rs
