@@ -14,6 +14,32 @@
 	import type { Message, Id } from '$lib/types';
 
 	const URL_REGEX = /https?:\/\/[^\s<>"')\]]+/g;
+	// Emoji lookup: load full emoji-mart data for resolving any short name to native character
+	// Using a separate trigger to avoid deeply proxying the 15MB payload which freezes the browser
+	let emojiDataReady = $state(false);
+	let emojiData: any = null;
+	import('@emoji-mart/data').then((mod) => {
+		emojiData = (mod.default as any).emojis;
+		emojiDataReady = true;
+	});
+
+	// Fallback map for common reactions (used before emoji-mart loads)
+	const emojiMap: Record<string, string> = {
+		'+1': '\u{1F44D}', '-1': '\u{1F44E}', 'heart': '\u{2764}\u{FE0F}',
+		'laughing': '\u{1F606}', 'eyes': '\u{1F440}', 'tada': '\u{1F389}',
+		'fire': '\u{1F525}', 'rocket': '\u{1F680}', '100': '\u{1F4AF}',
+		'thinking': '\u{1F914}',
+	};
+
+	function emojiForName(name: string): string {
+		// Read the trigger so Svelte tracks this function and re-renders when data loads
+		void emojiDataReady;
+		// Try emoji-mart data first (covers all emoji)
+		// data.emojis is the object map, we get the item by name
+		const entry = emojiData?.[name];
+		if (entry?.skins?.[0]?.native) return entry.skins[0].native;
+		return emojiMap[name] ?? name;
+	}
 
 	interface Props {
 		channelId: Id;
@@ -26,6 +52,10 @@
 	let scrollContainer: HTMLDivElement | undefined = $state();
 	let isAtBottom = $state(true);
 	let prevMessageCount = $state(0);
+
+	// Context menu state — track which message has menu open
+	let activeMenuMsgId: Id | null = $state(null);
+	let activePickerMsgId = $state<Id | null>(null);
 
 	// Inline edit state
 	let editingMessageId = $state<Id | null>(null);
@@ -272,7 +302,14 @@
 				</div>
 			{/if}
 
-			<div class="group relative flex gap-3 px-1 py-0.5 hover:bg-navy-light/50 {shouldShowAuthor(idx) ? 'mt-3' : ''}">
+			<div
+			class="group relative flex gap-3 px-1 py-0.5 hover:bg-navy-light/50 {shouldShowAuthor(idx) ? 'mt-3' : ''}"
+			onmouseenter={() => { activeMenuMsgId = msg.id; }}
+			onmouseleave={(e) => {
+				const related = e.relatedTarget as HTMLElement | null;
+				if (!related?.closest?.('.msg-context-menu')) activeMenuMsgId = null;
+			}}
+		>
 				{#if shouldShowAuthor(idx)}
 					<!-- Avatar -->
 					<button
@@ -385,7 +422,7 @@
 									onclick={() => toggleReaction(msg, reaction.name)}
 									class="inline-flex items-center gap-1 rounded-full border border-primary-dark/40 bg-navy-light px-2 py-0.5 text-xs transition hover:border-primary"
 								>
-									<span>{reaction.name}</span>
+									<span>{emojiForName(reaction.name)}</span>
 									<span class="text-primary-light/60">{reaction.count}</span>
 								</button>
 							{/each}
@@ -404,7 +441,15 @@
 				</div>
 
 				<!-- Message context menu (hover) -->
-				<div class="absolute -top-3 right-2 hidden group-hover:block">
+				{#if activeMenuMsgId === msg.id}
+				<div
+					class="msg-context-menu absolute -top-3 right-2 z-40"
+					onmouseleave={() => {
+						if (activePickerMsgId !== msg.id) {
+							activeMenuMsgId = null;
+						}
+					}}
+				>
 					<MessageContextMenu
 						message={msg}
 						{currentUserId}
@@ -415,8 +460,17 @@
 						onDelete={() => (deletingMessage = msg)}
 						onPin={() => pinMessage(msg)}
 						onUnpin={() => unpinMessage(msg)}
+						onPickerToggle={(isOpen) => {
+							if (isOpen) {
+								activePickerMsgId = msg.id;
+							} else {
+								activePickerMsgId = null;
+								activeMenuMsgId = null;
+							}
+						}}
 					/>
 				</div>
+				{/if}
 			</div>
 		{/each}
 	{/if}

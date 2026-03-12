@@ -161,23 +161,10 @@
 		if (debounceTimer) clearTimeout(debounceTimer);
 	}
 
-	// Map short names back to native emoji for inserting into text
-	const nameToEmoji: Record<string, string> = {
-		'+1': '\u{1F44D}',
-		'-1': '\u{1F44E}',
-		'heart': '\u{2764}\u{FE0F}',
-		'laughing': '\u{1F606}',
-		'eyes': '\u{1F440}',
-		'tada': '\u{1F389}',
-		'fire': '\u{1F525}',
-		'rocket': '\u{1F680}',
-		'100': '\u{1F4AF}',
-		'thinking': '\u{1F914}'
-	};
+	// (Removed unused nameToEmoji)
 
-	function handleEmojiSelect(name: string) {
-		// Convert short name to native emoji for text insertion
-		const native = nameToEmoji[name] || name;
+	function handleEmojiSelect(emoji: { id: string; native: string }) {
+		const native = emoji.native;
 		if (textarea) {
 			const start = textarea.selectionStart;
 			const end = textarea.selectionEnd;

@@ -12,6 +12,7 @@
 		onDelete?: () => void;
 		onPin?: () => void;
 		onUnpin?: () => void;
+		onPickerToggle?: (isOpen: boolean) => void;
 	}
 
 	let {
@@ -23,7 +24,8 @@
 		onEdit,
 		onDelete,
 		onPin,
-		onUnpin
+		onUnpin,
+		onPickerToggle
 	}: Props = $props();
 
 	let showReactionPicker = $state(false);
@@ -39,7 +41,10 @@
 	<!-- React -->
 	<div class="relative">
 		<button
-			onclick={() => (showReactionPicker = !showReactionPicker)}
+			onclick={() => {
+				showReactionPicker = !showReactionPicker;
+				onPickerToggle?.(showReactionPicker);
+			}}
 			class="rounded p-1 text-primary-light/50 hover:bg-navy-mid hover:text-primary-lighter"
 			title="Add reaction"
 		>
@@ -48,11 +53,16 @@
 			</svg>
 		</button>
 		{#if showReactionPicker}
-			<div class="absolute -top-2 right-0 z-50 -translate-y-full">
+			<div class="absolute bottom-full right-0 z-50 pb-2">
 				<EmojiPicker
 					onSelect={(emoji) => {
-						onReact(emoji);
+						onReact(emoji.id);
 						showReactionPicker = false;
+						onPickerToggle?.(false);
+					}}
+					onClickOutside={() => {
+						showReactionPicker = false;
+						onPickerToggle?.(false);
 					}}
 				/>
 			</div>

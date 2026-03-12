@@ -1094,8 +1094,9 @@ pub async fn conversations_history(
         }
     }
 
-    // Enrich messages with reactions
+    // Enrich messages with reactions and files
     enrich_reactions(&state, &mut messages);
+    enrich_files(&state, &mut messages);
 
     // Update channel_reads for this user (locked to prevent TOCTOU duplicates)
     let now = now_timestamp();
@@ -1181,6 +1182,7 @@ pub async fn conversations_replies(
         .collect();
 
     enrich_reactions(&state, &mut messages);
+    enrich_files(&state, &mut messages);
 
     slack::ok(json!({"messages": messages}))
 }
@@ -3041,6 +3043,58 @@ fn enrich_reactions(state: &AppState, messages: &mut [serde_json::Value]) {
             msg.as_object_mut()
                 .unwrap()
                 .insert("reactions".to_string(), serde_json::json!(reactions));
+        }
+    }
+}
+
+/// Fetch files for a list of messages and attach them as a `files` array on each message JSON.
+fn enrich_files(state: &AppState, messages: &mut [serde_json::Value]) {
+    for msg in messages.iter_mut() {
+        let msg_id_str = msg["ts"].as_str().unwrap_or("0");
+        let msg_id: i64 = msg_id_str.parse().unwrap_or(0);
+        if msg_id == 0 {
+            continue;
+        }
+        let sql = format!(
+            "SELECT id, filename, mime_type, size_bytes FROM files WHERE message_id = {}",
+            msg_id
+        );
+        if let Ok(result) = state.api.query_router().query_sync(&sql) {
+            if result.rows.is_empty() {
+                continue;
+            }
+            let files: Vec<serde_json::Value> = result
+                .rows
+                .iter()
+                .map(|row| {
+                    let id = match &row[0] {
+                        crate::connector::Value::Int(v) => *v,
+                        _ => 0,
+                    };
+                    let filename = match &row[1] {
+                        crate::connector::Value::String(v) => v.clone(),
+                        _ => String::new(),
+                    };
+                    let mime_type = match &row[2] {
+                        crate::connector::Value::String(v) => v.clone(),
+                        _ => String::new(),
+                    };
+                    let size_bytes = match &row[3] {
+                        crate::connector::Value::Int(v) => *v,
+                        _ => 0,
+                    };
+                    json!({
+                        "id": id.to_string(),
+                        "filename": filename,
+                        "mime_type": mime_type,
+                        "size_bytes": size_bytes,
+                        "url": format!("/files/{}/{}", id, filename),
+                    })
+                })
+                .collect();
+            msg.as_object_mut()
+                .unwrap()
+                .insert("files".to_string(), serde_json::json!(files));
         }
     }
 }

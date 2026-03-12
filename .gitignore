@@ -1,6 +1,7 @@
 /target
 .DS_Store
-
+/data/
+/ui/data/
 
 # ralphex progress logs
 .ralphex/progress/

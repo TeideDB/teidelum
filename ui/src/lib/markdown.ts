@@ -73,13 +73,62 @@ function highlightCode(code: string, lang: string): string {
 	return `<pre class="shiki"><code>${escaped}</code></pre>`;
 }
 
+// Custom emoticon maps
+const smileMap: Record<string, string> = {
+	':)': '🙂',
+	':-)': '🙂',
+	':(': '🙁',
+	':-(': '🙁',
+	':D': '😃',
+	':-D': '😃',
+	';)': '😉',
+	';-)': '😉',
+	':P': '😛',
+	':-P': '😛',
+	':p': '😛',
+	':-p': '😛',
+	'<3': '❤️'
+};
+
+const shortcodeMap: Record<string, string> = {
+	':heart:': '❤️',
+	':+1:': '👍',
+	':-1:': '👎',
+	':fire:': '🔥',
+	':rocket:': '🚀',
+	':eyes:': '👀',
+	':tada:': '🎉',
+	':laughing:': '😆',
+	':100:': '💯',
+	':thinking:': '🤔',
+	':smile:': '😄',
+	':sob:': '😭',
+	':joy:': '😂',
+	':sweat_smile:': '😅',
+	':pray:': '🙏',
+	':wave:': '👋'
+};
+
+function replaceSmiles(text: string): string {
+    // Replace text emoticons (needs word boundary or space)
+    let res = text.replace(/(^|\s)(:\)|:-\)|:\(|:-\(|:D|:-D|;\)|;-\)|:P|:-P|:p|:-p|<3)(?=\s|$)/g, (m, space, smile) => {
+        return space + (smileMap[smile] || smile);
+    });
+    // Replace shortcodes (any colon-enclosed like :smile:)
+    res = res.replace(/:([a-z0-9_+\-]+):/g, (m, shortcode) => {
+        const code = `:${shortcode}:`;
+        return shortcodeMap[code] || m;
+    });
+    return res;
+}
+
 // Use a local instance instead of modifying global marked config
 const markedInstance = new Marked({
 	breaks: true, // Convert \n to <br>
 	gfm: true // GitHub-flavored markdown
 });
 
-// Custom renderer for code blocks with Shiki highlighting
+// Custom renderer for code blocks with Shiki highlighting and text for emojis
 markedInstance.use({
 	renderer: {
 		code({ text, lang }: { text: string; lang?: string }) {
@@ -91,6 +140,11 @@ markedInstance.use({
 				.replace(/>/g, '&gt;')
 				.replace(/"/g, '&quot;');
 			return `<div class="code-block-wrapper" data-code="${escapedText}">${language ? `<span class="code-block-lang">${language}</span>` : ''}${highlighted}</div>`;
+		},
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		text(token: any) {
+			const text = typeof token === 'string' ? token : token.text || '';
+			return replaceSmiles(text);
 		}
 	}
 });

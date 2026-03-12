@@ -2,10 +2,11 @@
 	import { onMount } from 'svelte';
 
 	interface Props {
-		onSelect: (emoji: string) => void;
+		onSelect: (emoji: { id: string; native: string }) => void;
+		onClickOutside?: () => void;
 	}
 
-	let { onSelect }: Props = $props();
+	let { onSelect, onClickOutside }: Props = $props();
 
 	let container: HTMLDivElement | undefined = $state();
 
@@ -34,8 +35,9 @@
 			onEmojiSelect: (emoji: { native: string; id: string }) => {
 				// Use known short name if available, otherwise use the emoji id
 				const name = nativeToName[emoji.native] || emoji.id;
-				onSelect(name);
+				onSelect({ id: name, native: emoji.native });
 			},
+			onClickOutside,
 			theme: 'dark',
 			previewPosition: 'none',
 			skinTonePosition: 'search',

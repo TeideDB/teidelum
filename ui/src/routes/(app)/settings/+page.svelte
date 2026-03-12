@@ -13,8 +13,10 @@
 	// Profile
 	let displayName = $state('');
 	let email = $state('');
+	let avatarUrl = $state('');
 	let profileMsg = $state('');
 	let profileErr = $state('');
+	let uploadingAvatar = $state(false);
 
 	// Account
 	let oldPassword = $state('');
@@ -42,6 +44,7 @@
 		if (state.user) {
 			displayName = state.user.display_name || '';
 			email = state.user.email || '';
+			avatarUrl = state.user.avatar_url || '';
 		}
 		// Load settings
 		const res = await api.usersGetSettings();
@@ -57,13 +60,50 @@
 		profileErr = '';
 		const res = await api.usersUpdateProfile({
 			display_name: displayName,
-			email: email
+			email: email,
+			avatar_url: avatarUrl
 		});
 		if (res.ok) {
 			await refreshCurrentUser();
 			profileMsg = 'Profile updated.';
 		} else {
 			profileErr = res.error || 'Failed to update profile.';
+		}
+	}
+
+	async function handleAvatarSelect(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+
+		uploadingAvatar = true;
+		profileErr = '';
+		profileMsg = '';
+
+		try {
+			// Find a channel to upload to (required by backend)
+			const { get } = await import('svelte/store');
+			const { nonDmChannels, dmChannels } = await import('$lib/stores/channels');
+			const pubChannels = get(nonDmChannels);
+			const privChannels = get(dmChannels);
+			const channelId = pubChannels[0]?.id || privChannels[0]?.id;
+
+			if (!channelId) {
+				throw new Error('Must join at least one channel to upload files.');
+			}
+
+			const res = await api.filesUpload(channelId, file);
+			if (res.ok && res.file) {
+				avatarUrl = api.fileDownloadUrl(res.file.id, res.file.filename);
+			} else {
+				throw new Error(res.error || 'Upload failed');
+			}
+		} catch (err: any) {
+			profileErr = err.message || 'Error uploading file.';
+		} finally {
+			uploadingAvatar = false;
+			// Reset input
+			target.value = '';
 		}
 	}
 
@@ -142,6 +182,18 @@
 			{#if activeTab === 'profile'}
 				<div class="max-w-md space-y-4">
 					<h2 class="text-lg font-semibold text-heading">Profile</h2>
+
+					<div class="flex items-center gap-4 py-2">
+						{#await import('$lib/components/Avatar.svelte') then { default: Avatar }}
+							<Avatar url={avatarUrl} name={displayName || $auth.user?.username || ''} size="lg" />
+						{/await}
+						<div>
+							<label class="cursor-pointer rounded border border-primary-light/40 hover:border-primary-light bg-navy px-3 py-1.5 text-sm font-medium text-white transition">
+								{uploadingAvatar ? 'Uploading...' : 'Change Avatar'}
+								<input type="file" accept="image/*" class="hidden" onchange={handleAvatarSelect} disabled={uploadingAvatar} />
+							</label>
+						</div>
+					</div>
 
 					<div>
 						<label for="displayName" class="mb-1 block text-sm text-primary-lighter/70">Display Name</label>
