@@ -339,6 +339,21 @@ impl Teidelum {
     }
 
     /// Check if a user is a member of a channel.
+    fn is_archived(&self, channel_id: i64) -> bool {
+        let sql = format!("SELECT archived_at FROM channels WHERE id = {}", channel_id);
+        match self.api.query_router().query_sync(&sql) {
+            Ok(r) => {
+                if let Some(row) = r.rows.first() {
+                    let archived = row[0].to_json().as_str().unwrap_or("").to_string();
+                    !archived.is_empty()
+                } else {
+                    false
+                }
+            }
+            Err(_) => false,
+        }
+    }
+
     fn is_member(&self, channel_id: i64, user_id: i64) -> bool {
         let sql = format!(
             "SELECT channel_id FROM channel_members WHERE channel_id = {} AND user_id = {}",
@@ -695,6 +710,12 @@ impl Teidelum {
             ));
         }
 
+        if self.is_archived(params.channel) {
+            return Ok(CallToolResult::error(vec![Content::text(
+                "channel_archived",
+            )]));
+        }
+
         if params.text.len() > 40_000 {
             return Ok(CallToolResult::error(vec![Content::text(
                 "Message text exceeds 40,000 character limit",
@@ -820,6 +841,12 @@ impl Teidelum {
                 format!("bot is not a member of channel {}", params.channel),
                 None,
             ));
+        }
+
+        if self.is_archived(params.channel) {
+            return Ok(CallToolResult::error(vec![Content::text(
+                "channel_archived",
+            )]));
         }
 
         if params.text.len() > 40_000 {
