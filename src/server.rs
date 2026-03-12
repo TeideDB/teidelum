@@ -36,6 +36,7 @@ pub fn build_router(
         channel_join_lock: tokio::sync::Mutex::new(()),
         pin_lock: tokio::sync::Mutex::new(()),
         reaction_lock: tokio::sync::Mutex::new(()),
+        register_lock: tokio::sync::Mutex::new(()),
     });
 
     // Data API routes (protected by optional API key)

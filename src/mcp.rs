@@ -233,6 +233,7 @@ pub struct ChatSearchParams {
 pub struct Teidelum {
     api: Arc<TeidelumApi>,
     hub: Option<Arc<crate::chat::hub::Hub>>,
+    reaction_lock: Arc<tokio::sync::Mutex<()>>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -281,6 +282,7 @@ impl Teidelum {
         Self {
             api: Arc::new(api),
             hub: None,
+            reaction_lock: Arc::new(tokio::sync::Mutex::new(())),
             tool_router: Self::tool_router(),
         }
     }
@@ -289,6 +291,7 @@ impl Teidelum {
         Self {
             api,
             hub: None,
+            reaction_lock: Arc::new(tokio::sync::Mutex::new(())),
             tool_router: Self::tool_router(),
         }
     }
@@ -297,6 +300,7 @@ impl Teidelum {
         Self {
             api,
             hub: Some(hub),
+            reaction_lock: Arc::new(tokio::sync::Mutex::new(())),
             tool_router: Self::tool_router(),
         }
     }
@@ -951,6 +955,8 @@ impl Teidelum {
                 None,
             ));
         }
+
+        let _reaction_guard = self.reaction_lock.lock().await;
 
         // Check if already reacted
         let dup_sql = format!(

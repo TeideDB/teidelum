@@ -97,6 +97,8 @@ pub struct ChatState {
     pub pin_lock: Mutex<()>,
     /// Serializes reaction add to prevent duplicate reactions from TOCTOU races.
     pub reaction_lock: Mutex<()>,
+    /// Serializes user registration to prevent duplicate usernames/emails from TOCTOU races.
+    pub register_lock: Mutex<()>,
 }
 
 // ── Auth ──
@@ -120,6 +122,8 @@ pub async fn auth_register(
     if req.password.chars().count() < 8 {
         return slack::err("password_too_short");
     }
+
+    let _register_guard = state.register_lock.lock().await;
 
     // Check if username already exists
     let check_sql = format!(

@@ -64,6 +64,10 @@ pub fn create_token(secret: &str, user_id: i64, username: &str, is_bot: bool) ->
 
 /// Validate a JWT token and return claims.
 pub fn validate_token(secret: &str, token: &str) -> Result<Claims> {
+    if secret.len() < 32 {
+        bail!("JWT secret must be at least 32 bytes");
+    }
+
     let token_data = decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),
