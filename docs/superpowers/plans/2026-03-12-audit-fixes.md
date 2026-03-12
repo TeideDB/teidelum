@@ -549,7 +549,7 @@ git commit -m "refactor: separate reply metadata fetching from message enrichmen
 **Files:**
 - Modify: `src/chat/handlers.rs:698-778`
 
-- [ ] **Step 1: Rewrite `users_search` with SQL LIKE filtering**
+- [x] **Step 1: Rewrite `users_search` with SQL LIKE filtering**
 
 Replace lines 698-736:
 
@@ -591,7 +591,7 @@ pub async fn users_search(
 }
 ```
 
-- [ ] **Step 2: Rewrite `conversations_autocomplete` with SQL LIKE filtering**
+- [x] **Step 2: Rewrite `conversations_autocomplete` with SQL LIKE filtering**
 
 Replace lines 745-778:
 
@@ -630,12 +630,12 @@ pub async fn conversations_autocomplete(
 }
 ```
 
-- [ ] **Step 3: Run integration tests**
+- [x] **Step 3: Run integration tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/chat/handlers.rs

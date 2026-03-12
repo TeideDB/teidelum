@@ -706,9 +706,14 @@ pub async fn users_search(
     Extension(_claims): Extension<Claims>,
     Json(req): Json<UsersSearchRequest>,
 ) -> Response {
-    let query_lower = req.query.to_lowercase();
-    let sql = "SELECT id, username, display_name, avatar_url FROM users";
-    let result = match state.api.query_router().query_sync(sql) {
+    let query_escaped = escape_sql(&req.query.to_lowercase());
+    let sql = format!(
+        "SELECT id, username, display_name, avatar_url FROM users \
+         WHERE username LIKE '%{query_escaped}%' OR display_name LIKE '%{query_escaped}%' \
+         LIMIT {}",
+        req.limit
+    );
+    let result = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r,
         Err(e) => {
             tracing::error!("users search failed: {e}");
@@ -716,28 +721,19 @@ pub async fn users_search(
         }
     };
 
-    let mut matches: Vec<serde_json::Value> = result
+    let matches: Vec<serde_json::Value> = result
         .rows
         .iter()
-        .filter_map(|row| {
-            let username = row[1].to_json().as_str().unwrap_or("").to_string();
-            let display_name = row[2].to_json().as_str().unwrap_or("").to_string();
-            if username.to_lowercase().contains(&query_lower)
-                || display_name.to_lowercase().contains(&query_lower)
-            {
-                Some(json!({
-                    "id": row[0].to_json(),
-                    "username": username,
-                    "display_name": display_name,
-                    "avatar_url": row[3].to_json(),
-                }))
-            } else {
-                None
-            }
+        .map(|row| {
+            json!({
+                "id": row[0].to_json(),
+                "username": row[1].to_json().as_str().unwrap_or("").to_string(),
+                "display_name": row[2].to_json().as_str().unwrap_or("").to_string(),
+                "avatar_url": row[3].to_json(),
+            })
         })
         .collect();
 
-    matches.truncate(req.limit);
     slack::ok(json!({"users": matches}))
 }
 
@@ -753,9 +749,12 @@ pub async fn conversations_autocomplete(
     Extension(_claims): Extension<Claims>,
     Json(req): Json<ConversationsAutocompleteRequest>,
 ) -> Response {
-    let query_lower = req.query.to_lowercase();
-    let sql = "SELECT id, name, topic FROM channels WHERE kind = 'public'";
-    let result = match state.api.query_router().query_sync(sql) {
+    let query_escaped = escape_sql(&req.query.to_lowercase());
+    let sql = format!(
+        "SELECT id, name, topic FROM channels WHERE kind = 'public' AND name LIKE '{query_escaped}%' LIMIT {}",
+        req.limit
+    );
+    let result = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r,
         Err(e) => {
             tracing::error!("conversations autocomplete failed: {e}");
@@ -763,24 +762,18 @@ pub async fn conversations_autocomplete(
         }
     };
 
-    let mut matches: Vec<serde_json::Value> = result
+    let matches: Vec<serde_json::Value> = result
         .rows
         .iter()
-        .filter_map(|row| {
-            let name = row[1].to_json().as_str().unwrap_or("").to_string();
-            if name.to_lowercase().starts_with(&query_lower) {
-                Some(json!({
-                    "id": row[0].to_json(),
-                    "name": name,
-                    "topic": row[2].to_json(),
-                }))
-            } else {
-                None
-            }
+        .map(|row| {
+            json!({
+                "id": row[0].to_json(),
+                "name": row[1].to_json().as_str().unwrap_or("").to_string(),
+                "topic": row[2].to_json(),
+            })
         })
         .collect();
 
-    matches.truncate(req.limit);
     slack::ok(json!({"channels": matches}))
 }
 
