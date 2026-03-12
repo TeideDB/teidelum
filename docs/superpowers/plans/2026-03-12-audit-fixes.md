@@ -162,7 +162,7 @@ git commit -m "fix: enforce 32-byte minimum JWT secret length"
 - Modify: `src/chat/handlers.rs:115` (auth_register)
 - Modify: `src/chat/handlers.rs:510` (users_change_password)
 
-- [ ] **Step 1: Add password length check in `auth_register`**
+- [x] **Step 1: Add password length check in `auth_register`**
 
 In `src/chat/handlers.rs`, after the `is_empty()` check at line 115:
 
@@ -175,7 +175,7 @@ In `src/chat/handlers.rs`, after the `is_empty()` check at line 115:
     }
 ```
 
-- [ ] **Step 2: Add same check in `users_change_password`**
+- [x] **Step 2: Add same check in `users_change_password`**
 
 Find the `users_change_password` handler and add after the `new_password.is_empty()` check:
 
@@ -185,12 +185,12 @@ Find the `users_change_password` handler and add after the `new_password.is_empt
     }
 ```
 
-- [ ] **Step 3: Run integration tests**
+- [x] **Step 3: Run integration tests**
 
 Run: `cargo test --test chat_integration -- --test-threads=1`
 Expected: PASS (existing tests use passwords >= 8 chars)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/chat/handlers.rs

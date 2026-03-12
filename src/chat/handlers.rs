@@ -115,6 +115,9 @@ pub async fn auth_register(
     if req.username.is_empty() || req.password.is_empty() || req.email.is_empty() {
         return slack::err("invalid_arguments");
     }
+    if req.password.len() < 8 {
+        return slack::err("password_too_short");
+    }
 
     // Check if username already exists
     let check_sql = format!(
@@ -509,6 +512,9 @@ pub async fn users_change_password(
 ) -> Response {
     if req.new_password.is_empty() {
         return slack::err("invalid_arguments");
+    }
+    if req.new_password.len() < 8 {
+        return slack::err("password_too_short");
     }
 
     // Fetch current password hash

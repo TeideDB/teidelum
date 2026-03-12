@@ -215,7 +215,7 @@ async fn test_chat_flow() {
             "/api/slack/auth.register",
             json!({
                 "username": "alice",
-                "password": "other",
+                "password": "otherpwd1",
                 "email": "other@example.com"
             }),
             None,
@@ -960,7 +960,7 @@ async fn test_reaction_lifecycle() {
 #[tokio::test]
 async fn test_update_profile() {
     let (app, _tmp) = setup().await;
-    let token = register_and_login(&app, "profileuser", "pass123", "profile@test.com").await;
+    let token = register_and_login(&app, "profileuser", "pass1234", "profile@test.com").await;
 
     // Update display_name
     let resp = app
@@ -994,14 +994,14 @@ async fn test_update_profile() {
 #[tokio::test]
 async fn test_change_password() {
     let (app, _tmp) = setup().await;
-    let _token = register_and_login(&app, "pwuser", "oldpass", "pw@test.com").await;
+    let _token = register_and_login(&app, "pwuser", "oldpass1!", "pw@test.com").await;
 
     // Change password
     let resp = app
         .clone()
         .oneshot(post_json(
             "/api/slack/users.changePassword",
-            json!({"old_password": "oldpass", "new_password": "newpass"}),
+            json!({"old_password": "oldpass1!", "new_password": "newpass1!"}),
             Some(&_token),
         ))
         .await
@@ -1014,7 +1014,7 @@ async fn test_change_password() {
         .clone()
         .oneshot(post_json(
             "/api/slack/auth.login",
-            json!({"username": "pwuser", "password": "newpass"}),
+            json!({"username": "pwuser", "password": "newpass1!"}),
             None,
         ))
         .await
@@ -1027,7 +1027,7 @@ async fn test_change_password() {
         .clone()
         .oneshot(post_json(
             "/api/slack/auth.login",
-            json!({"username": "pwuser", "password": "oldpass"}),
+            json!({"username": "pwuser", "password": "oldpass1!"}),
             None,
         ))
         .await
@@ -1039,7 +1039,7 @@ async fn test_change_password() {
 #[tokio::test]
 async fn test_user_settings() {
     let (app, _tmp) = setup().await;
-    let token = register_and_login(&app, "settingsuser", "pass", "settings@test.com").await;
+    let token = register_and_login(&app, "settingsuser", "pass1234", "settings@test.com").await;
 
     // Get default settings
     let resp = app
@@ -1812,7 +1812,7 @@ async fn test_links_unfurl() {
 #[tokio::test]
 async fn test_mute_unmute() {
     let (app, _tmp) = setup().await;
-    let token = register_and_login(&app, "alice", "pass123", "alice@test.com").await;
+    let token = register_and_login(&app, "alice", "pass1234", "alice@test.com").await;
 
     // Create a channel
     let resp = app
@@ -1919,7 +1919,7 @@ async fn test_mute_unmute() {
 #[tokio::test]
 async fn test_set_notification_level() {
     let (app, _tmp) = setup().await;
-    let token = register_and_login(&app, "bob", "pass123", "bob@test.com").await;
+    let token = register_and_login(&app, "bob", "pass1234", "bob@test.com").await;
 
     // Create a channel
     let resp = app
