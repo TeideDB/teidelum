@@ -213,6 +213,13 @@ pub fn escape_sql(s: &str) -> String {
     s.replace('\0', "").replace('\'', "''")
 }
 
+/// Escape a string for use inside a SQL LIKE pattern.
+/// In addition to standard SQL escaping, escapes `%` and `_` wildcards
+/// so user input is treated as literal text.
+pub fn escape_sql_like(s: &str) -> String {
+    escape_sql(s).replace('%', "\\%").replace('_', "\\_")
+}
+
 /// Format an optional string as SQL NULL or quoted value.
 pub fn sql_str_or_null(v: &Option<String>) -> String {
     match v {

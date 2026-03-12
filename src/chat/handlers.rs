@@ -1,7 +1,7 @@
 use crate::api::TeidelumApi;
 use crate::chat::auth::{self, Claims};
 use crate::chat::id::next_id;
-use crate::chat::models::{escape_sql, now_timestamp};
+use crate::chat::models::{escape_sql, escape_sql_like, now_timestamp};
 use crate::chat::slack;
 use axum::{extract::State, response::Response, Extension, Json};
 use serde::{Deserialize, Deserializer};
@@ -710,11 +710,11 @@ pub async fn users_search(
     Extension(_claims): Extension<Claims>,
     Json(req): Json<UsersSearchRequest>,
 ) -> Response {
-    let query_escaped = escape_sql(&req.query.to_lowercase());
+    let query_escaped = escape_sql_like(&req.query.to_lowercase());
     let limit = req.limit.min(100);
     let sql = format!(
         "SELECT id, username, display_name, avatar_url FROM users \
-         WHERE LOWER(username) LIKE '%{query_escaped}%' OR LOWER(display_name) LIKE '%{query_escaped}%' \
+         WHERE LOWER(username) LIKE '%{query_escaped}%' ESCAPE '\\' OR LOWER(display_name) LIKE '%{query_escaped}%' ESCAPE '\\' \
          LIMIT {limit}",
     );
     let result = match state.api.query_router().query_sync(&sql) {
@@ -753,10 +753,10 @@ pub async fn conversations_autocomplete(
     Extension(_claims): Extension<Claims>,
     Json(req): Json<ConversationsAutocompleteRequest>,
 ) -> Response {
-    let query_escaped = escape_sql(&req.query.to_lowercase());
+    let query_escaped = escape_sql_like(&req.query.to_lowercase());
     let limit = req.limit.min(100);
     let sql = format!(
-        "SELECT id, name, topic FROM channels WHERE kind = 'public' AND LOWER(name) LIKE '{query_escaped}%' LIMIT {limit}",
+        "SELECT id, name, topic FROM channels WHERE kind = 'public' AND LOWER(name) LIKE '{query_escaped}%' ESCAPE '\\' LIMIT {limit}",
     );
     let result = match state.api.query_router().query_sync(&sql) {
         Ok(r) => r,
@@ -2843,8 +2843,8 @@ pub async fn conversations_directory(
 
     if let Some(ref q) = req.query {
         if !q.is_empty() {
-            let escaped_like = escape_sql(q);
-            sql.push_str(&format!(" AND name LIKE '%{escaped_like}%'"));
+            let escaped_like = escape_sql_like(q);
+            sql.push_str(&format!(" AND name LIKE '%{escaped_like}%' ESCAPE '\\'"));
         }
     }
 
