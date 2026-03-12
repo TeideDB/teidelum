@@ -32,7 +32,10 @@ async fn body_json(resp: axum::response::Response) -> Value {
 
 /// Setup helper: creates temp dir, initializes API and chat tables, returns (app, _tmp).
 async fn setup() -> (Router, tempfile::TempDir) {
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
     teidelum::chat::models::init_chat_tables(&api).unwrap();
@@ -89,7 +92,10 @@ async fn get_user_id(app: &Router, token: &str) -> String {
 #[tokio::test]
 async fn test_chat_flow() {
     // Set JWT secret for tests
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
 
     // Create temp data dir
     let tmp = tempfile::tempdir().unwrap();
@@ -230,7 +236,10 @@ async fn test_chat_flow() {
 
 #[tokio::test]
 async fn test_unread_tracking() {
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
     teidelum::chat::models::init_chat_tables(&api).unwrap();
@@ -367,7 +376,10 @@ async fn test_unread_tracking() {
 
 #[tokio::test]
 async fn test_conversations_mark_read() {
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
     teidelum::chat::models::init_chat_tables(&api).unwrap();
@@ -459,7 +471,10 @@ async fn test_conversations_mark_read() {
 
 #[tokio::test]
 async fn test_thread_metadata() {
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
     teidelum::chat::models::init_chat_tables(&api).unwrap();
@@ -566,7 +581,10 @@ async fn test_thread_metadata() {
 
 #[tokio::test]
 async fn test_dm_conversation() {
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
     teidelum::chat::models::init_chat_tables(&api).unwrap();
@@ -673,7 +691,10 @@ async fn test_dm_conversation() {
 
 #[tokio::test]
 async fn test_presence_update() {
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
     teidelum::chat::models::init_chat_tables(&api).unwrap();
@@ -747,7 +768,10 @@ async fn test_presence_update() {
 
 #[tokio::test]
 async fn test_mention_extraction() {
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
     teidelum::chat::models::init_chat_tables(&api).unwrap();
@@ -843,7 +867,10 @@ async fn test_mention_extraction() {
 
 #[tokio::test]
 async fn test_reaction_lifecycle() {
-    std::env::set_var("TEIDE_CHAT_SECRET", "test-secret-key-that-is-at-least-32-bytes-long!!");
+    std::env::set_var(
+        "TEIDE_CHAT_SECRET",
+        "test-secret-key-that-is-at-least-32-bytes-long!!",
+    );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
     teidelum::chat::models::init_chat_tables(&api).unwrap();

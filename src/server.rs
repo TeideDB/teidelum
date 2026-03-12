@@ -144,7 +144,10 @@ pub async fn start(
     match std::env::var("TEIDE_CHAT_SECRET") {
         Ok(s) if s.len() >= 32 => {}
         Ok(s) if !s.is_empty() => {
-            anyhow::bail!("TEIDE_CHAT_SECRET must be at least 32 bytes (got {})", s.len());
+            anyhow::bail!(
+                "TEIDE_CHAT_SECRET must be at least 32 bytes (got {})",
+                s.len()
+            );
         }
         Ok(_) => {
             tracing::warn!("TEIDE_CHAT_SECRET is set but empty — chat auth will not work");

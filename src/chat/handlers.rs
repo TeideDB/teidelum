@@ -65,7 +65,9 @@ fn deserialize_opt_id<'de, D: Deserializer<'de>>(d: D) -> Result<Option<i64>, D:
             Ok(Some(v))
         }
         fn visit_u64<E: de::Error>(self, v: u64) -> Result<Option<i64>, E> {
-            Ok(Some(i64::try_from(v).map_err(|_| de::Error::custom("id overflow"))?))
+            Ok(Some(
+                i64::try_from(v).map_err(|_| de::Error::custom("id overflow"))?,
+            ))
         }
         fn visit_str<E: de::Error>(self, v: &str) -> Result<Option<i64>, E> {
             v.parse().map(Some).map_err(de::Error::custom)
@@ -1834,7 +1836,7 @@ pub async fn conversations_update(
     // Broadcast
     let event = crate::chat::events::ServerEvent::ChannelUpdated {
         channel: req.channel.to_string(),
-        name: req.name,
+        name: req.name.map(|n| n.trim().to_string()),
         topic: req.topic,
         description: req.description,
         archived_at: None,

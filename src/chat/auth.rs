@@ -145,7 +145,8 @@ mod tests {
 
     #[test]
     fn test_jwt_invalid_secret() {
-        let token = create_token("secret-one-that-is-at-least-32-bytes!!", 1, "bob", false).unwrap();
+        let token =
+            create_token("secret-one-that-is-at-least-32-bytes!!", 1, "bob", false).unwrap();
         assert!(validate_token("secret-two-that-is-at-least-32-bytes!!", &token).is_err());
     }
 

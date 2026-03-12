@@ -208,7 +208,9 @@ pub fn init_chat_tables(api: &TeidelumApi) -> Result<()> {
 
 /// Escape a string value for SQL: strip null bytes, escape backslashes, double single quotes.
 pub fn escape_sql(s: &str) -> String {
-    s.replace('\0', "").replace('\\', "\\\\").replace('\'', "''")
+    s.replace('\0', "")
+        .replace('\\', "\\\\")
+        .replace('\'', "''")
 }
 
 /// Format an optional string as SQL NULL or quoted value.

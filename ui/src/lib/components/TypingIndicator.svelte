@@ -44,16 +44,16 @@
 	});
 </script>
 
-{#if displayNames.length > 0}
-	<div class="text-xs text-gray-400 px-4 h-5" aria-live="polite">
-		{#if displayNames.length === 1}
-			{displayNames[0]} is typing...
-		{:else if displayNames.length === 2}
-			{displayNames[0]} and {displayNames[1]} are typing...
-		{:else}
-			Several people are typing...
-		{/if}
-	</div>
-{:else}
-	<div class="h-5"></div>
-{/if}
+<div class="h-5" aria-live="polite">
+	{#if displayNames.length > 0}
+		<span class="text-xs text-gray-400 px-4">
+			{#if displayNames.length === 1}
+				{displayNames[0]} is typing...
+			{:else if displayNames.length === 2}
+				{displayNames[0]} and {displayNames[1]} are typing...
+			{:else}
+				Several people are typing...
+			{/if}
+		</span>
+	{/if}
+</div>
