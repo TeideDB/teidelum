@@ -18,7 +18,7 @@
 - Modify: `src/chat/models.rs:210-212`
 - Test: `src/chat/models.rs:254-259` (inline tests)
 
-- [ ] **Step 1: Write failing tests for new escape cases**
+- [x] **Step 1: Write failing tests for new escape cases**
 
 Add to the existing `test_escape_sql` test in `src/chat/models.rs`:
 
@@ -35,12 +35,12 @@ fn test_escape_sql() {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cargo test test_escape_sql -- --nocapture`
 Expected: FAIL — backslash not escaped, null byte not stripped
 
-- [ ] **Step 3: Update `escape_sql` implementation**
+- [x] **Step 3: Update `escape_sql` implementation**
 
 ```rust
 pub fn escape_sql(s: &str) -> String {
@@ -48,12 +48,12 @@ pub fn escape_sql(s: &str) -> String {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `cargo test test_escape_sql -- --nocapture`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/chat/models.rs
