@@ -234,6 +234,8 @@ pub async fn files_upload(
         return slack::err("internal_error");
     }
 
+    state.persist_tables(&["messages", "files"]);
+
     // Index the message in tantivy
     let channel_name =
         crate::chat::models::channel_display_name(state.api.query_router(), channel_id);
@@ -247,7 +249,7 @@ pub async fn files_upload(
         tracing::warn!("file message search indexing failed: {e}");
     }
 
-    // Broadcast message event
+    // Broadcast message event (include file info so clients render immediately)
     let event = crate::chat::events::ServerEvent::Message {
         channel: channel_id.to_string(),
         user: claims.user_id.to_string(),
@@ -258,6 +260,12 @@ pub async fn files_upload(
         } else {
             None
         },
+        files: Some(vec![crate::chat::events::FilePayload {
+            id: file_id.to_string(),
+            filename: file_name.clone(),
+            mime_type: mime_type.clone(),
+            size_bytes: file_size,
+        }]),
     };
     state.hub.broadcast_to_channel(channel_id, &event).await;
 

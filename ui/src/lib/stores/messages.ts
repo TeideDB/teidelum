@@ -147,7 +147,7 @@ export function initMessageWsListeners(): () => void {
 
 	unsubs.push(
 		ws.on('message', (event: WsEvent) => {
-			// Backend sends: { type, channel, user, text, ts, thread_ts? }
+			// Backend sends: { type, channel, user, text, ts, thread_ts?, files? }
 			// Map to Message shape for the store
 			const data = event as unknown as {
 				channel: Id;
@@ -155,6 +155,7 @@ export function initMessageWsListeners(): () => void {
 				text: string;
 				ts: Id;
 				thread_ts?: Id;
+				files?: Array<{ id: string; filename: string; mime_type: string; size_bytes: number }>;
 			};
 			if (data.channel) {
 				const message: Message = {
@@ -164,7 +165,14 @@ export function initMessageWsListeners(): () => void {
 					text: data.text,
 					ts: data.ts,
 					created_at: new Date().toISOString(),
-					thread_ts: data.thread_ts
+					thread_ts: data.thread_ts,
+					files: data.files?.map((f) => ({
+						id: f.id,
+						filename: f.filename,
+						mime_type: f.mime_type,
+						size_bytes: f.size_bytes,
+						url: `/files/${f.id}/${f.filename}`
+					}))
 				};
 				appendMessage(data.channel, message);
 			}

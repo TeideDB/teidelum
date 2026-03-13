@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use crate::api::TeidelumApi;
 use crate::chat::auth::{self, Claims};
 use crate::chat::id::next_id;
@@ -6,7 +9,6 @@ use crate::chat::slack;
 use axum::{extract::State, response::Response, Extension, Json};
 use serde::{Deserialize, Deserializer};
 use serde_json::json;
-use std::sync::Arc;
 
 /// Deserialize an i64 from either a JSON number or a JSON string (Slack convention).
 fn deserialize_id<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
@@ -82,6 +84,8 @@ pub type AppState = Arc<ChatState>;
 pub struct ChatState {
     pub api: Arc<TeidelumApi>,
     pub hub: Arc<crate::chat::hub::Hub>,
+    /// Data directory for persisting chat tables to disk.
+    pub data_dir: Option<PathBuf>,
     /// Serializes DM channel creation to prevent TOCTOU races (check-then-insert
     /// without DB-level unique constraints).
     pub dm_create_lock: Mutex<()>,
@@ -99,6 +103,29 @@ pub struct ChatState {
     pub reaction_lock: Mutex<()>,
     /// Serializes user registration to prevent duplicate usernames/emails from TOCTOU races.
     pub register_lock: Mutex<()>,
+}
+
+impl ChatState {
+    /// Persist the given chat tables to disk. No-op if data_dir is not set.
+    pub fn persist_tables(&self, tables: &[&str]) {
+        let Some(ref data_dir) = self.data_dir else {
+            return;
+        };
+        let chat_dir = data_dir.join("chat");
+        let router = self.api.query_router();
+        for &table in tables {
+            let table_dir = chat_dir.join(table);
+            if let Err(e) = router.save_table(table, &table_dir) {
+                tracing::error!("failed to persist {table}: {e}");
+            }
+        }
+        let sym_dir = data_dir.join("tables");
+        let _ = std::fs::create_dir_all(&sym_dir);
+        let sym_path = sym_dir.join("sym");
+        if let Err(e) = router.save_sym(&sym_path) {
+            tracing::error!("failed to persist sym: {e}");
+        }
+    }
 }
 
 // ── Auth ──
@@ -182,6 +209,7 @@ pub async fn auth_register(
         tracing::error!("user insert failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["users"]);
 
     let secret = match std::env::var("TEIDE_CHAT_SECRET") {
         Ok(s) if !s.is_empty() => s,
@@ -376,6 +404,7 @@ pub async fn users_set_presence(
         tracing::error!("set presence failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["users"]);
 
     // Fetch status fields for broadcast
     let fetch = format!(
@@ -477,6 +506,7 @@ pub async fn users_update_profile(
         tracing::error!("update profile failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["users"]);
 
     // Fetch updated user for broadcast
     let fetch = format!(
@@ -576,6 +606,7 @@ pub async fn users_change_password(
         tracing::error!("password update failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["users"]);
 
     slack::ok(json!({}))
 }
@@ -613,6 +644,7 @@ pub async fn users_get_settings(
                 claims.user_id
             );
             let _ = state.api.query_router().query_sync(&insert);
+            state.persist_tables(&["user_settings"]);
             slack::ok(json!({
                 "settings": {
                     "theme": "dark",
@@ -664,6 +696,7 @@ pub async fn users_update_settings(
             claims.user_id
         );
         let _ = state.api.query_router().query_sync(&insert);
+        state.persist_tables(&["user_settings"]);
     }
     let mut sets = Vec::new();
     if let Some(ref theme) = req.theme {
@@ -696,6 +729,7 @@ pub async fn users_update_settings(
         tracing::error!("update settings failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["user_settings"]);
 
     slack::ok(json!({}))
 }
@@ -866,6 +900,7 @@ pub async fn conversations_create(
         tracing::error!("channel member insert failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["channels", "channel_members"]);
 
     // Update hub membership cache
     let mut members = std::collections::HashSet::new();
@@ -877,6 +912,11 @@ pub async fn conversations_create(
             "id": id.to_string(),
             "name": name_trimmed,
             "kind": req.kind,
+            "topic": topic,
+            "description": "",
+            "archived_at": "",
+            "created_by": claims.user_id.to_string(),
+            "created_at": now,
         }
     }))
 }
@@ -1200,6 +1240,7 @@ pub async fn conversations_history(
                 tracing::warn!("channel_reads insert failed: {e}");
             }
         }
+        state.persist_tables(&["channel_reads"]);
     }
 
     slack::ok(json!({"messages": messages, "has_more": messages.len() == limit}))
@@ -1321,6 +1362,7 @@ pub async fn conversations_join(
         tracing::error!("join insert failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["channel_members"]);
 
     state
         .hub
@@ -1369,6 +1411,7 @@ pub async fn conversations_leave(
         tracing::error!("leave failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["channel_members"]);
 
     state
         .hub
@@ -1443,6 +1486,7 @@ pub async fn conversations_invite(
         tracing::error!("invite insert failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["channel_members"]);
 
     state.hub.add_channel_member(req.channel, req.user).await;
 
@@ -1577,6 +1621,7 @@ pub async fn conversations_open(
                         _ => {}
                     }
                 }
+                state.persist_tables(&["channel_members"]);
             }
 
             // Sync repaired membership to the in-memory hub cache
@@ -1644,6 +1689,7 @@ pub async fn conversations_open(
             return slack::err("internal_error");
         }
     }
+    state.persist_tables(&["channels", "channel_members"]);
 
     let mut members = std::collections::HashSet::new();
     members.insert(claims.user_id);
@@ -1742,6 +1788,7 @@ pub async fn conversations_mark_read(
             return slack::err("internal_error");
         }
     }
+    state.persist_tables(&["channel_reads"]);
 
     slack::ok(json!({}))
 }
@@ -1836,6 +1883,7 @@ pub async fn conversations_update(
         tracing::error!("channel update failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["channels"]);
 
     // Broadcast
     let event = crate::chat::events::ServerEvent::ChannelUpdated {
@@ -1887,6 +1935,7 @@ pub async fn conversations_archive(
         tracing::error!("archive failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["channels"]);
 
     let event = crate::chat::events::ServerEvent::ChannelUpdated {
         channel: req.channel.to_string(),
@@ -1928,6 +1977,7 @@ pub async fn conversations_unarchive(
         tracing::error!("unarchive failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["channels"]);
 
     let event = crate::chat::events::ServerEvent::ChannelUpdated {
         channel: req.channel.to_string(),
@@ -2002,6 +2052,7 @@ pub async fn conversations_set_role(
         tracing::error!("set role failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["channel_members"]);
 
     slack::ok(json!({}))
 }
@@ -2068,6 +2119,7 @@ fn upsert_channel_setting(
             .query_sync(&sql)
             .map_err(|e| e.to_string())?;
     }
+    state.persist_tables(&["channel_settings"]);
     Ok(())
 }
 
@@ -2194,6 +2246,7 @@ pub async fn chat_post_message(
         tracing::error!("post message failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["messages"]);
 
     // Parse and store mentions
     let mention_regex = regex_lite::Regex::new(r"@(\w+)").unwrap();
@@ -2224,6 +2277,7 @@ pub async fn chat_post_message(
             }
         }
     }
+    state.persist_tables(&["mentions"]);
 
     // Index message in tantivy for full-text search
     let channel_name =
@@ -2249,6 +2303,7 @@ pub async fn chat_post_message(
         } else {
             None
         },
+        files: None,
     };
     state.hub.broadcast_to_channel(req.channel, &event).await;
 
@@ -2324,6 +2379,7 @@ pub async fn chat_update(
         tracing::error!("chat update failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["messages"]);
 
     // Re-index in tantivy: delete old doc and add updated one
     let _ = state
@@ -2413,6 +2469,7 @@ pub async fn chat_delete(
         tracing::error!("chat delete failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["messages"]);
 
     // Remove from tantivy search index
     if let Err(e) = state
@@ -2500,6 +2557,7 @@ pub async fn reactions_add(
         tracing::error!("reaction insert failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["reactions"]);
 
     let event = crate::chat::events::ServerEvent::ReactionAdded {
         channel: channel_id.to_string(),
@@ -2573,6 +2631,7 @@ pub async fn reactions_remove(
     if !actually_deleted {
         return slack::err("no_reaction");
     }
+    state.persist_tables(&["reactions"]);
 
     let event = crate::chat::events::ServerEvent::ReactionRemoved {
         channel: channel_id.to_string(),
@@ -2969,6 +3028,7 @@ pub async fn pins_add(
         tracing::error!("pin insert failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["pinned_messages"]);
 
     let event = crate::chat::events::ServerEvent::MessagePinned {
         channel: req.channel.to_string(),
@@ -3005,6 +3065,7 @@ pub async fn pins_remove(
         tracing::error!("pin delete failed: {e}");
         return slack::err("internal_error");
     }
+    state.persist_tables(&["pinned_messages"]);
 
     let event = crate::chat::events::ServerEvent::MessageUnpinned {
         channel: req.channel.to_string(),

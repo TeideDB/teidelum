@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::api::TeidelumApi;
 use crate::catalog::Relationship;
 use anyhow::Result;
@@ -187,13 +189,51 @@ fn chat_relationships() -> Vec<Relationship> {
     ]
 }
 
+/// Ordered chat table names matching CREATE_TABLES.
+pub const CHAT_TABLE_NAMES: &[&str] = &[
+    "users",
+    "channels",
+    "channel_members",
+    "messages",
+    "reactions",
+    "mentions",
+    "channel_reads",
+    "files",
+    "user_settings",
+    "pinned_messages",
+    "channel_settings",
+];
+
 /// Initialize all chat tables and register relationships.
-/// Safe to call if tables already exist — will skip existing ones.
-pub fn init_chat_tables(api: &TeidelumApi) -> Result<()> {
+/// If `data_dir` is provided, attempts to load persisted tables from `data_dir/chat/`.
+/// Falls back to creating fresh tables for any that can't be loaded.
+pub fn init_chat_tables(api: &TeidelumApi, data_dir: Option<&Path>) -> Result<()> {
     let router = api.query_router();
 
-    for sql in CREATE_TABLES {
-        // Ignore "table already exists" errors
+    let chat_dir = data_dir.map(|d| d.join("chat"));
+    let sym_path = data_dir.map(|d| d.join("tables").join("sym"));
+    let sym = sym_path.as_deref().filter(|p| p.exists());
+
+    for (i, sql) in CREATE_TABLES.iter().enumerate() {
+        let name = CHAT_TABLE_NAMES[i];
+
+        // Try loading persisted table from disk
+        if let Some(ref cd) = chat_dir {
+            let table_dir = cd.join(name);
+            if table_dir.join(".d").exists() {
+                match router.load_splayed(name, &table_dir, sym) {
+                    Ok(_) => {
+                        tracing::info!("loaded persisted chat table: {name}");
+                        continue;
+                    }
+                    Err(e) => {
+                        tracing::warn!("failed to load persisted {name}, creating fresh: {e}");
+                    }
+                }
+            }
+        }
+
+        // Create fresh table
         match router.query_sync(sql) {
             Ok(_) => {}
             Err(e) if e.to_string().contains("already exists") => {}

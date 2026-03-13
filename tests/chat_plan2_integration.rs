@@ -12,7 +12,7 @@ use teidelum::search::SearchQuery;
 fn setup() -> (tempfile::TempDir, Arc<TeidelumApi>) {
     let tmp = tempfile::tempdir().unwrap();
     let api = TeidelumApi::new(tmp.path()).unwrap();
-    init_chat_tables(&api).unwrap();
+    init_chat_tables(&api, Some(tmp.path())).unwrap();
     (tmp, Arc::new(api))
 }
 

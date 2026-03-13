@@ -38,12 +38,13 @@ async fn setup() -> (Router, tempfile::TempDir) {
     );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -104,7 +105,7 @@ async fn test_chat_flow() {
 
     // Initialize API and chat tables
     let api = teidelum::api::TeidelumApi::open(data_dir).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
 
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
@@ -112,6 +113,7 @@ async fn test_chat_flow() {
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -244,12 +246,13 @@ async fn test_unread_tracking() {
     );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -385,12 +388,13 @@ async fn test_conversations_mark_read() {
     );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -481,12 +485,13 @@ async fn test_thread_metadata() {
     );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -592,12 +597,13 @@ async fn test_dm_conversation() {
     );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -703,12 +709,13 @@ async fn test_presence_update() {
     );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -781,12 +788,13 @@ async fn test_mention_extraction() {
     );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -881,12 +889,13 @@ async fn test_reaction_lifecycle() {
     );
     let tmp = tempfile::tempdir().unwrap();
     let api = teidelum::api::TeidelumApi::open(tmp.path()).unwrap();
-    teidelum::chat::models::init_chat_tables(&api).unwrap();
+    teidelum::chat::models::init_chat_tables(&api, Some(tmp.path())).unwrap();
     let api = std::sync::Arc::new(api);
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let state = std::sync::Arc::new(teidelum::chat::handlers::ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir: Some(tmp.path().to_path_buf()),
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),

@@ -764,6 +764,7 @@ impl Teidelum {
                 text: params.text.clone(),
                 ts: id.to_string(),
                 thread_ts: None,
+                files: None,
             };
             hub.broadcast_to_channel(params.channel, &event).await;
         }
@@ -898,6 +899,7 @@ impl Teidelum {
                 text: params.text.clone(),
                 ts: id.to_string(),
                 thread_ts: Some(params.thread_ts.to_string()),
+                files: None,
             };
             hub.broadcast_to_channel(params.channel, &event).await;
         }

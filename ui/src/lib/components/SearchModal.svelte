@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import DOMPurify from 'dompurify';
 	import * as api from '$lib/api';
 	import { users } from '$lib/stores/users';
 	import type { Message, Id } from '$lib/types';
+
+	function sanitizeSnippet(html: string): string {
+		return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['b'] });
+	}
 
 	interface Props {
 		onClose: () => void;
@@ -325,10 +330,10 @@
 					>
 						<div class="min-w-0 flex-1">
 							<div class="flex items-baseline gap-2">
-								<span class="text-sm font-bold text-gray-300">{getUserName(msg.user_id)}</span>
+								<span class="text-sm font-bold text-body">{getUserName(msg.user_id)}</span>
 								<span class="text-xs text-primary-light/40">{formatTime(msg.created_at)}</span>
 							</div>
-							<div class="truncate text-sm text-primary-lighter/70">{msg.text}</div>
+							<div class="truncate text-sm text-primary-lighter/70">{@html sanitizeSnippet(msg.text)}</div>
 						</div>
 					</button>
 				{/each}

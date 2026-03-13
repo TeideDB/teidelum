@@ -241,10 +241,10 @@
 			</div>
 			<div>
 				<div class="flex items-baseline gap-2">
-					<span class="text-sm font-bold text-gray-200">{getUserName(parentMessage.user_id)}</span>
+					<span class="text-sm font-bold text-heading">{getUserName(parentMessage.user_id)}</span>
 					<span class="text-xs text-primary-light/40">{formatTime(parentMessage.created_at)}</span>
 				</div>
-				<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMd(parentMessage.text)}</div>
+				<div class="prose-chat text-sm text-body break-words">{@html renderMd(parentMessage.text)}</div>
 				{#if parentMessage.files && parentMessage.files.length > 0}
 					<div class="mt-1 flex flex-col gap-1">
 						{#each parentMessage.files as file}
@@ -295,10 +295,10 @@
 					</div>
 					<div>
 						<div class="flex items-baseline gap-2">
-							<span class="text-sm font-bold text-gray-200">{getUserName(reply.user_id)}</span>
+							<span class="text-sm font-bold text-heading">{getUserName(reply.user_id)}</span>
 							<span class="text-xs text-primary-light/40">{formatTime(reply.created_at)}</span>
 						</div>
-						<div class="prose-chat text-sm text-gray-300 break-words">{@html renderMd(reply.text)}</div>
+						<div class="prose-chat text-sm text-body break-words">{@html renderMd(reply.text)}</div>
 						{#if reply.files && reply.files.length > 0}
 							<div class="mt-1 flex flex-col gap-1">
 								{#each reply.files as file}

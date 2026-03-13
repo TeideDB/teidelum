@@ -193,6 +193,7 @@ mod tests {
             text: "hello".into(),
             ts: "123".into(),
             thread_ts: None,
+            files: None,
         };
         hub.broadcast_to_channel(10, &event).await;
 

@@ -24,11 +24,13 @@ use crate::routes;
 pub fn build_router(
     api: Arc<TeidelumApi>,
     hub: Arc<crate::chat::hub::Hub>,
+    data_dir: Option<std::path::PathBuf>,
     ct: CancellationToken,
 ) -> Router {
     let chat_state: crate::chat::handlers::AppState = Arc::new(ChatState {
         api: api.clone(),
         hub: hub.clone(),
+        data_dir,
         dm_create_lock: tokio::sync::Mutex::new(()),
         reads_lock: tokio::sync::Mutex::new(()),
         settings_lock: tokio::sync::Mutex::new(()),
@@ -145,6 +147,7 @@ async fn auth_check(request: Request, next: Next, expected_key: String) -> Respo
 pub async fn start(
     api: Arc<TeidelumApi>,
     hub: Arc<crate::chat::hub::Hub>,
+    data_dir: Option<std::path::PathBuf>,
     bind: &str,
     port: u16,
 ) -> anyhow::Result<()> {
@@ -166,7 +169,7 @@ pub async fn start(
     }
 
     let ct = CancellationToken::new();
-    let app = build_router(api, hub, ct.clone());
+    let app = build_router(api, hub, data_dir, ct.clone());
     let addr = format!("{bind}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("HTTP server listening on {addr}");

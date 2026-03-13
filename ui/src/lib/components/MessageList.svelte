@@ -351,7 +351,7 @@
 						<div class="flex items-baseline gap-2">
 							<button
 								type="button"
-								class="text-sm font-bold text-gray-200 hover:underline cursor-pointer"
+								class="text-sm font-bold text-heading hover:underline cursor-pointer"
 								onclick={(e) => openProfilePopover(msg.user_id, e)}
 							>{getUserName(msg.user_id)}</button>
 							{#if getUser(msg.user_id)?.status_emoji}
@@ -390,7 +390,7 @@
 							</div>
 						</div>
 					{:else}
-						<div class="prose-chat text-sm leading-relaxed text-gray-300 break-words">{@html renderMd(msg.text)}</div>
+						<div class="prose-chat text-sm leading-relaxed text-body break-words">{@html renderMd(msg.text)}</div>
 					{/if}
 
 					<!-- Link previews -->
@@ -504,7 +504,7 @@
 			<p class="mb-4 text-sm text-primary-lighter/70">
 				Delete this message? This can't be undone.
 			</p>
-			<div class="mb-4 rounded bg-navy p-3 text-sm text-gray-300">
+			<div class="mb-4 rounded bg-navy p-3 text-sm text-body">
 				{deletingMessage.text.length > 100 ? deletingMessage.text.slice(0, 100) + '...' : deletingMessage.text}
 			</div>
 			<div class="flex justify-end gap-2">

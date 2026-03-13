@@ -1,3 +1,4 @@
+use std::ffi::CString;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -114,6 +115,33 @@ impl QueryRouter {
             anyhow::bail!("invalid identifier: '{name}'");
         }
         self.query_sync(&format!("DROP TABLE IF EXISTS {name}"))?;
+        Ok(())
+    }
+
+    /// Save a table to disk as a splayed directory.
+    pub fn save_table(&self, name: &str, dir: &Path) -> Result<()> {
+        let mut session = self.session.lock().unwrap();
+        let result = session.execute(&format!("SELECT * FROM {name}"))?;
+        if let teide::ExecResult::Query(q) = result {
+            std::fs::create_dir_all(dir)?;
+            let c_dir = CString::new(dir.to_str().unwrap())?;
+            let err = unsafe {
+                teide::ffi::td_splay_save(q.table.as_raw(), c_dir.as_ptr(), std::ptr::null())
+            };
+            if err != teide::ffi::td_err_t::TD_OK {
+                anyhow::bail!("td_splay_save failed for {name}: {err:?}");
+            }
+        }
+        Ok(())
+    }
+
+    /// Save the global symbol table to disk.
+    pub fn save_sym(&self, sym_path: &Path) -> Result<()> {
+        let c_path = CString::new(sym_path.to_str().unwrap())?;
+        let err = unsafe { teide::ffi::td_sym_save(c_path.as_ptr()) };
+        if err != teide::ffi::td_err_t::TD_OK {
+            anyhow::bail!("td_sym_save failed: {err:?}");
+        }
         Ok(())
     }
 

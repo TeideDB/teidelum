@@ -52,7 +52,7 @@
 	<div class="absolute bottom-full left-0 right-0 mb-1 max-h-48 overflow-y-auto rounded-lg border border-primary-dark/40 bg-navy-dark shadow-lg">
 		{#each items as item, i}
 			<button
-				class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition {i === selectedIndex ? 'bg-primary/30 text-heading' : 'text-gray-300 hover:bg-primary/10'}"
+				class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition {i === selectedIndex ? 'bg-primary/30 text-heading' : 'text-body hover:bg-primary/10'}"
 				onmousedown={(e: MouseEvent) => { e.preventDefault(); onSelect(item); }}
 				onmouseenter={() => (selectedIndex = i)}
 			>

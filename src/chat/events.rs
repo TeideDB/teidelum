@@ -15,6 +15,8 @@ pub enum ServerEvent {
         ts: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         thread_ts: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        files: Option<Vec<FilePayload>>,
     },
 
     #[serde(rename = "message_changed")]
@@ -106,6 +108,14 @@ pub struct MessagePayload {
     pub edited_ts: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct FilePayload {
+    pub id: String,
+    pub filename: String,
+    pub mime_type: String,
+    pub size_bytes: i64,
+}
+
 /// Events sent FROM client TO server over WebSocket.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
@@ -129,6 +139,7 @@ mod tests {
             text: "hello".into(),
             ts: "1710000000".into(),
             thread_ts: None,
+            files: None,
         };
         let json = serde_json::to_string(&event).unwrap();
         assert!(json.contains("\"type\":\"message\""));

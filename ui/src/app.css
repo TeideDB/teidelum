@@ -59,6 +59,10 @@
 	--color-overlay: var(--th-overlay);
 }
 
+@utility text-body {
+	color: var(--th-text-body);
+}
+
 body {
 	background-color: var(--th-navy);
 	color: var(--th-text-body);

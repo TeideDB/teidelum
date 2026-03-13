@@ -230,7 +230,7 @@
 				{/if}
 
 				{#if channel.description}
-					<p class="mt-2 text-sm text-gray-300">{channel.description}</p>
+					<p class="mt-2 text-sm text-body">{channel.description}</p>
 				{/if}
 
 				<p class="mt-2 text-xs text-primary-light/40">
@@ -294,7 +294,7 @@
 							onclick={(e) => openProfilePopover(member.id, e)}
 						>
 							<Avatar url={getUserAvatar(member.id)} name={getUserName(member.id)} size="sm" />
-							<span class="text-sm text-gray-300">{getUserName(member.id)}</span>
+							<span class="text-sm text-body">{getUserName(member.id)}</span>
 							{#if member.role === 'owner' || member.role === 'admin'}
 								<span class="text-xs text-primary-light/40">{member.role}</span>
 							{/if}

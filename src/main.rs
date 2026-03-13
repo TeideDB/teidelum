@@ -69,8 +69,8 @@ async fn main() -> Result<()> {
         },
     ])?;
 
-    // Initialize chat tables
-    teidelum::chat::models::init_chat_tables(&api)?;
+    // Initialize chat tables (load persisted data from disk if available)
+    teidelum::chat::models::init_chat_tables(&api, Some(&cli.data))?;
     tracing::info!("chat tables initialized");
 
     let hub = Arc::new(teidelum::chat::hub::Hub::new());
@@ -83,7 +83,8 @@ async fn main() -> Result<()> {
             let api = api.clone();
             let hub = hub.clone();
             let bind = cli.bind.clone();
-            async move { teidelum::server::start(api, hub, &bind, port).await }
+            let data_dir = cli.data.clone();
+            async move { teidelum::server::start(api, hub, Some(data_dir), &bind, port).await }
         });
 
         // Only serve MCP over stdio if explicitly requested via --stdio flag

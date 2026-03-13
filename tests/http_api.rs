@@ -18,7 +18,7 @@ fn test_app() -> (axum::Router, tempfile::TempDir) {
     let api = TeidelumApi::new(tmp.path()).unwrap();
     let hub = std::sync::Arc::new(teidelum::chat::hub::Hub::new());
     let ct = tokio_util::sync::CancellationToken::new();
-    (build_router(Arc::new(api), hub, ct), tmp)
+    (build_router(Arc::new(api), hub, None, ct), tmp)
 }
 
 fn json_request(method: &str, uri: &str, body: serde_json::Value) -> Request<Body> {

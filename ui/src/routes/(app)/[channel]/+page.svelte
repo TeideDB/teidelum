@@ -200,8 +200,8 @@
 									<div class="border-b border-primary-dark/20 px-4 py-3 last:border-b-0">
 										<div class="flex items-start justify-between gap-2">
 											<div class="min-w-0 flex-1">
-												<span class="text-xs font-medium text-gray-200">{getUserName(pin.user_id)}</span>
-												<div class="mt-0.5 text-sm text-gray-300 break-words line-clamp-3">{@html renderMarkdown(pin.text)}</div>
+												<span class="text-xs font-medium text-heading">{getUserName(pin.user_id)}</span>
+												<div class="mt-0.5 text-sm text-body break-words line-clamp-3">{@html renderMarkdown(pin.text)}</div>
 											</div>
 											<button
 												onclick={() => handleUnpin(pin.id)}
