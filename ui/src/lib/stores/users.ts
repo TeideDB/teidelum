@@ -58,6 +58,43 @@ export function initUserWsListeners(): () => void {
 		})
 	);
 
+	// New user registered
+	unsubs.push(
+		ws.on('user_joined_workspace', (event: WsEvent) => {
+			const data = event as unknown as {
+				user: Id;
+				username: string;
+				display_name: string;
+			};
+			if (data.user) {
+				users.update((map) => {
+					const newMap = new Map(map);
+					if (!newMap.has(data.user)) {
+						newMap.set(data.user, {
+							id: data.user,
+							username: data.username,
+							display_name: data.display_name,
+							email: '',
+							avatar_url: '',
+							status: 'online',
+							is_bot: false,
+							status_text: '',
+							status_emoji: '',
+							created_at: new Date().toISOString()
+						});
+					}
+					return newMap;
+				});
+				// Also mark them as active since they just registered
+				presence.update((map) => {
+					const newMap = new Map(map);
+					newMap.set(data.user, 'active');
+					return newMap;
+				});
+			}
+		})
+	);
+
 	unsubs.push(
 		ws.on('user_profile_updated', (event: WsEvent) => {
 			const data = event as unknown as {

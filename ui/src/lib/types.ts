@@ -159,6 +159,7 @@ export type WsEventType =
 	| 'member_left_channel'
 	| 'user_profile_updated'
 	| 'channel_updated'
+	| 'user_joined_workspace'
 	| 'message_pinned'
 	| 'message_unpinned';
 

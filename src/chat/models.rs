@@ -244,11 +244,22 @@ pub fn init_chat_tables(api: &TeidelumApi, data_dir: Option<&Path>) -> Result<()
     api.register_relationships(chat_relationships())?;
 
     // Ensure #general channel exists
-    if ensure_general_channel(router) {
-        // Persist the new channel if data_dir is set
+    let created_general = ensure_general_channel(router);
+
+    // Ensure all users are members of #general (backfill for users created
+    // before auto-join was added, or when auto-join failed due to race).
+    let backfilled = ensure_all_users_in_general(router);
+
+    if created_general || backfilled {
         if let Some(data_dir) = data_dir {
             let chat_dir = data_dir.join("chat");
-            let _ = router.save_table("channels", &chat_dir.join("channels"));
+            if created_general {
+                let _ = router.save_table("channels", &chat_dir.join("channels"));
+            }
+            if backfilled {
+                let _ =
+                    router.save_table("channel_members", &chat_dir.join("channel_members"));
+            }
             let sym_dir = data_dir.join("tables");
             let _ = std::fs::create_dir_all(&sym_dir);
             let _ = router.save_sym(&sym_dir.join("sym"));
@@ -287,6 +298,55 @@ fn ensure_general_channel(router: &crate::router::QueryRouter) -> bool {
             false
         }
     }
+}
+
+/// Ensure every user is a member of #general. Returns true if any rows were inserted.
+fn ensure_all_users_in_general(router: &crate::router::QueryRouter) -> bool {
+    // Get all user IDs
+    let all_users: Vec<i64> = match router.query_sync("SELECT id FROM users") {
+        Ok(r) => r
+            .rows
+            .iter()
+            .filter_map(|row| match &row[0] {
+                crate::connector::Value::Int(v) => Some(*v),
+                _ => None,
+            })
+            .collect(),
+        Err(_) => return false,
+    };
+
+    // Get existing members of #general
+    let existing: std::collections::HashSet<i64> = match router.query_sync(&format!(
+        "SELECT user_id FROM channel_members WHERE channel_id = {}",
+        GENERAL_CHANNEL_ID
+    )) {
+        Ok(r) => r
+            .rows
+            .iter()
+            .filter_map(|row| match &row[0] {
+                crate::connector::Value::Int(v) => Some(*v),
+                _ => None,
+            })
+            .collect(),
+        Err(_) => return false,
+    };
+
+    let now = now_timestamp();
+    let mut added = false;
+    for uid in all_users {
+        if !existing.contains(&uid) {
+            let sql = format!(
+                "INSERT INTO channel_members (channel_id, user_id, role, joined_at) \
+                 VALUES ({}, {uid}, 'member', '{now}')",
+                GENERAL_CHANNEL_ID
+            );
+            if router.query_sync(&sql).is_ok() {
+                tracing::info!("backfilled user {uid} into #general");
+                added = true;
+            }
+        }
+    }
+    added
 }
 
 /// Escape a string value for SQL: strip null bytes and double single quotes.

@@ -85,6 +85,13 @@ pub enum ServerEvent {
     #[serde(rename = "member_left_channel")]
     MemberLeftChannel { channel: String, user: String },
 
+    #[serde(rename = "user_joined_workspace")]
+    UserJoinedWorkspace {
+        user: String,
+        username: String,
+        display_name: String,
+    },
+
     #[serde(rename = "message_pinned")]
     MessagePinned {
         channel: String,

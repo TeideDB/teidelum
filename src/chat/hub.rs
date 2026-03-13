@@ -120,6 +120,18 @@ impl Hub {
         }
     }
 
+    /// Broadcast an event to ALL connected users.
+    pub async fn broadcast_to_all(&self, event: &ServerEvent) {
+        let json = match serde_json::to_string(event) {
+            Ok(j) => Arc::new(j),
+            Err(_) => return,
+        };
+        let conns = self.connections.read().await;
+        for sender in conns.values() {
+            let _ = sender.tx.send(json.clone());
+        }
+    }
+
     /// Send an event to a specific user.
     pub async fn send_to_user(&self, user_id: i64, event: &ServerEvent) {
         let json = match serde_json::to_string(event) {

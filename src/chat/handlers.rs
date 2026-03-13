@@ -224,6 +224,16 @@ pub async fn auth_register(
         state.hub.add_channel_member(general_id, id).await;
     }
 
+    // Notify all connected clients about the new user
+    state
+        .hub
+        .broadcast_to_all(&crate::chat::events::ServerEvent::UserJoinedWorkspace {
+            user: id.to_string(),
+            username: req.username.clone(),
+            display_name: display_name.clone(),
+        })
+        .await;
+
     let secret = match std::env::var("TEIDE_CHAT_SECRET") {
         Ok(s) if !s.is_empty() => s,
         _ => return slack::err("server_misconfigured"),
