@@ -315,6 +315,29 @@ pub async fn auth_login(State(state): State<AppState>, Json(req): Json<LoginRequ
     }))
 }
 
+/// Issue a fresh JWT for an already-authenticated user.
+pub async fn auth_refresh(Extension(claims): Extension<Claims>) -> Response {
+    let secret = match std::env::var("TEIDE_CHAT_SECRET") {
+        Ok(s) if !s.is_empty() => s,
+        _ => return slack::err("server_misconfigured"),
+    };
+
+    let token = match auth::create_token(&secret, claims.user_id, &claims.username, claims.is_bot)
+    {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!("token refresh failed: {e}");
+            return slack::err("internal_error");
+        }
+    };
+
+    slack::ok(json!({
+        "user_id": claims.user_id.to_string(),
+        "username": claims.username,
+        "token": token,
+    }))
+}
+
 // ── Users ──
 
 pub async fn users_list(
@@ -3669,6 +3692,8 @@ pub fn chat_routes(state: AppState) -> Router {
             "/files.upload",
             axum::routing::post(crate::chat::files::files_upload),
         )
+        // Auth (authenticated)
+        .route("/auth.refresh", axum::routing::post(auth_refresh))
         .layer(middleware::from_fn(crate::chat::auth::jwt_middleware))
         .with_state(state.clone());
 

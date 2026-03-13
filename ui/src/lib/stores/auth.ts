@@ -37,6 +37,7 @@ export async function initAuth() {
 				const res = await api.usersInfo(state.userId);
 				if (res.ok && res.user) {
 					auth.update((s) => ({ ...s, user: res.user! }));
+					startTokenRefresh();
 				} else {
 					// Token invalid, clear
 					doLogout();
@@ -65,6 +66,7 @@ export async function doLogin(username: string, password: string): Promise<strin
 				user: userRes.ok ? userRes.user! : null,
 				loading: false
 			});
+			startTokenRefresh();
 			requestPermission();
 			return null;
 		}
@@ -79,11 +81,12 @@ export async function doLogin(username: string, password: string): Promise<strin
 export async function doRegister(
 	username: string,
 	password: string,
-	email: string
+	email: string,
+	displayName?: string
 ): Promise<string | null> {
 	auth.update((s) => ({ ...s, loading: true }));
 	try {
-		const res = await api.register(username, password, email);
+		const res = await api.register(username, password, email, displayName);
 		if (res.ok && res.token && res.user_id) {
 			localStorage.setItem('teide_token', res.token);
 			localStorage.setItem('teide_user_id', res.user_id);
@@ -97,6 +100,8 @@ export async function doRegister(
 				user: userRes.ok ? userRes.user! : null,
 				loading: false
 			});
+			startTokenRefresh();
+			requestPermission();
 			return null;
 		}
 		auth.update((s) => ({ ...s, loading: false }));
@@ -118,6 +123,7 @@ export async function refreshCurrentUser() {
 }
 
 export function doLogout() {
+	stopTokenRefresh();
 	localStorage.removeItem('teide_token');
 	localStorage.removeItem('teide_user_id');
 	api.setToken(null);
@@ -127,4 +133,41 @@ export function doLogout() {
 	resetMessages();
 	resetUsers();
 	resetUnreads();
+}
+
+// ── Token auto-refresh ──
+// JWT expires after 24h. We refresh every 12h so the session stays alive
+// as long as the user keeps the app open.
+const REFRESH_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+function startTokenRefresh() {
+	stopTokenRefresh();
+	refreshTimer = setInterval(doTokenRefresh, REFRESH_INTERVAL);
+}
+
+function stopTokenRefresh() {
+	if (refreshTimer) {
+		clearInterval(refreshTimer);
+		refreshTimer = null;
+	}
+}
+
+async function doTokenRefresh() {
+	try {
+		const res = await api.refreshToken();
+		if (res.ok && res.token) {
+			localStorage.setItem('teide_token', res.token);
+			api.setToken(res.token);
+			auth.update((s) => ({ ...s, token: res.token! }));
+			// Reconnect WS with new token
+			ws.disconnect();
+			ws.connect(res.token);
+		} else {
+			// Token is invalid/expired, log out
+			doLogout();
+		}
+	} catch {
+		// Network error — don't log out, just retry next interval
+	}
 }

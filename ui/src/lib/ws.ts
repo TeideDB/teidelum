@@ -11,9 +11,31 @@ const listeners = new Map<WsEventType | '*', Set<EventCallback>>();
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let reconnectDelay = 1000;
-const MAX_RECONNECT_DELAY = 30000;
+const MAX_RECONNECT_DELAY = 5000;
 let currentToken: string | null = null;
 let intentionalClose = false;
+let onReconnectCallback: (() => void) | null = null;
+
+/** Register a callback that fires once after a successful reconnect (not initial connect). */
+export function onReconnect(cb: () => void) {
+	onReconnectCallback = cb;
+}
+
+// When the tab becomes visible again, try to reconnect immediately instead
+// of waiting for the current backoff timer to fire.
+if (typeof document !== 'undefined') {
+	document.addEventListener('visibilitychange', () => {
+		if (document.visibilityState === 'visible' && currentToken && !ws) {
+			// Reset delay and reconnect now
+			reconnectDelay = 1000;
+			if (reconnectTimer) {
+				clearTimeout(reconnectTimer);
+				reconnectTimer = null;
+			}
+			doConnect();
+		}
+	});
+}
 
 export function connect(token: string) {
 	currentToken = token;
@@ -56,9 +78,15 @@ function doConnect() {
 
 	ws = new WebSocket(url);
 
+	const wasReconnecting = reconnectDelay > 1000 || reconnectTimer !== null;
+
 	ws.onopen = () => {
+		const isReconnect = wasReconnecting;
 		reconnectDelay = 1000;
 		connectionState.set('connected');
+		if (isReconnect && onReconnectCallback) {
+			onReconnectCallback();
+		}
 	};
 
 	ws.onmessage = (event) => {

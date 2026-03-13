@@ -15,6 +15,7 @@
 	import { unreads } from '$lib/stores/unreads';
 	import { usersSetPresence } from '$lib/api';
 	import { auth } from '$lib/stores/auth';
+	import { onReconnect } from '$lib/ws';
 	import { get } from 'svelte/store';
 	import type { Id } from '$lib/types';
 
@@ -72,6 +73,13 @@
 			initUnreadsWsListeners()
 		];
 
+		// Re-fetch all data after a reconnect so the UI is fresh
+		onReconnect(() => {
+			Promise.all([loadChannels(), loadUsers()]).catch((e) => {
+				console.error('Failed to reload data after reconnect:', e);
+			});
+		});
+
 		window.addEventListener('mousemove', resetIdle);
 		window.addEventListener('keydown', resetIdle);
 		resetIdle();
@@ -127,7 +135,7 @@
 
 <div class="flex h-screen overflow-hidden bg-navy">
 	<!-- Left vertical icon bar (Zulip-style) -->
-	<div class="hidden md:flex w-12 flex-shrink-0 flex-col items-center border-r border-primary-dark/40 bg-navy-dark py-3 gap-1">
+	<div class="hidden md:flex w-12 flex-shrink-0 flex-col items-center border-r border-primary-dark/40 bg-navy-light py-3 gap-1">
 		<!-- Logo -->
 		<div class="mb-3 flex h-8 w-8 items-center justify-center">
 			<img src="/teide-logo.svg" alt="Teidelum" class="h-6 w-6" />
@@ -196,7 +204,7 @@
 
 	<!-- Sidebar -->
 	<div
-		class="fixed inset-y-0 left-0 z-40 flex w-64 flex-shrink-0 flex-col border-r border-primary-dark/40 bg-navy-light transition-transform duration-200 md:relative md:translate-x-0 {sidebarOpen ? 'translate-x-0' : '-translate-x-full'}"
+		class="fixed inset-y-0 left-0 z-40 flex w-64 flex-shrink-0 flex-col border-r border-primary-dark/40 bg-navy-dark transition-transform duration-200 md:relative md:translate-x-0 {sidebarOpen ? 'translate-x-0' : '-translate-x-full'}"
 	>
 		<Sidebar />
 	</div>

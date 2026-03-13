@@ -52,6 +52,12 @@ function getBaseUrl(): string {
 	return '';
 }
 
+/** Callback invoked when an API call returns 401 (token expired/invalid). */
+let onAuthExpired: (() => void) | null = null;
+export function setOnAuthExpired(cb: () => void) {
+	onAuthExpired = cb;
+}
+
 async function call<T>(method: string, body: Record<string, unknown> = {}): Promise<T> {
 	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 	if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -62,6 +68,10 @@ async function call<T>(method: string, body: Record<string, unknown> = {}): Prom
 		body: JSON.stringify(body)
 	});
 
+	if (res.status === 401 && onAuthExpired) {
+		onAuthExpired();
+	}
+
 	if (!res.ok) {
 		throw new Error(`API ${method}: HTTP ${res.status}`);
 	}
@@ -71,12 +81,18 @@ async function call<T>(method: string, body: Record<string, unknown> = {}): Prom
 
 // === Auth ===
 
-export function register(username: string, password: string, email: string): Promise<AuthResponse> {
-	return call('auth.register', { username, password, email });
+export function register(username: string, password: string, email: string, display_name?: string): Promise<AuthResponse> {
+	const body: Record<string, string> = { username, password, email };
+	if (display_name) body.display_name = display_name;
+	return call('auth.register', body);
 }
 
 export function login(username: string, password: string): Promise<AuthResponse> {
 	return call('auth.login', { username, password });
+}
+
+export function refreshToken(): Promise<AuthResponse> {
+	return call('auth.refresh', {});
 }
 
 // === Conversations ===
