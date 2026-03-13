@@ -4,6 +4,7 @@ import { activeChannelId } from './channels';
 import { auth } from './auth';
 import { showNotification } from '$lib/notifications';
 import { users } from './users';
+import { conversationsMarkRead } from '$lib/api';
 import type { Id, WsEvent } from '$lib/types';
 
 /** Map of channelId -> unread count */
@@ -19,6 +20,13 @@ export function markRead(channelId: Id) {
 		newMap.delete(channelId);
 		return newMap;
 	});
+}
+
+export async function markAllRead() {
+	const current = get(unreads);
+	const channelIds = Array.from(current.keys());
+	await Promise.all(channelIds.map((id) => conversationsMarkRead(id)));
+	unreads.set(new Map());
 }
 
 export function incrementUnread(channelId: Id) {

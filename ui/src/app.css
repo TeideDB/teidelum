@@ -4,6 +4,7 @@
 :root,
 .dark {
 	--th-navy: #0e1b24;
+	--th-navy-dark: #0a1319;
 	--th-navy-light: #162a36;
 	--th-navy-mid: #1d3545;
 	--th-primary: #4b6777;
@@ -26,6 +27,7 @@
 /* Light theme */
 .light {
 	--th-navy: #ffffff;
+	--th-navy-dark: #e8edf2;
 	--th-navy-light: #f1f5f9;
 	--th-navy-mid: #e2e8f0;
 	--th-primary: #4b6777;
@@ -47,6 +49,7 @@
 
 @theme {
 	--color-navy: var(--th-navy);
+	--color-navy-dark: var(--th-navy-dark);
 	--color-navy-light: var(--th-navy-light);
 	--color-navy-mid: var(--th-navy-mid);
 	--color-primary: var(--th-primary);

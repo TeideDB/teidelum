@@ -10,9 +10,12 @@
 		channelsLoaded,
 		getDmDisplayName
 	} from '$lib/stores/channels';
-	import { unreads } from '$lib/stores/unreads';
+	import { unreads, markAllRead } from '$lib/stores/unreads';
 	import { auth, doLogout } from '$lib/stores/auth';
 	import { theme, toggleTheme } from '$lib/stores/theme';
+	import { userList, presence } from '$lib/stores/users';
+	import { openDm } from '$lib/stores/channels';
+	import { showSettings } from '$lib/stores/settings';
 	import { usersUpdateProfile, conversationsMute, conversationsUnmute } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import EmojiPicker from '$lib/components/EmojiPicker.svelte';
@@ -30,6 +33,9 @@
 	let showStatusEmojiPicker = $state(false);
 	let showDirectory = $state(false);
 	let contextMenu = $state<{ x: number; y: number; channel: Channel } | null>(null);
+	let channelsCollapsed = $state(localStorage.getItem('sidebar:channels:collapsed') === 'true');
+	let dmsCollapsed = $state(localStorage.getItem('sidebar:dms:collapsed') === 'true');
+	let showPeople = $state(localStorage.getItem('sidebar:people:collapsed') !== 'true');
 
 	// Map short names back to native emoji
 	const nameToEmoji: Record<string, string> = {
@@ -119,6 +125,21 @@
 		showStatusModal = false;
 	}
 
+	function toggleChannelsCollapsed() {
+		channelsCollapsed = !channelsCollapsed;
+		localStorage.setItem('sidebar:channels:collapsed', String(channelsCollapsed));
+	}
+
+	function toggleDmsCollapsed() {
+		dmsCollapsed = !dmsCollapsed;
+		localStorage.setItem('sidebar:dms:collapsed', String(dmsCollapsed));
+	}
+
+	function togglePeople() {
+		showPeople = !showPeople;
+		localStorage.setItem('sidebar:people:collapsed', String(!showPeople));
+	}
+
 	function navigateToChannel(channel: Channel) {
 		setActiveChannel(channel.id);
 		goto(`/${channel.id}`);
@@ -141,6 +162,13 @@
 			showCreateModal = false;
 			newChannelName = '';
 			newChannelTopic = '';
+			navigateToChannel(ch);
+		}
+	}
+
+	async function openDmWith(userId: string) {
+		const ch = await openDm([userId]);
+		if (ch) {
 			navigateToChannel(ch);
 		}
 	}
@@ -191,7 +219,7 @@
 			</button>
 
 			{#if showUserMenu}
-				<div class="absolute bottom-full left-2 right-2 mb-1 rounded-md bg-navy-light shadow-lg ring-1 ring-primary-dark/60 z-50">
+				<div class="absolute top-full left-2 right-2 mt-1 rounded-md bg-navy-light shadow-lg ring-1 ring-primary-dark/60 z-50">
 					<button
 						onclick={openStatusModal}
 						class="flex w-full items-center gap-2 px-3 py-3 md:py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading rounded-t-md"
@@ -208,7 +236,7 @@
 					<button
 						onclick={() => {
 							showUserMenu = false;
-							goto('/settings');
+							showSettings.set(true);
 						}}
 						class="flex w-full items-center px-3 py-3 md:py-2 text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading"
 					>
@@ -233,8 +261,24 @@
 		<!-- Channels section -->
 		<div class="px-2 pt-3">
 			<div class="flex items-center justify-between px-2 pb-1">
-				<span class="text-xs font-semibold uppercase tracking-wide text-primary-light/50">Channels</span>
+				<button onclick={toggleChannelsCollapsed} class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary-light/50 hover:text-primary-lighter">
+					<svg class="h-3 w-3 transition-transform {channelsCollapsed ? '-rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+					Channels
+				</button>
 				<div class="flex items-center gap-1">
+					{#if $unreads.size > 0}
+						<button
+							onclick={() => markAllRead()}
+							class="text-primary-light/50 hover:text-primary-lighter"
+							title="Mark all read"
+						>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+							</svg>
+						</button>
+					{/if}
 					<button
 						onclick={() => (showDirectory = true)}
 						class="text-primary-light/50 hover:text-primary-lighter"
@@ -256,7 +300,9 @@
 				</div>
 			</div>
 
-			{#if !$channelsLoaded}
+			{#if channelsCollapsed}
+				<!-- collapsed -->
+			{:else if !$channelsLoaded}
 				<Skeleton variant="channel" count={5} />
 			{:else if $nonDmChannels.length === 0}
 				<p class="px-3 py-2 text-xs text-primary-light/40">No channels yet</p>
@@ -301,10 +347,17 @@
 		<!-- DMs section -->
 		<div class="px-2 pt-4">
 			<div class="px-2 pb-1">
-				<span class="text-xs font-semibold uppercase tracking-wide text-primary-light/50">Direct Messages</span>
+				<button onclick={toggleDmsCollapsed} class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary-light/50 hover:text-primary-lighter">
+					<svg class="h-3 w-3 transition-transform {dmsCollapsed ? '-rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+					Direct Messages
+				</button>
 			</div>
 
-			{#if $channelsLoaded && $dmChannels.length === 0}
+			{#if dmsCollapsed}
+				<!-- collapsed -->
+			{:else if $channelsLoaded && $dmChannels.length === 0}
 				<p class="px-3 py-2 text-xs text-primary-light/40">No direct messages yet</p>
 			{:else}
 				{#each $dmChannels as channel (channel.id)}
@@ -322,6 +375,40 @@
 						{/if}
 					</button>
 				{/each}
+			{/if}
+		</div>
+
+		<!-- People section -->
+		<div class="px-2 pt-4">
+			<div class="px-2 pb-1">
+				<button onclick={togglePeople} class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary-light/50 hover:text-primary-lighter">
+					<svg class="h-3 w-3 transition-transform {showPeople ? '' : '-rotate-90'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+					People ({$userList.length})
+				</button>
+			</div>
+
+			{#if showPeople}
+				<div class="space-y-0.5">
+					{#each $userList.filter(u => u.id !== $auth.user?.id) as user (user.id)}
+						<button
+							onclick={() => openDmWith(user.id)}
+							class="flex w-full items-center gap-2 rounded px-2 py-2.5 md:py-1.5 text-left text-sm text-primary-lighter/80 hover:bg-primary-darker/60 hover:text-heading transition"
+						>
+							<div class="relative flex-shrink-0">
+								<Avatar url={user.avatar_url} name={user.display_name || user.username} size="sm" />
+								<span
+									class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-navy-light {$presence.get(user.id) === 'active' ? 'bg-green-400' : 'bg-gray-500'}"
+								></span>
+							</div>
+							<span class="truncate">{user.display_name || user.username}</span>
+							{#if user.status_emoji}
+								<span class="flex-shrink-0 text-xs">{user.status_emoji}</span>
+							{/if}
+						</button>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	</div>

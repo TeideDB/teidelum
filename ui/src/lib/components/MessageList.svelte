@@ -44,14 +44,16 @@
 	interface Props {
 		channelId: Id;
 		onOpenThread?: (msg: Message) => void;
+		onQuote?: (text: string) => void;
 		pinnedMessageIds?: Set<Id>;
 	}
 
-	let { channelId, onOpenThread, pinnedMessageIds = new Set() }: Props = $props();
+	let { channelId, onOpenThread, onQuote, pinnedMessageIds = new Set() }: Props = $props();
 
 	let scrollContainer: HTMLDivElement | undefined = $state();
 	let isAtBottom = $state(true);
 	let prevMessageCount = $state(0);
+	let newMessageCount = $state(0);
 
 	// Context menu state — track which message has menu open
 	let activeMenuMsgId: Id | null = $state(null);
@@ -98,15 +100,21 @@
 	$effect(() => {
 		// Load messages when channelId changes
 		channelId; // track
+		newMessageCount = 0;
 		loadMessages(channelId);
 	});
 
 	$effect(() => {
 		// Auto-scroll to bottom when new messages arrive (if already at bottom)
-		if (messages.length > prevMessageCount && isAtBottom) {
-			tick().then(() => {
-				scrollToBottom();
-			});
+		const added = messages.length - prevMessageCount;
+		if (added > 0) {
+			if (isAtBottom) {
+				tick().then(() => {
+					scrollToBottom();
+				});
+			} else {
+				newMessageCount += added;
+			}
 		}
 		prevMessageCount = messages.length;
 	});
@@ -117,11 +125,20 @@
 		}
 	}
 
+	function jumpToLatest() {
+		scrollToBottom();
+		newMessageCount = 0;
+	}
+
 	function handleScroll() {
 		if (!scrollContainer) return;
 
 		const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
 		isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+
+		if (isAtBottom) {
+			newMessageCount = 0;
+		}
 
 		// Load older messages when scrolled to top
 		if (scrollTop < 100 && hasMore && !loading) {
@@ -279,8 +296,9 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="relative flex-1 overflow-hidden">
 <div
-	class="flex-1 overflow-y-auto px-4 py-2"
+	class="h-full overflow-y-auto px-4 py-2"
 	bind:this={scrollContainer}
 	onscroll={handleScroll}
 	onclick={(e: MouseEvent) => {
@@ -475,6 +493,7 @@
 						{currentUserId}
 						isPinned={pinnedMessageIds.has(msg.id)}
 						onReply={() => onOpenThread?.(msg)}
+						onQuote={() => onQuote?.(msg.text)}
 						onReact={(emoji) => toggleReaction(msg, emoji)}
 						onEdit={() => startEdit(msg)}
 						onDelete={() => (deletingMessage = msg)}
@@ -494,6 +513,21 @@
 			</div>
 		{/each}
 	{/if}
+</div>
+
+{#if newMessageCount > 0 || !isAtBottom}
+	<button
+		onclick={jumpToLatest}
+		class="absolute bottom-4 left-1/2 z-30 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-lg transition-opacity hover:bg-primary-light"
+	>
+		{#if newMessageCount > 0}
+			{newMessageCount} new {newMessageCount === 1 ? 'message' : 'messages'}
+		{/if}
+		<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+		</svg>
+	</button>
+{/if}
 </div>
 
 <!-- Delete confirmation dialog -->

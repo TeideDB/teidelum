@@ -7,6 +7,7 @@
 		currentUserId: Id;
 		isPinned?: boolean;
 		onReply?: () => void;
+		onQuote?: () => void;
 		onReact: (emoji: string) => void;
 		onEdit?: () => void;
 		onDelete?: () => void;
@@ -20,6 +21,7 @@
 		currentUserId,
 		isPinned = false,
 		onReply,
+		onQuote,
 		onReact,
 		onEdit,
 		onDelete,
@@ -78,6 +80,19 @@
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+			</svg>
+		</button>
+	{/if}
+
+	<!-- Quote -->
+	{#if onQuote}
+		<button
+			onclick={onQuote}
+			class="rounded p-1 text-primary-light/50 hover:bg-navy-mid hover:text-primary-lighter"
+			title="Quote message"
+		>
+			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10H5a2 2 0 01-2-2V5a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2zm0 0v1a4 4 0 004 4h1M19 10h-3a2 2 0 01-2-2V5a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2zm0 0v1a4 4 0 01-4 4h-1" />
 			</svg>
 		</button>
 	{/if}

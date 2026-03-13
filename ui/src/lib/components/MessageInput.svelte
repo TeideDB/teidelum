@@ -21,6 +21,38 @@
 	let lastTypingSent = $state(0);
 	let showEmojiPicker = $state(false);
 
+	function draftKey(id: Id): string {
+		return `draft:${id}`;
+	}
+
+	// Save/load drafts when channelId changes
+	let prevChannelId: Id | undefined;
+	$effect(() => {
+		const currentId = channelId;
+		// Save draft for previous channel
+		if (prevChannelId !== undefined && prevChannelId !== currentId) {
+			const trimmed = text.trim();
+			if (trimmed) {
+				localStorage.setItem(draftKey(prevChannelId), text);
+			} else {
+				localStorage.removeItem(draftKey(prevChannelId));
+			}
+		}
+		// Load draft for new channel
+		text = localStorage.getItem(draftKey(currentId)) || '';
+		if (textarea) {
+			textarea.style.height = 'auto';
+			if (text) {
+				requestAnimationFrame(() => {
+					if (textarea) {
+						textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+					}
+				});
+			}
+		}
+		prevChannelId = currentId;
+	});
+
 	// Autocomplete state
 	let autocompleteVisible = $state(false);
 	let autocompleteItems = $state<Array<{ id: string; label: string; secondary?: string; avatar?: string }>>([]);
@@ -184,11 +216,26 @@
 		}
 	}
 
+	export function insertText(insert: string) {
+		text = insert + text;
+		requestAnimationFrame(() => {
+			if (textarea) {
+				textarea.style.height = 'auto';
+				textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+				textarea.focus();
+				const pos = insert.length;
+				textarea.selectionStart = pos;
+				textarea.selectionEnd = pos;
+			}
+		});
+	}
+
 	async function handleSend() {
 		const trimmed = text.trim();
 		if (!trimmed) return;
 
 		text = '';
+		localStorage.removeItem(draftKey(channelId));
 		closeAutocomplete();
 		if (textarea) {
 			textarea.style.height = 'auto';

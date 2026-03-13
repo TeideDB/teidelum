@@ -2875,8 +2875,8 @@ pub async fn search_messages(
             let meta = msg_meta_map.get(&r.id);
             json!({
                 "ts": r.id,
-                "channel": meta.map(|m| m.channel_id).unwrap_or(0),
-                "user": meta.map(|m| m.user_id).unwrap_or(0),
+                "channel": meta.map(|m| m.channel_id.to_string()).unwrap_or_default(),
+                "user": meta.map(|m| m.user_id.to_string()).unwrap_or_default(),
                 "created_at": meta.map(|m| m.created_at.as_str()).unwrap_or(""),
                 "text": r.snippet,
                 "score": r.score,

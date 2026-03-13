@@ -21,6 +21,7 @@
 	let pinnedMessages = $state<Message[]>([]);
 	let showPinnedDropdown = $state(false);
 	let messageListRef: MessageList | undefined = $state();
+	let messageInputRef: MessageInput | undefined = $state();
 
 	const pinnedMessageIds = $derived(new Set(pinnedMessages.map((m) => m.id)));
 
@@ -65,6 +66,11 @@
 
 	function closeThread() {
 		threadMessage = null;
+	}
+
+	function handleQuote(text: string) {
+		const quoted = text.split('\n').map((line) => `> ${line}`).join('\n') + '\n\n';
+		messageInputRef?.insertText(quoted);
 	}
 
 	function toggleChannelInfo() {
@@ -236,7 +242,7 @@
 		{/if}
 
 		<!-- Messages -->
-		<MessageList bind:this={messageListRef} {channelId} onOpenThread={openThread} {pinnedMessageIds} />
+		<MessageList bind:this={messageListRef} {channelId} onOpenThread={openThread} onQuote={handleQuote} {pinnedMessageIds} />
 
 		<!-- Typing indicator -->
 		<TypingIndicator {channelId} />
@@ -244,6 +250,7 @@
 		<!-- Input -->
 		{#if !isArchived}
 			<MessageInput
+				bind:this={messageInputRef}
 				{channelId}
 				placeholder={$activeChannel ? ($activeChannel.kind === 'dm' ? `Message ${channelDisplayName}` : `Message #${$activeChannel.name}`) : 'Type a message...'}
 				onEditLast={() => messageListRef?.editLastOwnMessage()}
