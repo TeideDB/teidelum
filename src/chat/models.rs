@@ -243,7 +243,50 @@ pub fn init_chat_tables(api: &TeidelumApi, data_dir: Option<&Path>) -> Result<()
 
     api.register_relationships(chat_relationships())?;
 
+    // Ensure #general channel exists
+    if ensure_general_channel(router) {
+        // Persist the new channel if data_dir is set
+        if let Some(data_dir) = data_dir {
+            let chat_dir = data_dir.join("chat");
+            let _ = router.save_table("channels", &chat_dir.join("channels"));
+            let sym_dir = data_dir.join("tables");
+            let _ = std::fs::create_dir_all(&sym_dir);
+            let _ = router.save_sym(&sym_dir.join("sym"));
+        }
+    }
+
     Ok(())
+}
+
+/// Well-known channel ID for #general.
+pub const GENERAL_CHANNEL_ID: i64 = 1;
+
+/// Create the #general channel if it doesn't already exist. Returns true if created.
+fn ensure_general_channel(router: &crate::router::QueryRouter) -> bool {
+    let check = format!(
+        "SELECT id FROM channels WHERE id = {}",
+        GENERAL_CHANNEL_ID
+    );
+    match router.query_sync(&check) {
+        Ok(r) if !r.rows.is_empty() => return false, // already exists
+        _ => {}
+    }
+    let now = now_timestamp();
+    let sql = format!(
+        "INSERT INTO channels (id, name, kind, topic, description, archived_at, created_by, created_at) \
+         VALUES ({}, 'general', 'public', 'General discussion', '', '', 0, '{now}')",
+        GENERAL_CHANNEL_ID
+    );
+    match router.query_sync(&sql) {
+        Ok(_) => {
+            tracing::info!("created #general channel");
+            true
+        }
+        Err(e) => {
+            tracing::warn!("failed to create #general: {e}");
+            false
+        }
+    }
 }
 
 /// Escape a string value for SQL: strip null bytes and double single quotes.

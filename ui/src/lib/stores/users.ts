@@ -30,6 +30,12 @@ export function getUser(userId: Id): User | undefined {
 	return get(users).get(userId);
 }
 
+/** Ensure a user is in the store; if not, refresh the user list. */
+export async function ensureUser(userId: Id): Promise<void> {
+	if (get(users).has(userId)) return;
+	await loadUsers();
+}
+
 export function getUserPresence(userId: Id): string {
 	return get(presence).get(userId) ?? 'away';
 }

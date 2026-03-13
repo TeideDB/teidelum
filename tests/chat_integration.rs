@@ -164,13 +164,13 @@ async fn test_chat_flow() {
     assert_eq!(body["ok"], true);
     assert!(body["token"].is_string());
 
-    // 3. Create channel
+    // 3. Create channel (use "test-chat" since "general" is auto-created by init_chat_tables)
     let resp = app
         .clone()
         .oneshot(post_json(
             "/api/slack/conversations.create",
             json!({
-                "name": "general"
+                "name": "test-chat"
             }),
             Some(&token),
         ))
@@ -1671,8 +1671,8 @@ async fn test_conversations_autocomplete() {
 
     let token = register_and_login(&app, "alice", "pass1234", "alice@example.com").await;
 
-    // Create 3 channels
-    for name in &["general", "general-dev", "random"] {
+    // Create 2 channels ("general" already exists from init_chat_tables)
+    for name in &["general-dev", "random"] {
         let resp = app
             .clone()
             .oneshot(post_json(
@@ -1686,7 +1686,7 @@ async fn test_conversations_autocomplete() {
         assert_eq!(body["ok"], true, "creating channel '{name}' should succeed");
     }
 
-    // Autocomplete "gen" — should return 2
+    // Autocomplete "gen" — should return 2 (auto-created "general" + "general-dev")
     let resp = app
         .clone()
         .oneshot(post_json(

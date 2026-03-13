@@ -6,7 +6,7 @@
 	import TypingIndicator from '$lib/components/TypingIndicator.svelte';
 	import ThreadPanel from '$lib/components/ThreadPanel.svelte';
 	import ChannelInfoPanel from '$lib/components/ChannelInfoPanel.svelte';
-	import { setActiveChannel, activeChannel } from '$lib/stores/channels';
+	import { setActiveChannel, activeChannel, getDmDisplayName } from '$lib/stores/channels';
 	import { markRead } from '$lib/stores/unreads';
 	import { pinsList, pinsRemove, filesUpload } from '$lib/api';
 	import { renderMarkdown } from '$lib/markdown';
@@ -90,6 +90,13 @@
 	}
 
 	const isArchived = $derived(!!$activeChannel?.archived_at);
+	const channelDisplayName = $derived(
+		$activeChannel
+			? $activeChannel.kind === 'dm'
+				? getDmDisplayName($activeChannel)
+				: $activeChannel.name
+			: ''
+	);
 
 	// Drag-and-drop file upload
 	let dragOver = $state(false);
@@ -132,7 +139,7 @@
 </script>
 
 <svelte:head>
-	<title>{$activeChannel ? `#${$activeChannel.name}` : 'Teidelum'} - Teidelum</title>
+	<title>{$activeChannel ? ($activeChannel.kind === 'dm' ? channelDisplayName : `#${$activeChannel.name}`) : 'Teidelum'} - Teidelum</title>
 </svelte:head>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -156,7 +163,7 @@
 				<h2 class="text-lg font-bold text-heading">
 					{#if $activeChannel}
 						{#if $activeChannel.kind === 'dm'}
-							{$activeChannel.name}
+							{channelDisplayName}
 						{:else}
 							<span class="text-primary-light/40">#</span> {$activeChannel.name}
 						{/if}
@@ -238,7 +245,7 @@
 		{#if !isArchived}
 			<MessageInput
 				{channelId}
-				placeholder={$activeChannel ? `Message #${$activeChannel.name}` : 'Type a message...'}
+				placeholder={$activeChannel ? ($activeChannel.kind === 'dm' ? `Message ${channelDisplayName}` : `Message #${$activeChannel.name}`) : 'Type a message...'}
 				onEditLast={() => messageListRef?.editLastOwnMessage()}
 			/>
 		{/if}

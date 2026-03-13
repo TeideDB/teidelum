@@ -1,6 +1,7 @@
 import { writable, get } from 'svelte/store';
 import * as api from '$lib/api';
 import * as ws from '$lib/ws';
+import { ensureUser } from '$lib/stores/users';
 import type { Message, Id, WsEvent } from '$lib/types';
 
 interface ChannelMessages {
@@ -158,6 +159,8 @@ export function initMessageWsListeners(): () => void {
 				files?: Array<{ id: string; filename: string; mime_type: string; size_bytes: number }>;
 			};
 			if (data.channel) {
+				// Ensure the sender is in the user store (they may have registered after we loaded)
+				ensureUser(data.user);
 				const message: Message = {
 					id: data.ts,
 					channel_id: data.channel,

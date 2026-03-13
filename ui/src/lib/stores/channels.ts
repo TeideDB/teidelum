@@ -3,6 +3,8 @@ import * as api from '$lib/api';
 import * as ws from '$lib/ws';
 import type { Channel, Id, WsEvent } from '$lib/types';
 import { unreads } from './unreads';
+import { getUser } from './users';
+import { auth } from './auth';
 
 export const channels = writable<Channel[]>([]);
 export const channelsLoaded = writable(false);
@@ -86,6 +88,17 @@ export async function openDm(userIds: Id[]): Promise<Channel | null> {
 
 export function setActiveChannel(channelId: Id) {
 	activeChannelId.set(channelId);
+}
+
+/** Resolve a DM channel name like "dm-123-456" to the other user's display name. */
+export function getDmDisplayName(channel: Channel): string {
+	if (channel.kind !== 'dm') return channel.name;
+	const match = channel.name.match(/^dm-(\d+)-(\d+)$/);
+	if (!match) return channel.name;
+	const myId = get(auth).userId;
+	const otherId = match[1] === myId ? match[2] : match[1];
+	const other = getUser(otherId);
+	return other?.display_name || other?.username || 'Direct Message';
 }
 
 // WebSocket: update channel list when membership changes

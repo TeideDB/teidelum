@@ -3,7 +3,7 @@
 	import * as api from '$lib/api';
 	import { users } from '$lib/stores/users';
 	import { auth } from '$lib/stores/auth';
-	import { loadChannels } from '$lib/stores/channels';
+	import { loadChannels, getDmDisplayName } from '$lib/stores/channels';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import UserProfilePopover from '$lib/components/UserProfilePopover.svelte';
 	import type { Channel, ChannelMember, Id } from '$lib/types';
@@ -210,7 +210,7 @@
 				<div class="flex items-center gap-2">
 					<h4 class="text-lg font-bold text-heading">
 						{#if channel.kind === 'dm'}
-							{channel.name}
+							{getDmDisplayName(channel)}
 						{:else}
 							<span class="text-primary-light/40">#</span> {channel.name}
 						{/if}

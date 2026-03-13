@@ -211,6 +211,19 @@ pub async fn auth_register(
     }
     state.persist_tables(&["users"]);
 
+    // Auto-join #general channel
+    let general_id = crate::chat::models::GENERAL_CHANNEL_ID;
+    let join_sql = format!(
+        "INSERT INTO channel_members (channel_id, user_id, role, joined_at) \
+         VALUES ({general_id}, {id}, 'member', '{now}')"
+    );
+    if let Err(e) = state.api.query_router().query_sync(&join_sql) {
+        tracing::warn!("auto-join #general failed: {e}");
+    } else {
+        state.persist_tables(&["channel_members"]);
+        state.hub.add_channel_member(general_id, id).await;
+    }
+
     let secret = match std::env::var("TEIDE_CHAT_SECRET") {
         Ok(s) if !s.is_empty() => s,
         _ => return slack::err("server_misconfigured"),

@@ -7,7 +7,8 @@
 		setActiveChannel,
 		createChannel,
 		loadChannels,
-		channelsLoaded
+		channelsLoaded,
+		getDmDisplayName
 	} from '$lib/stores/channels';
 	import { unreads } from '$lib/stores/unreads';
 	import { auth, doLogout } from '$lib/stores/auth';
@@ -131,9 +132,7 @@
 		return $activeChannelId === channelId;
 	}
 
-	function getDmDisplayName(channel: Channel): string {
-		return channel.name || 'Direct Message';
-	}
+	// getDmDisplayName imported from channels store
 
 	async function handleCreateChannel() {
 		if (!newChannelName.trim()) return;
