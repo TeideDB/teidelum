@@ -118,16 +118,65 @@ impl SearchEngine {
         Ok(count)
     }
 
-    /// Run a full-text search query.
+    /// Run a full-text search query with prefix matching on the last term.
     pub fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
 
-        let query_parser = QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
-        let parsed = query_parser.parse_query(&query.text)?;
+        let mut query_parser =
+            QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
+        query_parser.set_conjunction_by_default();
+
+        // Build a query that does prefix matching on the last word so partial
+        // input works (e.g. "hel" matches "hello").  Earlier words use exact
+        // term matching.  If there is only one word we still prefix-match it.
+        let raw = query.text.trim().to_lowercase();
+        let words: Vec<&str> = raw.split_whitespace().collect();
+
+        let parsed: Box<dyn tantivy::query::Query> = if words.is_empty() {
+            query_parser.parse_query(&query.text)?
+        } else {
+            use tantivy::query::{BooleanQuery, FuzzyTermQuery, Occur, PhrasePrefixQuery};
+            let mut clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+
+            // For each complete word (all except last), add a fuzzy term query
+            // across both title and body fields so minor typos still match.
+            for &word in &words[..words.len() - 1] {
+                let mut field_clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+                for field in [self.f_title, self.f_body] {
+                    let term = tantivy::Term::from_field_text(field, word);
+                    let fq = FuzzyTermQuery::new(term, 1, true);
+                    field_clauses.push((Occur::Should, Box::new(fq)));
+                }
+                clauses.push((Occur::Must, Box::new(BooleanQuery::new(field_clauses))));
+            }
+
+            // Last word gets prefix matching so results appear as the user types.
+            let last = words[words.len() - 1];
+            let mut prefix_clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for field in [self.f_title, self.f_body] {
+                let pq = PhrasePrefixQuery::new_with_offset(
+                    vec![(0, tantivy::Term::from_field_text(field, last))],
+                );
+                prefix_clauses.push((Occur::Should, Box::new(pq)));
+                // Also add fuzzy match for the last word in case it's a complete
+                // word with a typo.
+                let term = tantivy::Term::from_field_text(field, last);
+                let fq = FuzzyTermQuery::new(term, 1, true);
+                prefix_clauses.push((Occur::Should, Box::new(fq)));
+            }
+            clauses.push((Occur::Must, Box::new(BooleanQuery::new(prefix_clauses))));
+
+            Box::new(BooleanQuery::new(clauses))
+        };
 
         let top_docs = searcher.search(&parsed, &TopDocs::with_limit(query.limit))?;
 
-        let snippet_gen = SnippetGenerator::create(&searcher, &*parsed, self.f_body)?;
+        // Use a simple parsed query for snippet highlighting since
+        // SnippetGenerator doesn't highlight FuzzyTermQuery/PhrasePrefixQuery.
+        let snippet_parser =
+            QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
+        let snippet_query = snippet_parser.parse_query(&query.text)?;
+        let snippet_gen = SnippetGenerator::create(&searcher, &*snippet_query, self.f_body)?;
 
         let mut results = Vec::new();
         for (score, doc_addr) in top_docs {
@@ -541,6 +590,54 @@ mod tests {
             })
             .unwrap();
         assert!(!results.is_empty());
+        assert_eq!(results[0].id, "d1");
+    }
+
+    #[test]
+    fn test_search_prefix_matching() {
+        let tmp = tempfile::tempdir().unwrap();
+        let engine = SearchEngine::open(tmp.path()).unwrap();
+
+        let docs = vec![
+            (
+                "d1".to_string(),
+                "test".to_string(),
+                "Hello World".to_string(),
+                "authentication system for the application".to_string(),
+            ),
+            (
+                "d2".to_string(),
+                "test".to_string(),
+                "Other".to_string(),
+                "something unrelated entirely".to_string(),
+            ),
+        ];
+        engine.index_documents(&docs).unwrap();
+
+        // Partial prefix "auth" should match "authentication"
+        let results = engine
+            .search(&SearchQuery {
+                text: "auth".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert!(!results.is_empty(), "prefix 'auth' should match 'authentication'");
+        assert_eq!(results[0].id, "d1");
+
+        // Partial prefix "hel" should match title "Hello"
+        let results = engine
+            .search(&SearchQuery {
+                text: "hel".to_string(),
+                sources: None,
+                limit: 10,
+                date_from: None,
+                date_to: None,
+            })
+            .unwrap();
+        assert!(!results.is_empty(), "prefix 'hel' should match 'Hello'");
         assert_eq!(results[0].id, "d1");
     }
 }
