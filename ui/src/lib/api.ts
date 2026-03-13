@@ -70,6 +70,7 @@ async function call<T>(method: string, body: Record<string, unknown> = {}): Prom
 
 	if (res.status === 401 && onAuthExpired) {
 		onAuthExpired();
+		return { ok: false, error: 'not_authed' } as T;
 	}
 
 	if (!res.ok) {

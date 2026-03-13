@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { sendTyping } from '$lib/ws';
 	import { sendMessage } from '$lib/stores/messages';
 	import { usersSearch, conversationsAutocomplete } from '$lib/api';
@@ -28,29 +29,31 @@
 	// Save/load drafts when channelId changes
 	let prevChannelId: Id | undefined;
 	$effect(() => {
-		const currentId = channelId;
-		// Save draft for previous channel
-		if (prevChannelId !== undefined && prevChannelId !== currentId) {
-			const trimmed = text.trim();
-			if (trimmed) {
-				localStorage.setItem(draftKey(prevChannelId), text);
-			} else {
-				localStorage.removeItem(draftKey(prevChannelId));
+		const currentId = channelId; // only track channelId
+		untrack(() => {
+			// Save draft for previous channel
+			if (prevChannelId !== undefined && prevChannelId !== currentId) {
+				const trimmed = text.trim();
+				if (trimmed) {
+					localStorage.setItem(draftKey(prevChannelId), text);
+				} else {
+					localStorage.removeItem(draftKey(prevChannelId));
+				}
 			}
-		}
-		// Load draft for new channel
-		text = localStorage.getItem(draftKey(currentId)) || '';
-		if (textarea) {
-			textarea.style.height = 'auto';
-			if (text) {
-				requestAnimationFrame(() => {
-					if (textarea) {
-						textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-					}
-				});
+			// Load draft for new channel
+			text = localStorage.getItem(draftKey(currentId)) || '';
+			if (textarea) {
+				textarea.style.height = 'auto';
+				if (text) {
+					requestAnimationFrame(() => {
+						if (textarea) {
+							textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+						}
+					});
+				}
 			}
-		}
-		prevChannelId = currentId;
+			prevChannelId = currentId;
+		});
 	});
 
 	// Autocomplete state

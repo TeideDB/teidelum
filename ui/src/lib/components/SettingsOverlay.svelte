@@ -134,7 +134,8 @@
 
 			const res = await api.filesUpload(channelId, file);
 			if (res.ok && res.file) {
-				avatarUrl = api.fileDownloadUrl(res.file.id, res.file.filename);
+				// Store just the path — token is added at render time by avatarSrc()
+				avatarUrl = `/files/${res.file.id}/${encodeURIComponent(res.file.filename)}`;
 			} else {
 				throw new Error(res.error || 'Upload failed');
 			}

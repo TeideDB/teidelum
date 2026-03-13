@@ -12,7 +12,7 @@ use rmcp::transport::streamable_http_server::{
 };
 use tokio_util::sync::CancellationToken;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::{ServeDir, ServeFile};
+use tower_http::services::ServeDir;
 
 use crate::api::TeidelumApi;
 use crate::chat::handlers::{chat_routes, ChatState};
@@ -104,12 +104,29 @@ pub fn build_router(
                 ]),
         );
 
-    // Serve SvelteKit static build — fallback after API routes
+    // Serve SvelteKit static build — fallback after API routes.
+    // For SPA routing, unknown paths serve index.html with 200 so the
+    // client-side router handles them.
     let ui_dir = std::path::Path::new("ui/build");
     if ui_dir.exists() {
-        let serve_dir =
-            ServeDir::new(ui_dir).not_found_service(ServeFile::new(ui_dir.join("index.html")));
-        app = app.fallback_service(serve_dir);
+        let index_html: &'static str =
+            Box::leak(std::fs::read_to_string(ui_dir.join("index.html")).unwrap_or_default().into_boxed_str());
+        let serve_dir = ServeDir::new(ui_dir);
+        app = app
+            .fallback_service(serve_dir)
+            .layer(axum::middleware::from_fn(move |req: Request, next: Next| async move {
+                let resp = next.run(req).await;
+                if resp.status() == StatusCode::NOT_FOUND {
+                    (
+                        StatusCode::OK,
+                        [(axum::http::header::CONTENT_TYPE, "text/html")],
+                        index_html,
+                    )
+                        .into_response()
+                } else {
+                    resp
+                }
+            }));
     }
 
     app

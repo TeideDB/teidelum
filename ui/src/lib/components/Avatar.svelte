@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { fileDownloadUrl } from '$lib/api';
+
 	export let url: string = '';
 	export let name: string = '';
 	export let size: 'sm' | 'md' | 'lg' = 'md';
@@ -15,10 +17,21 @@
 		const hue = Math.abs(hash % 360);
 		return `hsl(${hue}, 60%, 45%)`;
 	}
+
+	/** For /files/ paths, append the current auth token so the request is authenticated. */
+	function resolvedUrl(raw: string): string {
+		if (!raw) return '';
+		// /files/{id}/{filename} — extract id and filename, use fileDownloadUrl for current token
+		const m = raw.match(/^\/files\/([^/]+)\/(.+?)(?:\?.*)?$/);
+		if (m) {
+			return fileDownloadUrl(m[1], decodeURIComponent(m[2]));
+		}
+		return raw;
+	}
 </script>
 
 {#if url}
-	<img src={url} alt={name} class="rounded-full object-cover {sizeClasses[size]}" />
+	<img src={resolvedUrl(url)} alt={name} class="rounded-full object-cover {sizeClasses[size]}" />
 {:else}
 	<div
 		class="rounded-full flex items-center justify-center font-semibold text-white {sizeClasses[size]}"

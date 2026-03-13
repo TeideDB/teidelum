@@ -272,9 +272,9 @@ pub async fn files_upload(
     slack::ok(json!({
         "file": {
             "id": file_id.to_string(),
-            "name": file_name,
+            "filename": file_name,
             "mime_type": mime_type,
-            "size": file_size,
+            "size_bytes": file_size,
         },
         "message": {
             "ts": msg_id.to_string(),

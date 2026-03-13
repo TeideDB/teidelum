@@ -1049,16 +1049,16 @@ pub async fn conversations_list(
 
             let last_read_ts = reads_map.get(&ch_id_str).cloned().unwrap_or_default();
 
-            // Count unread — still per-channel but unavoidable without GROUP BY support
+            // Count unread — exclude caller's own messages so you don't notify yourself
             let unread_sql = if last_read_ts.is_empty() {
                 format!(
-                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND thread_id = 0 AND deleted_at = ''",
-                    ch_id_str
+                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND thread_id = 0 AND deleted_at = '' AND user_id != {}",
+                    ch_id_str, claims.user_id
                 )
             } else {
                 format!(
-                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND thread_id = 0 AND created_at > '{}' AND deleted_at = ''",
-                    ch_id_str, escape_sql(&last_read_ts)
+                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND thread_id = 0 AND created_at > '{}' AND deleted_at = '' AND user_id != {}",
+                    ch_id_str, escape_sql(&last_read_ts), claims.user_id
                 )
             };
             let unread_count = state.api.query_router().query_sync(&unread_sql).ok()
