@@ -109,24 +109,29 @@ pub fn build_router(
     // client-side router handles them.
     let ui_dir = std::path::Path::new("ui/build");
     if ui_dir.exists() {
-        let index_html: &'static str =
-            Box::leak(std::fs::read_to_string(ui_dir.join("index.html")).unwrap_or_default().into_boxed_str());
+        let index_html: &'static str = Box::leak(
+            std::fs::read_to_string(ui_dir.join("index.html"))
+                .unwrap_or_default()
+                .into_boxed_str(),
+        );
         let serve_dir = ServeDir::new(ui_dir);
         app = app
             .fallback_service(serve_dir)
-            .layer(axum::middleware::from_fn(move |req: Request, next: Next| async move {
-                let resp = next.run(req).await;
-                if resp.status() == StatusCode::NOT_FOUND {
-                    (
-                        StatusCode::OK,
-                        [(axum::http::header::CONTENT_TYPE, "text/html")],
-                        index_html,
-                    )
-                        .into_response()
-                } else {
-                    resp
-                }
-            }));
+            .layer(axum::middleware::from_fn(
+                move |req: Request, next: Next| async move {
+                    let resp = next.run(req).await;
+                    if resp.status() == StatusCode::NOT_FOUND {
+                        (
+                            StatusCode::OK,
+                            [(axum::http::header::CONTENT_TYPE, "text/html")],
+                            index_html,
+                        )
+                            .into_response()
+                    } else {
+                        resp
+                    }
+                },
+            ));
     }
 
     app

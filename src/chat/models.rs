@@ -257,8 +257,7 @@ pub fn init_chat_tables(api: &TeidelumApi, data_dir: Option<&Path>) -> Result<()
                 let _ = router.save_table("channels", &chat_dir.join("channels"));
             }
             if backfilled {
-                let _ =
-                    router.save_table("channel_members", &chat_dir.join("channel_members"));
+                let _ = router.save_table("channel_members", &chat_dir.join("channel_members"));
             }
             let sym_dir = data_dir.join("tables");
             let _ = std::fs::create_dir_all(&sym_dir);
@@ -274,10 +273,7 @@ pub const GENERAL_CHANNEL_ID: i64 = 1;
 
 /// Create the #general channel if it doesn't already exist. Returns true if created.
 fn ensure_general_channel(router: &crate::router::QueryRouter) -> bool {
-    let check = format!(
-        "SELECT id FROM channels WHERE id = {}",
-        GENERAL_CHANNEL_ID
-    );
+    let check = format!("SELECT id FROM channels WHERE id = {}", GENERAL_CHANNEL_ID);
     match router.query_sync(&check) {
         Ok(r) if !r.rows.is_empty() => return false, // already exists
         _ => {}

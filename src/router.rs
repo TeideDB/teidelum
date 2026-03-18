@@ -458,7 +458,9 @@ mod tests {
             .query_sync("CREATE TABLE persons (id BIGINT, name VARCHAR)")
             .unwrap();
         router
-            .query_sync("INSERT INTO persons (id, name) VALUES (0, 'Alice'), (1, 'Bob'), (2, 'Carol')")
+            .query_sync(
+                "INSERT INTO persons (id, name) VALUES (0, 'Alice'), (1, 'Bob'), (2, 'Carol')",
+            )
             .unwrap();
         router
             .query_sync("CREATE TABLE knows (src BIGINT, dst BIGINT)")
@@ -487,7 +489,9 @@ mod tests {
             .query_sync("CREATE TABLE persons (id BIGINT, name VARCHAR)")
             .unwrap();
         router
-            .query_sync("INSERT INTO persons (id, name) VALUES (0, 'Alice'), (1, 'Bob'), (2, 'Carol')")
+            .query_sync(
+                "INSERT INTO persons (id, name) VALUES (0, 'Alice'), (1, 'Bob'), (2, 'Carol')",
+            )
             .unwrap();
         router
             .query_sync("CREATE TABLE knows (src BIGINT, dst BIGINT)")
@@ -544,7 +548,9 @@ mod tests {
             .query_sync("CREATE TABLE knows (src BIGINT, dst BIGINT)")
             .unwrap();
         router
-            .query_sync("INSERT INTO knows (src, dst) VALUES (0, 1), (0, 2), (1, 3), (2, 3), (3, 4)")
+            .query_sync(
+                "INSERT INTO knows (src, dst) VALUES (0, 1), (0, 2), (1, 3), (2, 3), (3, 4)",
+            )
             .unwrap();
         router
             .query_sync(

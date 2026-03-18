@@ -332,8 +332,7 @@ pub async fn auth_refresh(Extension(claims): Extension<Claims>) -> Response {
         _ => return slack::err("server_misconfigured"),
     };
 
-    let token = match auth::create_token(&secret, claims.user_id, &claims.username, claims.is_bot)
-    {
+    let token = match auth::create_token(&secret, claims.user_id, &claims.username, claims.is_bot) {
         Ok(t) => t,
         Err(e) => {
             tracing::error!("token refresh failed: {e}");

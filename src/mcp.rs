@@ -345,7 +345,9 @@ impl Teidelum {
         Ok(CallToolResult::success(vec![Content::text(json)]))
     }
 
-    #[tool(description = "Run SQL queries over structured data, including PGQ graph pattern matching (GRAPH_TABLE MATCH, PAGERANK, COMMUNITY, COMPONENT)")]
+    #[tool(
+        description = "Run SQL queries over structured data, including PGQ graph pattern matching (GRAPH_TABLE MATCH, PAGERANK, COMMUNITY, COMPONENT)"
+    )]
     async fn sql(
         &self,
         Parameters(params): Parameters<SqlParams>,

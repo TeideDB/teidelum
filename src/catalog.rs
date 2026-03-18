@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
@@ -71,6 +73,77 @@ impl Catalog {
         self.tables.push(entry);
     }
 
+    /// Validate a batch of relationships against the current catalog state
+    /// without mutating anything. Checks identifier validity and graph-name
+    /// collisions both against existing relationships and within the batch.
+    pub fn validate_relationships(&self, rels: &[Relationship]) -> Result<()> {
+        for (i, rel) in rels.iter().enumerate() {
+            for (label, val) in [
+                ("from_table", &rel.from_table),
+                ("from_col", &rel.from_col),
+                ("to_table", &rel.to_table),
+                ("to_col", &rel.to_col),
+                ("relation", &rel.relation),
+            ] {
+                if !is_valid_identifier(val) {
+                    bail!("invalid identifier in relationship {label}: '{val}'");
+                }
+            }
+
+            // Check if this exact relationship already exists (would be a no-op skip)
+            let is_exact_dup = self.relationships.iter().any(|r| {
+                r.from_table == rel.from_table
+                    && r.from_col == rel.from_col
+                    && r.to_table == rel.to_table
+                    && r.to_col == rel.to_col
+                    && r.relation == rel.relation
+            });
+            if is_exact_dup {
+                continue;
+            }
+
+            // Check graph-name collision against existing catalog relationships
+            let name_collision = self.relationships.iter().any(|r| {
+                r.from_table == rel.from_table
+                    && r.to_table == rel.to_table
+                    && r.relation == rel.relation
+            });
+            if name_collision {
+                bail!(
+                    "relationship '{}' between {}.{} -> {}.{} conflicts with an existing \
+                     relationship using the same (from_table, to_table, relation) triple \
+                     but different columns",
+                    rel.relation,
+                    rel.from_table,
+                    rel.from_col,
+                    rel.to_table,
+                    rel.to_col,
+                );
+            }
+
+            // Check graph-name collision within the batch itself
+            for earlier in &rels[..i] {
+                let same_graph_name = earlier.from_table == rel.from_table
+                    && earlier.to_table == rel.to_table
+                    && earlier.relation == rel.relation;
+                let same_cols = earlier.from_col == rel.from_col && earlier.to_col == rel.to_col;
+                if same_graph_name && !same_cols {
+                    bail!(
+                        "relationship '{}' between {}.{} -> {}.{} conflicts with another \
+                         relationship in the same batch using the same (from_table, to_table, \
+                         relation) triple but different columns",
+                        rel.relation,
+                        rel.from_table,
+                        rel.from_col,
+                        rel.to_table,
+                        rel.to_col,
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn register_relationship(&mut self, rel: Relationship) -> Result<()> {
         for (label, val) in [
             ("from_table", &rel.from_table),
@@ -92,6 +165,26 @@ impl Catalog {
                 && r.relation == rel.relation
         });
         if !exists {
+            // Reject relationships that would collide on property graph name
+            // (same from_table, to_table, relation) but differ on columns,
+            // since graph names are derived from those three fields only.
+            let name_collision = self.relationships.iter().any(|r| {
+                r.from_table == rel.from_table
+                    && r.to_table == rel.to_table
+                    && r.relation == rel.relation
+            });
+            if name_collision {
+                bail!(
+                    "relationship '{}' between {}.{} -> {}.{} conflicts with an existing \
+                     relationship using the same (from_table, to_table, relation) triple \
+                     but different columns",
+                    rel.relation,
+                    rel.from_table,
+                    rel.from_col,
+                    rel.to_table,
+                    rel.to_col,
+                );
+            }
             self.relationships.push(rel);
         }
         Ok(())
@@ -107,6 +200,17 @@ impl Catalog {
         self.relationships
             .retain(|r| r.from_table != name && r.to_table != name);
         true
+    }
+
+    /// Remove a specific relationship from the catalog.
+    pub fn remove_relationship(&mut self, rel: &Relationship) {
+        self.relationships.retain(|r| {
+            !(r.from_table == rel.from_table
+                && r.from_col == rel.from_col
+                && r.to_table == rel.to_table
+                && r.to_col == rel.to_col
+                && r.relation == rel.relation)
+        });
     }
 
     pub fn lookup_table(&self, name: &str) -> Option<&TableEntry> {
@@ -127,7 +231,16 @@ impl Catalog {
     }
 
     /// Produce a JSON description of the catalog for the `describe` MCP tool.
-    pub fn describe(&self, source_filter: Option<&str>) -> Result<serde_json::Value> {
+    ///
+    /// When `created_graphs` is provided, only graphs whose names appear in the
+    /// set are advertised. This prevents reporting graphs whose DDL creation
+    /// failed. Pass `None` to advertise all graphs that pass the locality check
+    /// (used by catalog-only tests that don't execute DDL).
+    pub fn describe(
+        &self,
+        source_filter: Option<&str>,
+        created_graphs: Option<&HashSet<String>>,
+    ) -> Result<serde_json::Value> {
         let tables: Vec<_> = match source_filter {
             Some(src) => self.tables_by_source(src),
             None => self.tables.iter().collect(),
@@ -146,16 +259,43 @@ impl Catalog {
             None => self.relationships.iter().collect(),
         };
 
-        let property_graphs: Vec<serde_json::Value> = rels
+        // Only advertise property graphs for relationships where both
+        // tables are locally stored — remote/catalog-only tables cannot
+        // participate in SQL property graphs.  Check locality against all
+        // tables (not the source-filtered list) so cross-source local
+        // relationships are correctly reported.
+        // Collect relationship-based graphs with full metadata.
+        let mut rel_graph_names = std::collections::HashSet::new();
+        let mut property_graphs: Vec<serde_json::Value> = rels
             .iter()
+            .filter(|r| {
+                let graph_name = format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation);
+                // If we have a created_graphs set, only include graphs that
+                // were actually created. Otherwise fall back to the locality
+                // heuristic (for catalog-only tests without DDL execution).
+                if let Some(created) = created_graphs {
+                    return created.contains(&graph_name);
+                }
+                let from_local = self
+                    .tables
+                    .iter()
+                    .any(|t| t.name == r.from_table && t.storage == StorageType::Local);
+                let to_local = self
+                    .tables
+                    .iter()
+                    .any(|t| t.name == r.to_table && t.storage == StorageType::Local);
+                from_local && to_local
+            })
             .map(|r| {
+                let graph_name = format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation);
+                rel_graph_names.insert(graph_name.clone());
                 let vertex_tables: Vec<&str> = if r.from_table == r.to_table {
                     vec![&r.from_table]
                 } else {
                     vec![&r.from_table, &r.to_table]
                 };
                 serde_json::json!({
-                    "name": format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation),
+                    "name": graph_name,
                     "vertex_tables": vertex_tables,
                     "edge_table": r.from_table,
                     "edge_label": r.relation,
@@ -164,6 +304,23 @@ impl Catalog {
                 })
             })
             .collect();
+
+        // Include custom graphs (created via direct DDL, not from catalog
+        // relationships) so they are discoverable through describe().
+        // Skip when a source filter is active — custom graphs have no source
+        // metadata, so including them unconditionally would leak unrelated graphs.
+        if source_filter.is_none() {
+            if let Some(created) = created_graphs {
+                for name in created {
+                    if !rel_graph_names.contains(name) {
+                        property_graphs.push(serde_json::json!({
+                            "name": name,
+                            "custom": true,
+                        }));
+                    }
+                }
+            }
+        }
 
         Ok(serde_json::json!({
             "tables": tables,
@@ -332,7 +489,7 @@ mod tests {
             row_count: None,
         });
 
-        let desc = catalog.describe(None).unwrap();
+        let desc = catalog.describe(None, None).unwrap();
         assert!(desc["tables"].is_array());
         assert!(desc["relationships"].is_array());
         assert_eq!(desc["tables"].as_array().unwrap().len(), 1);
@@ -358,7 +515,7 @@ mod tests {
             row_count: Some(42),
         });
 
-        let desc = catalog.describe(None).unwrap();
+        let desc = catalog.describe(None, None).unwrap();
         let table = &desc["tables"][0];
         let cols = table["columns"].as_array().unwrap();
         assert_eq!(cols.len(), 2);
@@ -395,7 +552,7 @@ mod tests {
             .unwrap();
 
         // Filter by "zulip" — should see tasks table and its relationship
-        let desc = catalog.describe(Some("zulip")).unwrap();
+        let desc = catalog.describe(Some("zulip"), None).unwrap();
         let tables = desc["tables"].as_array().unwrap();
         assert_eq!(tables.len(), 1);
         assert_eq!(tables[0]["name"], "tasks");
@@ -403,7 +560,7 @@ mod tests {
         assert_eq!(rels.len(), 1);
 
         // Filter by nonexistent — no tables, no rels
-        let desc2 = catalog.describe(Some("ghost")).unwrap();
+        let desc2 = catalog.describe(Some("ghost"), None).unwrap();
         assert!(desc2["tables"].as_array().unwrap().is_empty());
         assert!(desc2["relationships"].as_array().unwrap().is_empty());
     }
@@ -570,7 +727,7 @@ mod tests {
             })
             .unwrap();
 
-        let desc = catalog.describe(None).unwrap();
+        let desc = catalog.describe(None, None).unwrap();
         let graphs = desc["property_graphs"].as_array().unwrap();
         assert_eq!(graphs.len(), 1);
         assert_eq!(graphs[0]["name"], "pg_tasks_users_assigned_to");

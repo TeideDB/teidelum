@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
@@ -20,6 +21,12 @@ pub struct TeidelumApi {
     catalog: RwLock<Catalog>,
     search_engine: Arc<SearchEngine>,
     query_router: Arc<QueryRouter>,
+    /// Names of property graphs that were successfully created via DDL.
+    /// Used by `describe()` to avoid advertising graphs that failed creation.
+    created_graphs: RwLock<HashSet<String>>,
+    /// Tracks which tables each custom (non-relationship) graph references,
+    /// so `delete_table()` can clean up custom graphs that depend on deleted tables.
+    custom_graph_tables: RwLock<HashMap<String, HashSet<String>>>,
 }
 
 /// Map connector dtype strings to SQL type names.
@@ -71,6 +78,96 @@ fn validate_identifier(s: &str) -> Result<()> {
     Ok(())
 }
 
+/// Extract the graph name from a CREATE PROPERTY GRAPH statement.
+/// Handles: CREATE PROPERTY GRAPH <name>,
+///          CREATE OR REPLACE PROPERTY GRAPH <name>,
+///          CREATE PROPERTY GRAPH IF NOT EXISTS <name>.
+fn extract_create_graph_name(sql: &str) -> Option<String> {
+    let tokens: Vec<&str> = sql.split_whitespace().collect();
+    let upper_tokens: Vec<String> = tokens.iter().map(|t| t.to_uppercase()).collect();
+
+    // Find the position of "GRAPH" keyword, then skip optional IF NOT EXISTS
+    let graph_pos = upper_tokens.iter().position(|t| t == "GRAPH")?;
+    let name_pos = if upper_tokens.get(graph_pos + 1).map(|s| s.as_str()) == Some("IF") {
+        // IF NOT EXISTS <name>
+        graph_pos + 4
+    } else {
+        graph_pos + 1
+    };
+    let name = tokens.get(name_pos)?;
+    Some(name.trim_end_matches(';').to_string())
+}
+
+/// Extract the graph name from a DROP PROPERTY GRAPH statement.
+/// Handles: DROP PROPERTY GRAPH <name>,
+///          DROP PROPERTY GRAPH IF EXISTS <name>.
+fn extract_drop_graph_name(sql: &str) -> Option<String> {
+    let tokens: Vec<&str> = sql.split_whitespace().collect();
+    let upper_tokens: Vec<String> = tokens.iter().map(|t| t.to_uppercase()).collect();
+
+    let graph_pos = upper_tokens.iter().position(|t| t == "GRAPH")?;
+    let name_pos = if upper_tokens.get(graph_pos + 1).map(|s| s.as_str()) == Some("IF") {
+        // IF EXISTS <name>
+        graph_pos + 3
+    } else {
+        graph_pos + 1
+    };
+    let name = tokens.get(name_pos)?;
+    Some(name.trim_end_matches(';').to_string())
+}
+
+/// Extract the VERTEX TABLES (...) and EDGE TABLES (...) regions from a
+/// CREATE PROPERTY GRAPH DDL string (uppercased). This limits table-name
+/// scanning to the relevant clauses, avoiding false positives from graph
+/// names or label aliases.
+fn extract_tables_region(upper_sql: &str) -> String {
+    let mut region = String::new();
+    for keyword in &["VERTEX TABLES", "EDGE TABLES"] {
+        if let Some(start) = upper_sql.find(keyword) {
+            // Find the opening paren after the keyword
+            if let Some(paren_start) = upper_sql[start..].find('(') {
+                let abs_start = start + paren_start;
+                // Find matching closing paren (handle nesting)
+                let mut depth = 0;
+                for (i, ch) in upper_sql[abs_start..].char_indices() {
+                    match ch {
+                        '(' => depth += 1,
+                        ')' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                region.push(' ');
+                                region.push_str(&upper_sql[abs_start..abs_start + i + 1]);
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    if region.is_empty() {
+        // Fallback to full DDL if we can't parse the clauses
+        return upper_sql.to_string();
+    }
+    region
+}
+
+/// Check if `needle` appears as a whole word (not part of a larger
+/// identifier) in `haystack`. Both should be same-cased.
+fn is_whole_word_in(haystack: &str, needle: &str) -> bool {
+    haystack.match_indices(needle).any(|(start, _)| {
+        let end = start + needle.len();
+        let before_ok = start == 0
+            || (!haystack.as_bytes()[start - 1].is_ascii_alphanumeric()
+                && haystack.as_bytes()[start - 1] != b'_');
+        let after_ok = end >= haystack.len()
+            || (!haystack.as_bytes()[end].is_ascii_alphanumeric()
+                && haystack.as_bytes()[end] != b'_');
+        before_ok && after_ok
+    })
+}
+
 impl TeidelumApi {
     /// Create an empty instance with no data.
     pub fn new(data_dir: &Path) -> Result<Self> {
@@ -82,6 +179,8 @@ impl TeidelumApi {
             catalog: RwLock::new(catalog),
             search_engine: Arc::new(search_engine),
             query_router: Arc::new(query_router),
+            created_graphs: RwLock::new(HashSet::new()),
+            custom_graph_tables: RwLock::new(HashMap::new()),
         })
     }
 
@@ -163,6 +262,8 @@ impl TeidelumApi {
             });
         }
 
+        self.retry_property_graphs_for_table(name);
+
         Ok(())
     }
 
@@ -210,33 +311,70 @@ impl TeidelumApi {
     pub fn delete_table(&self, name: &str) -> Result<()> {
         validate_identifier(name)?;
 
-        // Acquire write lock once to collect graph names and remove table atomically
+        // Collect graph names and verify the table exists before any mutations.
         let graph_names: Vec<String>;
+        let custom_to_drop: Vec<String>;
         {
-            let mut catalog = self.catalog.write().unwrap();
+            let catalog = self.catalog.read().unwrap();
+            if !catalog.tables().iter().any(|t| t.name == name) {
+                bail!("table '{name}' not found");
+            }
             graph_names = catalog
                 .relationships()
                 .iter()
                 .filter(|r| r.from_table == name || r.to_table == name)
                 .map(|r| format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation))
                 .collect();
-            if !catalog.remove_table(name) {
-                bail!("table '{name}' not found");
+            custom_to_drop = {
+                let cgt = self.custom_graph_tables.read().unwrap();
+                cgt.iter()
+                    .filter(|(_, tables)| tables.contains(name))
+                    .map(|(graph_name, _)| graph_name.clone())
+                    .collect()
+            };
+        }
+
+        // Drop property graphs from SQL engine BEFORE touching catalog state,
+        // so a DDL failure doesn't leave catalog and engine out of sync.
+        {
+            let mut created = self.created_graphs.write().unwrap();
+            for graph_name in &graph_names {
+                if let Err(e) = self
+                    .query_router
+                    .query_sync(&format!("DROP PROPERTY GRAPH IF EXISTS {graph_name}"))
+                {
+                    tracing::warn!("failed to drop property graph {graph_name}: {e}");
+                }
+                created.remove(graph_name);
+            }
+            for graph_name in &custom_to_drop {
+                if let Err(e) = self
+                    .query_router
+                    .query_sync(&format!("DROP PROPERTY GRAPH IF EXISTS {graph_name}"))
+                {
+                    tracing::warn!("failed to drop custom property graph {graph_name}: {e}");
+                }
+                created.remove(graph_name);
+            }
+        }
+        if !custom_to_drop.is_empty() {
+            let mut cgt = self.custom_graph_tables.write().unwrap();
+            for graph_name in &custom_to_drop {
+                cgt.remove(graph_name);
             }
         }
 
-        // Drop associated property graphs
-        for graph_name in &graph_names {
-            if let Err(e) = self
-                .query_router
-                .query_sync(&format!("DROP PROPERTY GRAPH IF EXISTS {graph_name}"))
-            {
-                tracing::warn!("failed to drop property graph {graph_name}: {e}");
-            }
+        // Drop the SQL table.
+        if let Err(e) = self.query_router.drop_table(name) {
+            tracing::warn!("failed to drop SQL table '{name}': {e}");
         }
 
-        // Drop from SQL engine (ignore errors if not present in SQL — could be remote-only)
-        let _ = self.query_router.drop_table(name);
+        // Remove from catalog last — after DDL operations have succeeded or
+        // been warned about, so the catalog stays consistent with the engine.
+        {
+            let mut catalog = self.catalog.write().unwrap();
+            catalog.remove_table(name);
+        }
 
         Ok(())
     }
@@ -248,35 +386,92 @@ impl TeidelumApi {
 
     /// Register a pre-built table entry in the catalog (e.g. for remote connectors).
     pub fn register_table(&self, entry: TableEntry) {
+        let table_name = entry.name.clone();
         let mut catalog = self.catalog.write().unwrap();
         catalog.register_table(entry);
+        drop(catalog);
+        self.retry_property_graphs_for_table(&table_name);
+    }
+
+    /// Retry property graph creation for any catalog relationships that
+    /// reference `table_name`. Call this after a new table is registered so
+    /// that relationships declared before the table existed get their graphs.
+    fn retry_property_graphs_for_table(&self, table_name: &str) {
+        let rels: Vec<Relationship> = {
+            let catalog = self.catalog.read().unwrap();
+            catalog
+                .relationships()
+                .iter()
+                .filter(|r| r.from_table == table_name || r.to_table == table_name)
+                .cloned()
+                .collect()
+        };
+        for rel in &rels {
+            self.create_property_graph_for_relationship(rel);
+        }
     }
 
     /// Create a property graph for a catalog relationship.
     /// Graph name: pg_{from_table}_{to_table}_{relation}
     /// Uses the first column of from_table as the source vertex identity key.
+    ///
+    /// Tracks successfully created graphs in `self.created_graphs` so that
+    /// `describe()` only advertises graphs that actually exist.
     fn create_property_graph_for_relationship(&self, rel: &Relationship) {
         let graph_name = format!("pg_{}_{}_{}", rel.from_table, rel.to_table, rel.relation);
 
-        // Look up the identity column (first column) of the from_table
+        // Look up the identity column (first column) of the from_table and
+        // verify both tables are locally stored — remote/catalog-only tables
+        // cannot participate in SQL property graphs.
         let from_id_col = {
             let catalog = self.catalog.read().unwrap();
-            catalog
-                .tables()
-                .iter()
-                .find(|t| t.name == rel.from_table)
-                .and_then(|t| t.columns.first().map(|c| c.name.clone()))
-        };
-        let from_id_col = match from_id_col {
-            Some(col) => col,
-            None => {
-                tracing::warn!(
+            let tables = catalog.tables();
+
+            let from_entry = tables.iter().find(|t| t.name == rel.from_table);
+            let to_entry = tables.iter().find(|t| t.name == rel.to_table);
+
+            // Both tables must exist in catalog
+            let from_entry = match from_entry {
+                Some(e) => e,
+                None => {
+                    tracing::debug!(
+                        "skipping property graph {graph_name}: table '{}' not in catalog",
+                        rel.from_table
+                    );
+                    return;
+                }
+            };
+            if to_entry.is_none() {
+                tracing::debug!(
                     "skipping property graph {graph_name}: table '{}' not in catalog",
-                    rel.from_table
+                    rel.to_table
                 );
                 return;
             }
+
+            // Both tables must be local
+            if from_entry.storage != StorageType::Local
+                || to_entry.unwrap().storage != StorageType::Local
+            {
+                tracing::debug!(
+                    "skipping property graph {graph_name}: requires both tables to be local"
+                );
+                return;
+            }
+
+            from_entry
+                .columns
+                .first()
+                .map(|c| c.name.clone())
+                .unwrap_or_default()
         };
+        if from_id_col.is_empty() {
+            tracing::debug!(
+                "skipping property graph {graph_name}: table '{}' has no columns",
+                rel.from_table
+            );
+            return;
+        }
 
         let vertex_clause = if rel.from_table == rel.to_table {
             format!("{} LABEL {}", rel.from_table, rel.from_table)
@@ -302,13 +497,101 @@ impl TeidelumApi {
             to_col = rel.to_col,
             relation = rel.relation,
         );
-        if let Err(e) = self.query_router.query_sync(&sql) {
-            tracing::warn!("failed to create property graph {graph_name}: {e}");
+        match self.query_router.query_sync(&sql) {
+            Ok(_) => {
+                self.created_graphs.write().unwrap().insert(graph_name);
+            }
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("already exists") {
+                    // Only claim ownership if we already track this graph AND it
+                    // was not created as a custom graph via query(). A custom graph
+                    // in custom_graph_tables may have a colliding pg_ name but
+                    // different structure — adopting it would cause describe() to
+                    // advertise wrong metadata and delete_table() to drop it.
+                    let is_custom = self
+                        .custom_graph_tables
+                        .read()
+                        .unwrap()
+                        .contains_key(&graph_name);
+                    let already_ours =
+                        !is_custom && self.created_graphs.read().unwrap().contains(&graph_name);
+                    if already_ours {
+                        tracing::debug!("property graph {graph_name} already exists (ours), skipping");
+                    } else {
+                        tracing::warn!(
+                            "property graph {graph_name} already exists but was not created by \
+                             register_relationship — skipping adoption to avoid metadata mismatch"
+                        );
+                    }
+                } else {
+                    tracing::warn!("failed to create property graph {graph_name}: {e}");
+                }
+            }
         }
     }
 
     /// Execute a SQL query.
+    ///
+    /// Intercepts `CREATE PROPERTY GRAPH` and `DROP PROPERTY GRAPH` DDL so
+    /// that `created_graphs` stays in sync with the engine, keeping
+    /// `describe()` accurate even for ad-hoc graph DDL via the `sql` tool.
     pub fn query(&self, sql: &str) -> Result<QueryResult> {
+        let trimmed = sql.trim();
+        let upper = trimmed.to_uppercase();
+
+        // Detect CREATE [OR REPLACE] PROPERTY GRAPH [IF NOT EXISTS] <name>
+        if upper.starts_with("CREATE PROPERTY GRAPH")
+            || upper.starts_with("CREATE OR REPLACE PROPERTY GRAPH")
+        {
+            let result = self.query_router.query_sync(sql)?;
+            if let Some(name) = extract_create_graph_name(trimmed) {
+                self.created_graphs
+                    .write()
+                    .unwrap()
+                    .insert(name.to_string());
+                // Track which catalog tables this custom graph references so
+                // delete_table() can clean it up if a referenced table is dropped.
+                // Only scan inside VERTEX TABLES / EDGE TABLES clauses to avoid
+                // false positives from graph names or label aliases.
+                let referenced_tables: HashSet<String> = {
+                    let catalog = self.catalog.read().unwrap();
+                    let tables_region = extract_tables_region(&upper);
+                    catalog
+                        .tables()
+                        .iter()
+                        .filter(|t| {
+                            let needle = t.name.to_uppercase();
+                            is_whole_word_in(&tables_region, &needle)
+                        })
+                        .map(|t| t.name.clone())
+                        .collect()
+                };
+                if !referenced_tables.is_empty() {
+                    self.custom_graph_tables
+                        .write()
+                        .unwrap()
+                        .insert(name.to_string(), referenced_tables);
+                }
+            }
+            return Ok(result);
+        }
+
+        if upper.starts_with("DROP PROPERTY GRAPH") {
+            let result = self.query_router.query_sync(sql)?;
+            if let Some(name) = extract_drop_graph_name(trimmed) {
+                self.created_graphs
+                    .write()
+                    .unwrap()
+                    .remove(&name.to_string());
+                self.custom_graph_tables
+                    .write()
+                    .unwrap()
+                    .remove(&name.to_string());
+            }
+            return Ok(result);
+        }
+
         self.query_router.query_sync(sql)
     }
 
@@ -328,26 +611,15 @@ impl TeidelumApi {
 
     /// Register multiple relationships in bulk, creating property graphs for each.
     ///
-    /// Validates all relationships before mutating the catalog, so a validation
-    /// failure in any relationship leaves the catalog unchanged.
+    /// Validates all relationships and mutates the catalog under a single write
+    /// lock, so a validation failure leaves the catalog unchanged and concurrent
+    /// mutations cannot interleave between validation and insertion.
     pub fn register_relationships(&self, rels: Vec<Relationship>) -> Result<()> {
-        // Validate all identifiers upfront to avoid partial catalog mutation
-        for rel in &rels {
-            for (label, val) in [
-                ("from_table", &rel.from_table),
-                ("from_col", &rel.from_col),
-                ("to_table", &rel.to_table),
-                ("to_col", &rel.to_col),
-                ("relation", &rel.relation),
-            ] {
-                if !is_valid_identifier(val) {
-                    bail!("invalid identifier in relationship {label}: '{val}'");
-                }
-            }
-        }
-
         let rels_clone = rels.clone();
         let mut catalog = self.catalog.write().unwrap();
+        // Validate under the write lock so no concurrent mutation can
+        // interleave between validation and insertion.
+        catalog.validate_relationships(&rels)?;
         for rel in rels {
             catalog.register_relationship(rel)?;
         }
@@ -371,7 +643,8 @@ impl TeidelumApi {
     /// Produce a JSON description of the catalog.
     pub fn describe(&self, source_filter: Option<&str>) -> Result<JsonValue> {
         let catalog = self.catalog.read().unwrap();
-        catalog.describe(source_filter)
+        let created = self.created_graphs.read().unwrap();
+        catalog.describe(source_filter, Some(&created))
     }
 
     /// Load all splayed tables from a directory.
@@ -421,6 +694,7 @@ impl TeidelumApi {
         }
 
         // Register all tables under a single write lock.
+        let table_names: Vec<String> = table_entries.iter().map(|(n, _, _)| n.clone()).collect();
         if !table_entries.is_empty() {
             let mut catalog = self.catalog.write().unwrap();
             for (name, columns, nrows) in table_entries {
@@ -433,6 +707,11 @@ impl TeidelumApi {
                 });
                 tracing::info!("registered table: {name} ({nrows} rows)");
             }
+        }
+
+        // Retry property graphs for any relationships referencing newly loaded tables
+        for name in &table_names {
+            self.retry_property_graphs_for_table(name);
         }
 
         Ok(())
@@ -1044,10 +1323,26 @@ mod tests {
                 },
             ],
             &[
-                vec![Value::Int(0), Value::String("Alice".to_string()), Value::Int(0)],
-                vec![Value::Int(1), Value::String("Bob".to_string()), Value::Int(0)],
-                vec![Value::Int(2), Value::String("Carol".to_string()), Value::Int(0)],
-                vec![Value::Int(3), Value::String("Dave".to_string()), Value::Int(1)],
+                vec![
+                    Value::Int(0),
+                    Value::String("Alice".to_string()),
+                    Value::Int(0),
+                ],
+                vec![
+                    Value::Int(1),
+                    Value::String("Bob".to_string()),
+                    Value::Int(0),
+                ],
+                vec![
+                    Value::Int(2),
+                    Value::String("Carol".to_string()),
+                    Value::Int(0),
+                ],
+                vec![
+                    Value::Int(3),
+                    Value::String("Dave".to_string()),
+                    Value::Int(1),
+                ],
             ],
         )
         .unwrap();
@@ -1125,6 +1420,14 @@ mod tests {
         )
         .unwrap();
 
+        // Custom graph created via query() should appear in describe()
+        let desc = api.describe(None).unwrap();
+        let graphs = desc["property_graphs"].as_array().unwrap();
+        assert!(
+            graphs.iter().any(|g| g["name"] == "org_chart"),
+            "custom graph org_chart should appear in describe after query(CREATE PROPERTY GRAPH)"
+        );
+
         // PageRank on custom graph
         let result = api
             .query(
@@ -1137,5 +1440,14 @@ mod tests {
             Value::Int(n) => assert_eq!(*n, 4),
             other => panic!("expected Int, got {other:?}"),
         }
+
+        // DROP PROPERTY GRAPH via query() should remove from describe()
+        api.query("DROP PROPERTY GRAPH org_chart").unwrap();
+        let desc = api.describe(None).unwrap();
+        let graphs = desc["property_graphs"].as_array().unwrap();
+        assert!(
+            !graphs.iter().any(|g| g["name"] == "org_chart"),
+            "dropped graph org_chart should not appear in describe"
+        );
     }
 }

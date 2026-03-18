@@ -53,9 +53,12 @@ impl SearchEngine {
             Index::create_in_dir(path, schema.clone())?
         };
 
+        // Use Manual policy since we explicitly call reader.reload() after
+        // every commit. OnCommitWithDelay spawns a background thread that can
+        // race with index teardown, causing SIGBUS on mmap'd segments.
         let reader = index
             .reader_builder()
-            .reload_policy(ReloadPolicy::OnCommitWithDelay)
+            .reload_policy(ReloadPolicy::Manual)
             .try_into()?;
 
         Ok(Self {
@@ -122,15 +125,19 @@ impl SearchEngine {
     pub fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>> {
         let searcher = self.reader.searcher();
 
-        let mut query_parser =
-            QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
+        let mut query_parser = QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
         query_parser.set_conjunction_by_default();
 
         // Build a query that does prefix matching on the last word so partial
         // input works (e.g. "hel" matches "hello").  Earlier words use exact
         // term matching.  If there is only one word we still prefix-match it.
         let raw = query.text.trim().to_lowercase();
-        let words: Vec<&str> = raw.split_whitespace().collect();
+        // Split on non-alphanumeric characters to match tantivy's default
+        // SimpleTokenizer, which treats any non-alphanumeric char as a separator.
+        let words: Vec<&str> = raw
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|w| !w.is_empty())
+            .collect();
 
         let parsed: Box<dyn tantivy::query::Query> = if words.is_empty() {
             query_parser.parse_query(&query.text)?
@@ -154,9 +161,10 @@ impl SearchEngine {
             let last = words[words.len() - 1];
             let mut prefix_clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
             for field in [self.f_title, self.f_body] {
-                let pq = PhrasePrefixQuery::new_with_offset(
-                    vec![(0, tantivy::Term::from_field_text(field, last))],
-                );
+                let pq = PhrasePrefixQuery::new_with_offset(vec![(
+                    0,
+                    tantivy::Term::from_field_text(field, last),
+                )]);
                 prefix_clauses.push((Occur::Should, Box::new(pq)));
                 // Also add fuzzy match for the last word in case it's a complete
                 // word with a typo.
@@ -173,8 +181,7 @@ impl SearchEngine {
 
         // Use a simple parsed query for snippet highlighting since
         // SnippetGenerator doesn't highlight FuzzyTermQuery/PhrasePrefixQuery.
-        let snippet_parser =
-            QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
+        let snippet_parser = QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
         let snippet_query = snippet_parser.parse_query(&query.text)?;
         let snippet_gen = SnippetGenerator::create(&searcher, &*snippet_query, self.f_body)?;
 
@@ -624,7 +631,10 @@ mod tests {
                 date_to: None,
             })
             .unwrap();
-        assert!(!results.is_empty(), "prefix 'auth' should match 'authentication'");
+        assert!(
+            !results.is_empty(),
+            "prefix 'auth' should match 'authentication'"
+        );
         assert_eq!(results[0].id, "d1");
 
         // Partial prefix "hel" should match title "Hello"
