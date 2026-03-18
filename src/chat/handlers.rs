@@ -945,12 +945,60 @@ pub async fn conversations_create(
         tracing::error!("channel member insert failed: {e}");
         return slack::err("internal_error");
     }
+    // For public channels, auto-add ALL existing users as members
+    let mut all_user_ids: Vec<i64> = Vec::new();
+    if req.kind == "public" {
+        let users_sql = "SELECT id FROM users".to_string();
+        match state.api.query_router().query_sync(&users_sql) {
+            Ok(r) => {
+                for row in &r.rows {
+                    if let Some(crate::connector::Value::Int(uid)) = row.first() {
+                        let uid = *uid;
+                        all_user_ids.push(uid);
+                        if uid == claims.user_id {
+                            continue; // creator already added as owner
+                        }
+                        let add_member = format!(
+                            "INSERT INTO channel_members (channel_id, user_id, role, joined_at) \
+                             VALUES ({id}, {uid}, 'member', '{now}')"
+                        );
+                        if let Err(e) = state.api.query_router().query_sync(&add_member) {
+                            tracing::warn!("auto-add user {uid} to channel {id} failed: {e}");
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("failed to fetch users for public channel auto-add: {e}");
+            }
+        }
+    }
+
     state.persist_tables(&["channels", "channel_members"]);
 
     // Update hub membership cache
     let mut members = std::collections::HashSet::new();
     members.insert(claims.user_id);
+    for uid in &all_user_ids {
+        members.insert(*uid);
+    }
     state.hub.set_channel_members(id, members).await;
+
+    // Broadcast MemberJoinedChannel so connected users' sidebars update
+    for uid in &all_user_ids {
+        if *uid == claims.user_id {
+            continue;
+        }
+        state
+            .hub
+            .broadcast_to_all(
+                &crate::chat::events::ServerEvent::MemberJoinedChannel {
+                    channel: id.to_string(),
+                    user: uid.to_string(),
+                },
+            )
+            .await;
+    }
 
     slack::created(json!({
         "channel": {

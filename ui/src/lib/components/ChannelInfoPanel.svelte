@@ -25,6 +25,11 @@
 	let showArchiveConfirm = $state(false);
 	let showInviteModal = $state(false);
 	let inviteUserId = $state('');
+	let inviteSearchQuery = $state('');
+	let inviteSearchResults = $state<Array<{ id: Id; username: string; display_name: string; avatar_url: string }>>([]);
+	let inviteSelectedUser = $state<{ id: Id; username: string; display_name: string; avatar_url: string } | null>(null);
+	let inviteSearchTimer: ReturnType<typeof setTimeout> | undefined;
+	let inviteSearching = $state(false);
 	let popoverUserId = $state<Id | null>(null);
 	let popoverAnchorRect = $state<{ top: number; left: number; bottom: number; right: number } | null>(null);
 
@@ -110,17 +115,58 @@
 	}
 
 	async function handleInvite() {
-		if (!inviteUserId.trim()) return;
+		if (!inviteSelectedUser) return;
 		try {
-			const res = await api.conversationsInvite(channel.id, inviteUserId.trim());
+			const res = await api.conversationsInvite(channel.id, inviteSelectedUser.id);
 			if (res.ok) {
 				await loadMembers();
-				showInviteModal = false;
-				inviteUserId = '';
+				closeInviteModal();
 			}
 		} catch (e) {
 			console.error('Failed to invite user:', e);
 		}
+	}
+
+	function closeInviteModal() {
+		showInviteModal = false;
+		inviteSearchQuery = '';
+		inviteSearchResults = [];
+		inviteSelectedUser = null;
+		inviteUserId = '';
+	}
+
+	function handleInviteSearchInput() {
+		clearTimeout(inviteSearchTimer);
+		inviteSelectedUser = null;
+		const query = inviteSearchQuery.trim();
+		if (!query) {
+			inviteSearchResults = [];
+			return;
+		}
+		inviteSearchTimer = setTimeout(async () => {
+			inviteSearching = true;
+			try {
+				const res = await api.usersSearch(query);
+				if (res.ok && res.users) {
+					// Filter out users already in the channel
+					const memberIds = new Set(members.map(m => m.id));
+					inviteSearchResults = res.users.filter(u => !memberIds.has(u.id));
+				} else {
+					inviteSearchResults = [];
+				}
+			} catch (e) {
+				console.error('User search failed:', e);
+				inviteSearchResults = [];
+			} finally {
+				inviteSearching = false;
+			}
+		}, 300);
+	}
+
+	function selectInviteUser(user: { id: Id; username: string; display_name: string; avatar_url: string }) {
+		inviteSelectedUser = user;
+		inviteSearchQuery = '';
+		inviteSearchResults = [];
 	}
 
 	function getUserName(userId: Id): string {
@@ -343,23 +389,72 @@
 					handleInvite();
 				}}
 			>
-				<input
-					type="text"
-					bind:value={inviteUserId}
-					class="mb-4 w-full rounded bg-navy px-3 py-2 text-sm text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
-					placeholder="User ID"
-				/>
+				<div class="relative mb-4">
+					{#if inviteSelectedUser}
+						<div class="flex items-center gap-2 rounded bg-navy px-3 py-2">
+							<Avatar url={inviteSelectedUser.avatar_url} name={inviteSelectedUser.display_name || inviteSelectedUser.username} size="sm" />
+							<span class="text-sm text-white">
+								{inviteSelectedUser.display_name || inviteSelectedUser.username}
+								<span class="text-primary-light/40">@{inviteSelectedUser.username}</span>
+							</span>
+							<button
+								type="button"
+								onclick={() => { inviteSelectedUser = null; }}
+								class="ml-auto text-primary-light/50 hover:text-primary-lighter"
+								aria-label="Clear selection"
+							>
+								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
+						</div>
+					{:else}
+						<input
+							type="text"
+							bind:value={inviteSearchQuery}
+							oninput={handleInviteSearchInput}
+							class="w-full rounded bg-navy px-3 py-2 text-sm text-white placeholder-primary-light/40 focus:outline-none focus:ring-2 focus:ring-primary"
+							placeholder="Search by username..."
+							autocomplete="off"
+						/>
+						{#if inviteSearching}
+							<div class="absolute right-3 top-2.5 text-xs text-primary-light/40">Searching...</div>
+						{/if}
+						{#if inviteSearchResults.length > 0}
+							<div class="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded bg-navy shadow-lg border border-primary-dark/40">
+								{#each inviteSearchResults as user}
+									<button
+										type="button"
+										class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-navy-light/50"
+										onclick={() => selectInviteUser(user)}
+									>
+										<Avatar url={user.avatar_url} name={user.display_name || user.username} size="sm" />
+										<div class="min-w-0 flex-1">
+											<div class="truncate text-sm text-white">{user.display_name || user.username}</div>
+											<div class="truncate text-xs text-primary-light/40">@{user.username}</div>
+										</div>
+									</button>
+								{/each}
+							</div>
+						{:else if inviteSearchQuery.trim() && !inviteSearching}
+							<div class="absolute left-0 right-0 top-full z-10 mt-1 rounded bg-navy px-3 py-2 text-sm text-primary-light/40 shadow-lg border border-primary-dark/40">
+								No users found
+							</div>
+						{/if}
+					{/if}
+				</div>
 				<div class="flex justify-end gap-2">
 					<button
 						type="button"
-						onclick={() => (showInviteModal = false)}
+						onclick={closeInviteModal}
 						class="rounded px-4 py-2 text-sm text-primary-lighter/70 hover:text-heading"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
-						class="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light"
+						disabled={!inviteSelectedUser}
+						class="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						Invite
 					</button>

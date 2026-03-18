@@ -76,7 +76,7 @@
 						type="text"
 						bind:value={username}
 						onkeydown={handleKeydown}
-						class="w-full rounded border border-primary-dark/40 bg-navy px-3 py-2.5 text-white placeholder-primary-light/30 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+						class="w-full rounded border border-primary-dark/40 bg-navy px-3 py-2.5 text-body placeholder-primary-light/30 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
 						placeholder="your-username"
 						autocomplete="username"
 						autocapitalize="none"
@@ -93,7 +93,7 @@
 							type={showPassword ? 'text' : 'password'}
 							bind:value={password}
 							onkeydown={handleKeydown}
-							class="w-full rounded border border-primary-dark/40 bg-navy px-3 py-2.5 pr-10 text-white placeholder-primary-light/30 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+							class="w-full rounded border border-primary-dark/40 bg-navy px-3 py-2.5 pr-10 text-body placeholder-primary-light/30 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
 							placeholder="Enter password"
 							autocomplete="current-password"
 							required

@@ -7,7 +7,7 @@
 	import ThreadPanel from '$lib/components/ThreadPanel.svelte';
 	import ChannelInfoPanel from '$lib/components/ChannelInfoPanel.svelte';
 	import { setActiveChannel, activeChannel, getDmDisplayName } from '$lib/stores/channels';
-	import { markRead } from '$lib/stores/unreads';
+	import { clearLocalUnread } from '$lib/stores/unreads';
 	import { pinsList, pinsRemove, filesUpload } from '$lib/api';
 	import { renderMarkdown } from '$lib/markdown';
 	import { users } from '$lib/stores/users';
@@ -28,7 +28,10 @@
 	$effect(() => {
 		if (channelId) {
 			setActiveChannel(channelId);
-			markRead(channelId);
+			// Clear unread badge immediately for snappy UI, but the authoritative
+			// markRead (with server sync) happens inside loadMessages after
+			// conversations.history completes.
+			clearLocalUnread(channelId);
 			loadPins(channelId);
 		}
 	});

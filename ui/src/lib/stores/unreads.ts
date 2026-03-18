@@ -14,12 +14,33 @@ export function resetUnreads() {
 	unreads.set(new Map());
 }
 
+/**
+ * Mark a channel as read locally AND on the server.
+ * Call this AFTER conversations.history has completed so the server
+ * records the correct last_read_ts.
+ */
 export function markRead(channelId: Id) {
 	unreads.update((map) => {
 		const newMap = new Map(map);
 		newMap.delete(channelId);
 		return newMap;
 	});
+	// Fire-and-forget server sync so the next loadChannels() sees 0 unreads
+	conversationsMarkRead(channelId).catch(() => {});
+}
+
+/** Clear a channel's unread count in the local store only (no server call). */
+export function clearLocalUnread(channelId: Id) {
+	unreads.update((map) => {
+		const newMap = new Map(map);
+		newMap.delete(channelId);
+		return newMap;
+	});
+}
+
+/** Sync unread counts from the server channel list response into the store. */
+export function syncUnreadsFromChannels(channelUnreads: Map<Id, number>) {
+	unreads.set(channelUnreads);
 }
 
 export async function markAllRead() {

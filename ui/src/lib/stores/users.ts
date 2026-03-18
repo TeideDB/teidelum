@@ -23,6 +23,14 @@ export async function loadUsers() {
 			map.set(u.id, u);
 		}
 		users.set(map);
+		// Initialize presence from each user's status field
+		presence.update((pMap) => {
+			const newMap = new Map(pMap);
+			for (const u of res.members!) {
+				newMap.set(u.id, u.status === 'online' ? 'active' : 'away');
+			}
+			return newMap;
+		});
 	}
 }
 

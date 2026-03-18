@@ -84,11 +84,24 @@ async fn register(app: &Router, username: &str) -> String {
 }
 
 async fn create_channel(app: &Router, token: &str, name: &str) -> String {
+    create_channel_with_kind(app, token, name, "public").await
+}
+
+async fn create_private_channel(app: &Router, token: &str, name: &str) -> String {
+    create_channel_with_kind(app, token, name, "private").await
+}
+
+async fn create_channel_with_kind(
+    app: &Router,
+    token: &str,
+    name: &str,
+    kind: &str,
+) -> String {
     let resp = app
         .clone()
         .oneshot(post_json(
             "/api/slack/conversations.create",
-            json!({"name": name}),
+            json!({"name": name, "kind": kind}),
             Some(token),
         ))
         .await
@@ -817,7 +830,7 @@ async fn test_search_stress() {
     let public_ch = create_channel(&app, &t1, "search-public").await;
     join_channel(&app, &t2, &public_ch).await;
 
-    let private_ch = create_channel(&app, &t1, "search-private").await;
+    let private_ch = create_private_channel(&app, &t1, "search-private").await;
     // t2 does NOT join private_ch
 
     // Post messages with searchable keywords
@@ -1325,7 +1338,7 @@ async fn test_membership_enforcement() {
     let member = register(&app, "member-user").await;
     let outsider = register(&app, "outsider-user").await;
 
-    let ch = create_channel(&app, &member, "private-test").await;
+    let ch = create_private_channel(&app, &member, "private-test").await;
 
     // Member posts successfully
     post_message(&app, &member, &ch, "member message").await;

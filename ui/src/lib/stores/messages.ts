@@ -2,6 +2,8 @@ import { writable, get } from 'svelte/store';
 import * as api from '$lib/api';
 import * as ws from '$lib/ws';
 import { ensureUser } from '$lib/stores/users';
+import { markRead } from '$lib/stores/unreads';
+import { activeChannelId } from '$lib/stores/channels';
 import type { Message, Id, WsEvent } from '$lib/types';
 
 interface ChannelMessages {
@@ -44,6 +46,12 @@ export async function loadMessages(channelId: Id) {
 			hasMore: res.has_more ?? false,
 			loading: false
 		});
+		// Now that history has been fetched (which updates server-side last_read_ts),
+		// mark the channel as read on the server so unread counts stay in sync.
+		// Only do this if this channel is still the active one (user didn't navigate away).
+		if (get(activeChannelId) === channelId) {
+			markRead(channelId);
+		}
 	} else {
 		// Re-read current state to preserve any WS messages received during fetch
 		const current = getChannelState(channelId);

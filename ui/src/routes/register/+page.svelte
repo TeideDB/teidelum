@@ -125,7 +125,7 @@
 						id="username"
 						type="text"
 						bind:value={username}
-						class="w-full rounded border bg-navy px-3 py-2.5 text-white placeholder-primary-light/30 transition focus:outline-none focus:ring-1 {usernameValid ? 'border-primary-dark/40 focus:border-primary focus:ring-primary' : 'border-red-500/60 focus:border-red-500 focus:ring-red-500'}"
+						class="w-full rounded border bg-navy px-3 py-2.5 text-body placeholder-primary-light/30 transition focus:outline-none focus:ring-1 {usernameValid ? 'border-primary-dark/40 focus:border-primary focus:ring-primary' : 'border-red-500/60 focus:border-red-500 focus:ring-red-500'}"
 						placeholder="your-username"
 						autocomplete="username"
 						autocapitalize="none"
@@ -147,7 +147,7 @@
 						id="displayName"
 						type="text"
 						bind:value={displayName}
-						class="w-full rounded border border-primary-dark/40 bg-navy px-3 py-2.5 text-white placeholder-primary-light/30 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+						class="w-full rounded border border-primary-dark/40 bg-navy px-3 py-2.5 text-body placeholder-primary-light/30 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
 						placeholder="How you'll appear to others"
 						autocomplete="name"
 					/>
@@ -162,7 +162,7 @@
 						id="email"
 						type="email"
 						bind:value={email}
-						class="w-full rounded border bg-navy px-3 py-2.5 text-white placeholder-primary-light/30 transition focus:outline-none focus:ring-1 {emailValid ? 'border-primary-dark/40 focus:border-primary focus:ring-primary' : 'border-red-500/60 focus:border-red-500 focus:ring-red-500'}"
+						class="w-full rounded border bg-navy px-3 py-2.5 text-body placeholder-primary-light/30 transition focus:outline-none focus:ring-1 {emailValid ? 'border-primary-dark/40 focus:border-primary focus:ring-primary' : 'border-red-500/60 focus:border-red-500 focus:ring-red-500'}"
 						placeholder="you@example.com"
 						autocomplete="email"
 						required
@@ -182,7 +182,7 @@
 							id="password"
 							type={showPassword ? 'text' : 'password'}
 							bind:value={password}
-							class="w-full rounded border border-primary-dark/40 bg-navy px-3 py-2.5 pr-10 text-white placeholder-primary-light/30 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+							class="w-full rounded border border-primary-dark/40 bg-navy px-3 py-2.5 pr-10 text-body placeholder-primary-light/30 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
 							placeholder="Minimum 8 characters"
 							autocomplete="new-password"
 							required
@@ -226,7 +226,7 @@
 						id="confirmPassword"
 						type={showPassword ? 'text' : 'password'}
 						bind:value={confirmPassword}
-						class="w-full rounded border bg-navy px-3 py-2.5 text-white placeholder-primary-light/30 transition focus:outline-none focus:ring-1 {passwordsMatch ? 'border-primary-dark/40 focus:border-primary focus:ring-primary' : 'border-red-500/60 focus:border-red-500 focus:ring-red-500'}"
+						class="w-full rounded border bg-navy px-3 py-2.5 text-body placeholder-primary-light/30 transition focus:outline-none focus:ring-1 {passwordsMatch ? 'border-primary-dark/40 focus:border-primary focus:ring-primary' : 'border-red-500/60 focus:border-red-500 focus:ring-red-500'}"
 						placeholder="Re-enter password"
 						autocomplete="new-password"
 						required
