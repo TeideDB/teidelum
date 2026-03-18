@@ -493,12 +493,18 @@ impl TeidelumApi {
         }
 
         let vertex_clause = if rel.from_table == rel.to_table {
-            format!("{} LABEL {}", rel.from_table, rel.from_table)
+            format!(
+                "{tbl} KEY ({key}) LABEL {tbl}",
+                tbl = rel.from_table,
+                key = from_id_col
+            )
         } else {
             format!(
-                "{from} LABEL {from}, {to} LABEL {to}",
+                "{from} KEY ({from_key}) LABEL {from}, {to} KEY ({to_key}) LABEL {to}",
                 from = rel.from_table,
-                to = rel.to_table
+                from_key = from_id_col,
+                to = rel.to_table,
+                to_key = rel.to_col,
             )
         };
 
