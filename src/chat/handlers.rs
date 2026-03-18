@@ -1096,22 +1096,22 @@ pub async fn conversations_list(
 
             let last_read_ts = reads_map.get(&ch_id_str).cloned().unwrap_or_default();
 
-            // Count unread — exclude caller's own messages so you don't notify yourself
-            let unread_sql = if last_read_ts.is_empty() {
-                format!(
-                    "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND thread_id = 0 AND deleted_at = '' AND user_id != {}",
-                    ch_id_str, claims.user_id
-                )
+            // Count unread — exclude caller's own messages so you don't notify yourself.
+            // If the user has never read the channel (no channel_reads entry),
+            // treat it as fully read (0 unreads) rather than showing every
+            // historical message as unread.
+            let unread_count = if last_read_ts.is_empty() {
+                0i64
             } else {
-                format!(
+                let unread_sql = format!(
                     "SELECT COUNT(*) AS cnt FROM messages WHERE channel_id = {} AND thread_id = 0 AND created_at > '{}' AND deleted_at = '' AND user_id != {}",
                     ch_id_str, escape_sql(&last_read_ts), claims.user_id
-                )
+                );
+                state.api.query_router().query_sync(&unread_sql).ok()
+                    .and_then(|r| r.rows.first().map(|row| row[0].to_json()))
+                    .and_then(|v| v.as_str().and_then(|s| s.parse::<i64>().ok()))
+                    .unwrap_or(0)
             };
-            let unread_count = state.api.query_router().query_sync(&unread_sql).ok()
-                .and_then(|r| r.rows.first().map(|row| row[0].to_json()))
-                .and_then(|v| v.as_str().and_then(|s| s.parse::<i64>().ok()))
-                .unwrap_or(0);
 
             let (muted, notification_level) = settings_map
                 .get(&ch_id_str)
