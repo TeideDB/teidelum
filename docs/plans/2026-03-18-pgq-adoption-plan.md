@@ -775,7 +775,7 @@ git commit -m "chore: clean up main.rs after graph engine removal"
 
 ---
 
-### Task 12: Integration test — full PGQ workflow via TeidelumApi
+### Task 12: Integration test — full PGQ workflow via TeidelumApi [x]
 
 **Files:**
 - Test: `src/api.rs` (add test in `mod tests`)

@@ -255,9 +255,19 @@ impl TeidelumApi {
             }
         };
 
+        let vertex_clause = if rel.from_table == rel.to_table {
+            format!("{} LABEL {}", rel.from_table, rel.from_table)
+        } else {
+            format!(
+                "{from} LABEL {from}, {to} LABEL {to}",
+                from = rel.from_table,
+                to = rel.to_table
+            )
+        };
+
         let sql = format!(
             "CREATE PROPERTY GRAPH {graph_name} \
-             VERTEX TABLES ({from_table} LABEL {from_table}, {to_table} LABEL {to_table}) \
+             VERTEX TABLES ({vertex_clause}) \
              EDGE TABLES ({from_table} \
                SOURCE KEY ({from_id_col}) REFERENCES {from_table} ({from_id_col}) \
                DESTINATION KEY ({from_col}) REFERENCES {to_table} ({to_col}) \
@@ -985,5 +995,124 @@ mod tests {
         // SQL should work
         let result = api.query("SELECT count(*) FROM team_members").unwrap();
         assert!(!result.rows.is_empty());
+    }
+
+    #[test]
+    fn test_pgq_full_workflow() {
+        let tmp = tempfile::tempdir().unwrap();
+        let api = TeidelumApi::new(tmp.path()).unwrap();
+
+        // Create employees table (vertex)
+        api.create_table(
+            "employees",
+            "test",
+            &[
+                ColumnSchema {
+                    name: "id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+                ColumnSchema {
+                    name: "name".to_string(),
+                    dtype: "string".to_string(),
+                },
+                ColumnSchema {
+                    name: "manager_id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+            ],
+            &[
+                vec![Value::Int(0), Value::String("Alice".to_string()), Value::Int(0)],
+                vec![Value::Int(1), Value::String("Bob".to_string()), Value::Int(0)],
+                vec![Value::Int(2), Value::String("Carol".to_string()), Value::Int(0)],
+                vec![Value::Int(3), Value::String("Dave".to_string()), Value::Int(1)],
+            ],
+        )
+        .unwrap();
+
+        // Register self-referencing relationship — auto-creates property graph
+        api.register_relationship(Relationship {
+            from_table: "employees".to_string(),
+            from_col: "manager_id".to_string(),
+            to_table: "employees".to_string(),
+            to_col: "id".to_string(),
+            relation: "managed_by".to_string(),
+        })
+        .unwrap();
+
+        // Verify describe includes property graph
+        let desc = api.describe(None).unwrap();
+        let graphs = desc["property_graphs"].as_array().unwrap();
+        assert!(graphs
+            .iter()
+            .any(|g| g["name"] == "pg_employees_employees_managed_by"));
+
+        // 1-hop MATCH: who is managed by Alice (id=0)?
+        // Alice(0)->Alice(0) self-loop, Bob(1)->Alice(0), Carol(2)->Alice(0)
+        let result = api
+            .query(
+                "SELECT * FROM GRAPH_TABLE (pg_employees_employees_managed_by \
+                 MATCH (e1:employees)-[:managed_by]->(e2:employees WHERE e2.name = 'Alice') \
+                 COLUMNS (e1.name AS subordinate))",
+            )
+            .unwrap();
+        assert_eq!(result.rows.len(), 3); // Alice (self), Bob, Carol
+
+        let names: Vec<String> = result
+            .rows
+            .iter()
+            .map(|r| match &r[0] {
+                Value::String(s) => s.clone(),
+                other => panic!("expected String, got {other:?}"),
+            })
+            .collect();
+        assert!(names.contains(&"Alice".to_string()));
+        assert!(names.contains(&"Bob".to_string()));
+        assert!(names.contains(&"Carol".to_string()));
+
+        // Agent can also create custom property graphs via sql tool
+        // Create a separate edge table for a different graph structure
+        api.create_table(
+            "reports_to",
+            "test",
+            &[
+                ColumnSchema {
+                    name: "subordinate".to_string(),
+                    dtype: "i64".to_string(),
+                },
+                ColumnSchema {
+                    name: "manager".to_string(),
+                    dtype: "i64".to_string(),
+                },
+            ],
+            &[
+                vec![Value::Int(1), Value::Int(0)], // Bob reports to Alice
+                vec![Value::Int(2), Value::Int(0)], // Carol reports to Alice
+                vec![Value::Int(3), Value::Int(1)], // Dave reports to Bob
+            ],
+        )
+        .unwrap();
+
+        api.query(
+            "CREATE PROPERTY GRAPH org_chart \
+             VERTEX TABLES (employees LABEL Employee) \
+             EDGE TABLES (reports_to \
+               SOURCE KEY (subordinate) REFERENCES employees (id) \
+               DESTINATION KEY (manager) REFERENCES employees (id) \
+               LABEL ReportsTo)",
+        )
+        .unwrap();
+
+        // PageRank on custom graph
+        let result = api
+            .query(
+                "SELECT COUNT(*) FROM GRAPH_TABLE (org_chart \
+                 MATCH (e:Employee) \
+                 COLUMNS (PAGERANK(org_chart, e) AS rank)) WHERE rank > 0",
+            )
+            .unwrap();
+        match &result.rows[0][0] {
+            Value::Int(n) => assert_eq!(*n, 4),
+            other => panic!("expected Int, got {other:?}"),
+        }
     }
 }
