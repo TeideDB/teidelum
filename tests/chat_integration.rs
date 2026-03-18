@@ -2201,7 +2201,7 @@ async fn test_search_messages_with_filters() {
         "should find only user1's message with user_id filter"
     );
     assert_eq!(
-        matches[0]["user"].as_i64().unwrap().to_string(),
+        matches[0]["user"].as_str().unwrap(),
         user1_id,
         "filtered result should be from user1"
     );

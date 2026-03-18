@@ -223,9 +223,12 @@ impl TeidelumApi {
 
         // Drop associated property graphs
         for graph_name in &graph_names {
-            let _ = self
+            if let Err(e) = self
                 .query_router
-                .query_sync(&format!("DROP PROPERTY GRAPH IF EXISTS {graph_name}"));
+                .query_sync(&format!("DROP PROPERTY GRAPH IF EXISTS {graph_name}"))
+            {
+                tracing::warn!("failed to drop property graph {graph_name}: {e}");
+            }
         }
 
         // Drop from SQL engine (ignore errors if not present in SQL — could be remote-only)

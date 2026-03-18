@@ -149,9 +149,14 @@ impl Catalog {
         let property_graphs: Vec<serde_json::Value> = rels
             .iter()
             .map(|r| {
+                let vertex_tables: Vec<&str> = if r.from_table == r.to_table {
+                    vec![&r.from_table]
+                } else {
+                    vec![&r.from_table, &r.to_table]
+                };
                 serde_json::json!({
                     "name": format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation),
-                    "vertex_tables": [r.from_table, r.to_table],
+                    "vertex_tables": vertex_tables,
                     "edge_table": r.from_table,
                     "edge_label": r.relation,
                     "fk_column": r.from_col,
