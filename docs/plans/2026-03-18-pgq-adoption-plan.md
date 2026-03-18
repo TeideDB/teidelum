@@ -747,7 +747,7 @@ git commit -m "refactor: delete graph.rs — replaced by PGQ via sql tool"
 
 ---
 
-### Task 11: Clean up main.rs
+### Task 11: Clean up main.rs [x]
 
 **Files:**
 - Modify: `src/main.rs`
