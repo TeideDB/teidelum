@@ -206,23 +206,20 @@ impl TeidelumApi {
     pub fn delete_table(&self, name: &str) -> Result<()> {
         validate_identifier(name)?;
 
-        // Collect property graph names to drop before removing relationships from catalog
-        let graph_names: Vec<String> = {
-            let catalog = self.catalog.read().unwrap();
-            catalog
+        // Acquire write lock once to collect graph names and remove table atomically
+        let graph_names: Vec<String>;
+        {
+            let mut catalog = self.catalog.write().unwrap();
+            graph_names = catalog
                 .relationships()
                 .iter()
                 .filter(|r| r.from_table == name || r.to_table == name)
                 .map(|r| format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation))
-                .collect()
-        };
-
-        // Remove from catalog to check it exists
-        let mut catalog = self.catalog.write().unwrap();
-        if !catalog.remove_table(name) {
-            bail!("table '{name}' not found");
+                .collect();
+            if !catalog.remove_table(name) {
+                bail!("table '{name}' not found");
+            }
         }
-        drop(catalog);
 
         // Drop associated property graphs
         for graph_name in &graph_names {
