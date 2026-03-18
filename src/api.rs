@@ -8,20 +8,18 @@ use crate::catalog::{
     is_valid_identifier, Catalog, ColumnInfo, Relationship, StorageType, TableEntry,
 };
 use crate::connector::{ColumnSchema, QueryResult, Value};
-use crate::graph::GraphEngine;
 use crate::router::QueryRouter;
 use crate::search::{SearchEngine, SearchQuery, SearchResult};
 use crate::sync::SearchDocument;
 
 /// Unified programmatic API for Teidelum.
 ///
-/// Wraps all subsystems (catalog, search, query router, graph engine) behind
-/// a single thread-safe interface. The MCP server and all tests delegate here.
+/// Wraps all subsystems (catalog, search, query router) behind a single
+/// thread-safe interface. The MCP server and all tests delegate here.
 pub struct TeidelumApi {
     catalog: RwLock<Catalog>,
     search_engine: Arc<SearchEngine>,
     query_router: Arc<QueryRouter>,
-    graph_engine: RwLock<GraphEngine>,
 }
 
 /// Map connector dtype strings to SQL type names.
@@ -79,23 +77,12 @@ impl TeidelumApi {
         let search_engine = SearchEngine::open(&data_dir.join("index"))?;
         let query_router = QueryRouter::new()?;
         let catalog = Catalog::new();
-        let graph_engine = GraphEngine::build_from_catalog(&catalog);
 
         Ok(Self {
             catalog: RwLock::new(catalog),
             search_engine: Arc::new(search_engine),
             query_router: Arc::new(query_router),
-            graph_engine: RwLock::new(graph_engine),
         })
-    }
-
-    /// Build a new GraphEngine from the catalog and install it, while the
-    /// caller already holds a catalog lock (write or read).  Keeping the
-    /// catalog lock held across snapshot + install prevents a concurrent
-    /// writer from interleaving and leaving graph_engine stale.
-    fn rebuild_graph_locked(&self, catalog: &Catalog) {
-        let graph = GraphEngine::build_from_catalog(catalog);
-        *self.graph_engine.write().unwrap() = graph;
     }
 
     /// Open an existing data directory, loading splayed tables and indexing markdown docs.
@@ -174,9 +161,6 @@ impl TeidelumApi {
                 columns: catalog_columns,
                 row_count: Some(rows.len() as u64),
             });
-            // Rebuild graph while still holding catalog lock to prevent
-            // concurrent writers from installing a stale snapshot.
-            self.rebuild_graph_locked(&catalog);
         }
 
         Ok(())
@@ -218,7 +202,7 @@ impl TeidelumApi {
         self.search_engine.index_documents(&tuples)
     }
 
-    /// Delete a table from the SQL engine, catalog, and rebuild graph.
+    /// Delete a table from the SQL engine and catalog.
     pub fn delete_table(&self, name: &str) -> Result<()> {
         validate_identifier(name)?;
 
@@ -230,9 +214,6 @@ impl TeidelumApi {
 
         // Drop from SQL engine (ignore errors if not present in SQL — could be remote-only)
         let _ = self.query_router.drop_table(name);
-
-        // Rebuild graph
-        self.rebuild_graph_locked(&catalog);
 
         Ok(())
     }
@@ -246,7 +227,6 @@ impl TeidelumApi {
     pub fn register_table(&self, entry: TableEntry) {
         let mut catalog = self.catalog.write().unwrap();
         catalog.register_table(entry);
-        self.rebuild_graph_locked(&catalog);
     }
 
     /// Create a property graph for a catalog relationship.
@@ -304,17 +284,16 @@ impl TeidelumApi {
         self.search_engine.search(query)
     }
 
-    /// Register a relationship and rebuild the graph engine.
+    /// Register a relationship and create the corresponding property graph.
     pub fn register_relationship(&self, rel: Relationship) -> Result<()> {
         let mut catalog = self.catalog.write().unwrap();
         catalog.register_relationship(rel.clone())?;
-        self.rebuild_graph_locked(&catalog);
         drop(catalog);
         self.create_property_graph_for_relationship(&rel);
         Ok(())
     }
 
-    /// Register multiple relationships in bulk, rebuilding the graph engine once.
+    /// Register multiple relationships in bulk, creating property graphs for each.
     ///
     /// Validates all relationships before mutating the catalog, so a validation
     /// failure in any relationship leaves the catalog unchanged.
@@ -339,7 +318,6 @@ impl TeidelumApi {
         for rel in rels {
             catalog.register_relationship(rel)?;
         }
-        self.rebuild_graph_locked(&catalog);
         drop(catalog);
         for rel in &rels_clone {
             self.create_property_graph_for_relationship(rel);
@@ -361,58 +339,6 @@ impl TeidelumApi {
     pub fn describe(&self, source_filter: Option<&str>) -> Result<JsonValue> {
         let catalog = self.catalog.read().unwrap();
         catalog.describe(source_filter)
-    }
-
-    /// Find neighbors of a node in the graph.
-    #[allow(clippy::too_many_arguments)]
-    pub fn neighbors(
-        &self,
-        table: &str,
-        key_col: &str,
-        key_value: &str,
-        depth: usize,
-        direction: &str,
-        rel_types: Option<&[String]>,
-    ) -> Result<JsonValue> {
-        let graph = self.graph_engine.read().unwrap();
-        graph.neighbors(
-            table,
-            key_col,
-            key_value,
-            depth,
-            direction,
-            rel_types,
-            &self.query_router,
-        )
-    }
-
-    /// Find a path between two nodes in the graph.
-    #[allow(clippy::too_many_arguments)]
-    pub fn path(
-        &self,
-        table: &str,
-        key_col: &str,
-        key_value: &str,
-        to_table: &str,
-        to_key_col: &str,
-        to_key: &str,
-        depth: usize,
-        direction: &str,
-        rel_types: Option<&[String]>,
-    ) -> Result<JsonValue> {
-        let graph = self.graph_engine.read().unwrap();
-        graph.path(
-            table,
-            key_col,
-            key_value,
-            to_table,
-            to_key_col,
-            to_key,
-            depth,
-            direction,
-            rel_types,
-            &self.query_router,
-        )
     }
 
     /// Load all splayed tables from a directory.
@@ -461,7 +387,7 @@ impl TeidelumApi {
             }
         }
 
-        // Register all tables under a single write lock and rebuild graph once.
+        // Register all tables under a single write lock.
         if !table_entries.is_empty() {
             let mut catalog = self.catalog.write().unwrap();
             for (name, columns, nrows) in table_entries {
@@ -474,7 +400,6 @@ impl TeidelumApi {
                 });
                 tracing::info!("registered table: {name} ({nrows} rows)");
             }
-            self.rebuild_graph_locked(&catalog);
         }
 
         Ok(())
@@ -525,29 +450,6 @@ impl TeidelumApi {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn test_api(tmp: &Path) -> TeidelumApi {
-        crate::demo::generate(tmp).unwrap();
-        let api = TeidelumApi::open(tmp).unwrap();
-        api.register_relationships(vec![
-            Relationship {
-                from_table: "project_tasks".to_string(),
-                from_col: "assignee".to_string(),
-                to_table: "team_members".to_string(),
-                to_col: "name".to_string(),
-                relation: "assigned_to".to_string(),
-            },
-            Relationship {
-                from_table: "incidents".to_string(),
-                from_col: "reporter".to_string(),
-                to_table: "team_members".to_string(),
-                to_col: "name".to_string(),
-                relation: "reported_by".to_string(),
-            },
-        ])
-        .unwrap();
-        api
-    }
 
     #[test]
     fn test_create_table_and_query() {
@@ -708,66 +610,6 @@ mod tests {
     }
 
     #[test]
-    fn test_register_relationship_rebuilds_graph() {
-        let tmp = tempfile::tempdir().unwrap();
-        let api = TeidelumApi::new(tmp.path()).unwrap();
-
-        // Create two tables
-        let user_cols = vec![
-            ColumnSchema {
-                name: "id".to_string(),
-                dtype: "i64".to_string(),
-            },
-            ColumnSchema {
-                name: "name".to_string(),
-                dtype: "string".to_string(),
-            },
-        ];
-        let user_rows = vec![vec![Value::Int(1), Value::String("Alice".to_string())]];
-        api.create_table("people", "test", &user_cols, &user_rows)
-            .unwrap();
-
-        let task_cols = vec![
-            ColumnSchema {
-                name: "id".to_string(),
-                dtype: "i64".to_string(),
-            },
-            ColumnSchema {
-                name: "title".to_string(),
-                dtype: "string".to_string(),
-            },
-            ColumnSchema {
-                name: "owner".to_string(),
-                dtype: "string".to_string(),
-            },
-        ];
-        let task_rows = vec![vec![
-            Value::Int(1),
-            Value::String("Fix bug".to_string()),
-            Value::String("Alice".to_string()),
-        ]];
-        api.create_table("tasks", "test", &task_cols, &task_rows)
-            .unwrap();
-
-        // Register relationship
-        api.register_relationship(Relationship {
-            from_table: "tasks".to_string(),
-            from_col: "owner".to_string(),
-            to_table: "people".to_string(),
-            to_col: "name".to_string(),
-            relation: "owned_by".to_string(),
-        })
-        .unwrap();
-
-        // Graph traversal should work
-        let result = api
-            .neighbors("tasks", "title", "Fix bug", 1, "forward", None)
-            .unwrap();
-        let edges = result["edges"].as_array().unwrap();
-        assert!(!edges.is_empty());
-    }
-
-    #[test]
     fn test_register_relationships_bulk() {
         let tmp = tempfile::tempdir().unwrap();
         let api = TeidelumApi::new(tmp.path()).unwrap();
@@ -832,157 +674,6 @@ mod tests {
         let desc_empty = api.describe(Some("nonexistent")).unwrap();
         let tables = desc_empty["tables"].as_array().unwrap();
         assert!(tables.is_empty());
-    }
-
-    #[test]
-    fn test_neighbors_via_api() {
-        let tmp = tempfile::tempdir().unwrap();
-        let api = test_api(tmp.path());
-
-        let result = api
-            .neighbors("team_members", "name", "Alice Chen", 1, "both", None)
-            .unwrap();
-
-        let nodes = result["nodes"].as_array().unwrap();
-        let edges = result["edges"].as_array().unwrap();
-
-        assert!(nodes.len() >= 2, "should find neighbors for Alice Chen");
-        assert!(!edges.is_empty(), "should have edges");
-
-        let has_alice = nodes.iter().any(|n| n["key"] == "Alice Chen");
-        assert!(has_alice, "starting node should be in results");
-    }
-
-    #[test]
-    fn test_path_via_api() {
-        let tmp = tempfile::tempdir().unwrap();
-        let api = test_api(tmp.path());
-
-        // Pick any task and its assignee — guaranteed to exist since demo generates 20 tasks
-        let result = api
-            .query("SELECT title, assignee FROM project_tasks LIMIT 1")
-            .unwrap();
-        assert!(
-            !result.rows.is_empty(),
-            "demo data should have at least one task"
-        );
-        let task_title = match &result.rows[0][0] {
-            Value::String(s) => s.clone(),
-            other => panic!("expected string title, got {other:?}"),
-        };
-        let assignee = match &result.rows[0][1] {
-            Value::String(s) => s.clone(),
-            other => panic!("expected string assignee, got {other:?}"),
-        };
-
-        let result = api
-            .path(
-                "project_tasks",
-                "title",
-                &task_title,
-                "team_members",
-                "name",
-                &assignee,
-                5,
-                "both",
-                None,
-            )
-            .unwrap();
-
-        assert_eq!(result["found"], true);
-        let path = result["path"].as_array().unwrap();
-        assert!(path.len() >= 2, "path should have at least 2 nodes");
-        assert_eq!(result["hops"], 1);
-    }
-
-    #[test]
-    fn test_graph_updates_when_tables_added_after_relationships() {
-        // Regression: if relationships are registered before tables exist,
-        // the graph's table_columns must still be populated when tables are
-        // created later, so reverse traversal picks correct identity columns.
-        let tmp = tempfile::tempdir().unwrap();
-        let api = TeidelumApi::new(tmp.path()).unwrap();
-
-        // Register relationship BEFORE tables exist
-        api.register_relationship(Relationship {
-            from_table: "tasks".to_string(),
-            from_col: "owner".to_string(),
-            to_table: "people".to_string(),
-            to_col: "name".to_string(),
-            relation: "owned_by".to_string(),
-        })
-        .unwrap();
-
-        // Now create the tables
-        let people_cols = vec![
-            ColumnSchema {
-                name: "id".to_string(),
-                dtype: "i64".to_string(),
-            },
-            ColumnSchema {
-                name: "name".to_string(),
-                dtype: "string".to_string(),
-            },
-        ];
-        api.create_table(
-            "people",
-            "test",
-            &people_cols,
-            &[
-                vec![Value::Int(1), Value::String("Alice".to_string())],
-                vec![Value::Int(2), Value::String("Bob".to_string())],
-            ],
-        )
-        .unwrap();
-
-        let task_cols = vec![
-            ColumnSchema {
-                name: "id".to_string(),
-                dtype: "i64".to_string(),
-            },
-            ColumnSchema {
-                name: "title".to_string(),
-                dtype: "string".to_string(),
-            },
-            ColumnSchema {
-                name: "owner".to_string(),
-                dtype: "string".to_string(),
-            },
-        ];
-        api.create_table(
-            "tasks",
-            "test",
-            &task_cols,
-            &[
-                vec![
-                    Value::Int(1),
-                    Value::String("Task A".to_string()),
-                    Value::String("Alice".to_string()),
-                ],
-                vec![
-                    Value::Int(2),
-                    Value::String("Task B".to_string()),
-                    Value::String("Alice".to_string()),
-                ],
-            ],
-        )
-        .unwrap();
-
-        // Reverse traversal from Alice should find both tasks as distinct nodes
-        let result = api
-            .neighbors("people", "name", "Alice", 1, "both", None)
-            .unwrap();
-
-        let nodes = result["nodes"].as_array().unwrap();
-        let task_nodes: Vec<_> = nodes.iter().filter(|n| n["table"] == "tasks").collect();
-
-        assert_eq!(
-            task_nodes.len(),
-            2,
-            "reverse traversal should find 2 distinct task nodes, got {}: {:?}",
-            task_nodes.len(),
-            task_nodes,
-        );
     }
 
     #[test]

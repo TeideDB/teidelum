@@ -24,8 +24,6 @@ pub fn api_routes() -> Router<AppState> {
         .route("/api/v1/sql", post(sql_handler))
         .route("/api/v1/describe", get(describe_handler))
         .route("/api/v1/describe/{source}", get(describe_source_handler))
-        .route("/api/v1/graph/neighbors", post(neighbors_handler))
-        .route("/api/v1/graph/path", post(path_handler))
         // Write
         .route("/api/v1/tables", post(create_table_handler))
         .route("/api/v1/tables/{name}/rows", post(insert_rows_handler))
@@ -53,48 +51,6 @@ fn default_limit() -> usize {
 #[derive(Deserialize)]
 struct SqlRequest {
     query: String,
-}
-
-#[derive(Deserialize)]
-struct NeighborsRequest {
-    table: String,
-    key: String,
-    #[serde(default = "default_key_col")]
-    key_col: String,
-    #[serde(default = "default_depth")]
-    depth: usize,
-    #[serde(default = "default_direction")]
-    direction: String,
-    #[serde(default)]
-    rel_types: Option<Vec<String>>,
-}
-
-fn default_key_col() -> String {
-    "name".to_string()
-}
-fn default_depth() -> usize {
-    2
-}
-fn default_direction() -> String {
-    "both".to_string()
-}
-
-#[derive(Deserialize)]
-struct PathRequest {
-    table: String,
-    key: String,
-    #[serde(default = "default_key_col")]
-    key_col: String,
-    to_table: String,
-    to_key: String,
-    #[serde(default)]
-    to_key_col: Option<String>,
-    #[serde(default = "default_depth")]
-    depth: usize,
-    #[serde(default = "default_direction")]
-    direction: String,
-    #[serde(default)]
-    rel_types: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -190,44 +146,6 @@ async fn describe_source_handler(
         .describe(Some(&source))
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(desc))
-}
-
-async fn neighbors_handler(
-    State(api): State<AppState>,
-    Json(req): Json<NeighborsRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let result = api
-        .neighbors(
-            &req.table,
-            &req.key_col,
-            &req.key,
-            req.depth,
-            &req.direction,
-            req.rel_types.as_deref(),
-        )
-        .map_err(|e| err(StatusCode::BAD_REQUEST, e))?;
-    Ok(Json(result))
-}
-
-async fn path_handler(
-    State(api): State<AppState>,
-    Json(req): Json<PathRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let to_key_col = req.to_key_col.as_deref().unwrap_or(&req.key_col);
-    let result = api
-        .path(
-            &req.table,
-            &req.key_col,
-            &req.key,
-            &req.to_table,
-            to_key_col,
-            &req.to_key,
-            req.depth,
-            &req.direction,
-            req.rel_types.as_deref(),
-        )
-        .map_err(|e| err(StatusCode::BAD_REQUEST, e))?;
-    Ok(Json(result))
 }
 
 async fn create_table_handler(
@@ -704,129 +622,6 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let body = json_body(resp).await;
         assert!(body["tables"].as_array().unwrap().is_empty());
-    }
-
-    // --- Graph ---
-
-    #[tokio::test]
-    async fn test_neighbors_endpoint() {
-        let tmp = tempfile::tempdir().unwrap();
-        let app = test_router_with_data(tmp.path());
-
-        let resp = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/api/v1/graph/neighbors")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        serde_json::json!({
-                            "table": "team_members",
-                            "key": "Alice Chen",
-                            "depth": 1
-                        })
-                        .to_string(),
-                    ))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = json_body(resp).await;
-        assert!(body["nodes"].as_array().unwrap().len() >= 2);
-        assert!(!body["edges"].as_array().unwrap().is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_path_endpoint() {
-        let tmp = tempfile::tempdir().unwrap();
-        crate::demo::generate(tmp.path()).unwrap();
-        let api = Arc::new(TeidelumApi::open(tmp.path()).unwrap());
-        api.register_relationships(vec![Relationship {
-            from_table: "project_tasks".to_string(),
-            from_col: "assignee".to_string(),
-            to_table: "team_members".to_string(),
-            to_col: "name".to_string(),
-            relation: "assigned_to".to_string(),
-        }])
-        .unwrap();
-
-        // Get a real task/assignee pair
-        let result = api
-            .query("SELECT title, assignee FROM project_tasks LIMIT 1")
-            .unwrap();
-        let title = match &result.rows[0][0] {
-            Value::String(s) => s.clone(),
-            other => panic!("expected String, got {other:?}"),
-        };
-        let assignee = match &result.rows[0][1] {
-            Value::String(s) => s.clone(),
-            other => panic!("expected String, got {other:?}"),
-        };
-
-        let app = super::api_routes().with_state(api);
-        let resp = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/api/v1/graph/path")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        serde_json::json!({
-                            "table": "project_tasks",
-                            "key": title,
-                            "key_col": "title",
-                            "to_table": "team_members",
-                            "to_key": assignee,
-                            "to_key_col": "name",
-                        })
-                        .to_string(),
-                    ))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(resp.status(), StatusCode::OK);
-        let body = json_body(resp).await;
-        assert_eq!(body["found"], true);
-        assert!(body["path"].as_array().unwrap().len() >= 2);
-    }
-
-    #[tokio::test]
-    async fn test_path_endpoint_not_found() {
-        let tmp = tempfile::tempdir().unwrap();
-        let app = test_router_with_data(tmp.path());
-
-        // When the target key does not exist in the database at all, the graph
-        // engine returns an error (target node not found), which the handler
-        // maps to BAD_REQUEST.
-        let resp = app
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/api/v1/graph/path")
-                    .header("content-type", "application/json")
-                    .body(Body::from(
-                        serde_json::json!({
-                            "table": "team_members",
-                            "key": "Alice Chen",
-                            "key_col": "name",
-                            "to_table": "incidents",
-                            "to_key": "NONEXISTENT",
-                            "to_key_col": "title",
-                        })
-                        .to_string(),
-                    ))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-        let body = json_body(resp).await;
-        assert!(body["error"].as_str().unwrap().contains("not found"));
     }
 
     // --- Tables CRUD ---

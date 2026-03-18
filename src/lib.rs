@@ -3,7 +3,6 @@ pub mod catalog;
 pub mod chat;
 pub mod connector;
 pub mod demo;
-pub mod graph;
 pub mod mcp;
 pub mod router;
 pub mod routes;

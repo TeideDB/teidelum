@@ -663,7 +663,7 @@ git commit -m "feat: remove graph MCP tool, update instructions for PGQ"
 
 ---
 
-### Task 9: Remove GraphEngine from TeidelumApi
+### Task 9: Remove GraphEngine from TeidelumApi [x]
 
 **Files:**
 - Modify: `src/api.rs`
