@@ -411,7 +411,7 @@ git commit -m "feat: auto-create property graphs when relationships are register
 
 ---
 
-### Task 6: Recreate property graphs on startup
+### Task 6: Recreate property graphs on startup [x]
 
 **Files:**
 - Modify: `src/api.rs`

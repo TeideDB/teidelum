@@ -1072,6 +1072,113 @@ mod tests {
     }
 
     #[test]
+    fn test_property_graphs_recreated_on_open() {
+        let tmp = tempfile::tempdir().unwrap();
+
+        // First session: create tables, register relationships, save
+        {
+            let api = TeidelumApi::new(tmp.path()).unwrap();
+
+            let person_cols = vec![
+                ColumnSchema {
+                    name: "id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+                ColumnSchema {
+                    name: "name".to_string(),
+                    dtype: "string".to_string(),
+                },
+            ];
+            api.create_table(
+                "people",
+                "test",
+                &person_cols,
+                &[
+                    vec![Value::Int(0), Value::String("Alice".to_string())],
+                    vec![Value::Int(1), Value::String("Bob".to_string())],
+                ],
+            )
+            .unwrap();
+
+            let task_cols = vec![
+                ColumnSchema {
+                    name: "id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+                ColumnSchema {
+                    name: "title".to_string(),
+                    dtype: "string".to_string(),
+                },
+                ColumnSchema {
+                    name: "owner_id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+            ];
+            api.create_table(
+                "work_items",
+                "test",
+                &task_cols,
+                &[
+                    vec![
+                        Value::Int(1),
+                        Value::String("Fix bug".to_string()),
+                        Value::Int(0),
+                    ],
+                    vec![
+                        Value::Int(2),
+                        Value::String("Add feature".to_string()),
+                        Value::Int(1),
+                    ],
+                ],
+            )
+            .unwrap();
+
+            api.register_relationship(Relationship {
+                from_table: "work_items".to_string(),
+                from_col: "owner_id".to_string(),
+                to_table: "people".to_string(),
+                to_col: "id".to_string(),
+                relation: "owned_by".to_string(),
+            })
+            .unwrap();
+
+            // Save tables to disk
+            let tables_dir = tmp.path().join("tables");
+            std::fs::create_dir_all(&tables_dir).unwrap();
+            api.query_router()
+                .save_table("people", &tables_dir.join("people"))
+                .unwrap();
+            api.query_router()
+                .save_table("work_items", &tables_dir.join("work_items"))
+                .unwrap();
+            api.query_router()
+                .save_sym(&tables_dir.join("sym"))
+                .unwrap();
+        }
+
+        // Second session: open from disk — property graphs should be recreated
+        // after re-registering relationships (catalog relationships aren't persisted yet)
+        let api = TeidelumApi::open(tmp.path()).unwrap();
+        api.register_relationship(Relationship {
+            from_table: "work_items".to_string(),
+            from_col: "owner_id".to_string(),
+            to_table: "people".to_string(),
+            to_col: "id".to_string(),
+            relation: "owned_by".to_string(),
+        })
+        .unwrap();
+
+        let result = api.query(
+            "SELECT * FROM GRAPH_TABLE (pg_work_items_people_owned_by \
+             MATCH (w:work_items)-[:owned_by]->(p:people) \
+             COLUMNS (p.name AS person))",
+        );
+        assert!(result.is_ok(), "PGQ query after open failed: {result:?}");
+        let qr = result.unwrap();
+        assert_eq!(qr.rows.len(), 2); // Both work items have owners
+    }
+
+    #[test]
     fn test_delete_table() {
         let tmp = tempfile::tempdir().unwrap();
         let api = TeidelumApi::new(tmp.path()).unwrap();
