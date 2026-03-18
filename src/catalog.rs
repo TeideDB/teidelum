@@ -83,7 +83,17 @@ impl Catalog {
                 bail!("invalid identifier in relationship {label}: '{val}'");
             }
         }
-        self.relationships.push(rel);
+        // Deduplicate: skip if an identical relationship already exists
+        let exists = self.relationships.iter().any(|r| {
+            r.from_table == rel.from_table
+                && r.from_col == rel.from_col
+                && r.to_table == rel.to_table
+                && r.to_col == rel.to_col
+                && r.relation == rel.relation
+        });
+        if !exists {
+            self.relationships.push(rel);
+        }
         Ok(())
     }
 
@@ -144,8 +154,8 @@ impl Catalog {
                     "vertex_tables": [r.from_table, r.to_table],
                     "edge_table": r.from_table,
                     "edge_label": r.relation,
-                    "source_key": r.from_col,
-                    "destination_key": r.to_col,
+                    "fk_column": r.from_col,
+                    "referenced_column": r.to_col,
                 })
             })
             .collect();

@@ -206,10 +206,29 @@ impl TeidelumApi {
     pub fn delete_table(&self, name: &str) -> Result<()> {
         validate_identifier(name)?;
 
-        // Remove from catalog first to check it exists
+        // Collect property graph names to drop before removing relationships from catalog
+        let graph_names: Vec<String> = {
+            let catalog = self.catalog.read().unwrap();
+            catalog
+                .relationships()
+                .iter()
+                .filter(|r| r.from_table == name || r.to_table == name)
+                .map(|r| format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation))
+                .collect()
+        };
+
+        // Remove from catalog to check it exists
         let mut catalog = self.catalog.write().unwrap();
         if !catalog.remove_table(name) {
             bail!("table '{name}' not found");
+        }
+        drop(catalog);
+
+        // Drop associated property graphs
+        for graph_name in &graph_names {
+            let _ = self
+                .query_router
+                .query_sync(&format!("DROP PROPERTY GRAPH IF EXISTS {graph_name}"));
         }
 
         // Drop from SQL engine (ignore errors if not present in SQL — could be remote-only)
@@ -773,7 +792,7 @@ mod tests {
     }
 
     #[test]
-    fn test_property_graphs_recreated_on_open() {
+    fn test_register_relationship_works_after_open() {
         let tmp = tempfile::tempdir().unwrap();
 
         // First session: create tables, register relationships, save
