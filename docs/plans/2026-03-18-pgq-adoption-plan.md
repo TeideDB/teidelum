@@ -714,7 +714,7 @@ git commit -m "refactor: remove GraphEngine from TeidelumApi"
 
 ---
 
-### Task 10: Delete graph.rs
+### Task 10: Delete graph.rs [x]
 
 **Files:**
 - Delete: `src/graph.rs`
