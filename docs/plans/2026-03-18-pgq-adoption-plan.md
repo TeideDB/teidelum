@@ -65,7 +65,7 @@ git commit -m "test: verify CREATE PROPERTY GRAPH works through QueryRouter"
 
 ---
 
-### Task 2: Test GRAPH_TABLE MATCH queries
+### Task 2: Test GRAPH_TABLE MATCH queries [x]
 
 **Files:**
 - Test: `src/router.rs` (add test in `mod tests`)

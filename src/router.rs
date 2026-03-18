@@ -479,4 +479,53 @@ mod tests {
         let qr = result.unwrap();
         assert_eq!(qr.columns[0].name, "status");
     }
+
+    #[test]
+    fn test_pgq_match_query() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE persons (id BIGINT, name VARCHAR)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO persons (id, name) VALUES (0, 'Alice'), (1, 'Bob'), (2, 'Carol')")
+            .unwrap();
+        router
+            .query_sync("CREATE TABLE knows (src BIGINT, dst BIGINT)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO knows (src, dst) VALUES (0, 1), (1, 2), (0, 2)")
+            .unwrap();
+        router
+            .query_sync(
+                "CREATE PROPERTY GRAPH social \
+                 VERTEX TABLES (persons LABEL Person) \
+                 EDGE TABLES (knows SOURCE KEY (src) REFERENCES persons (id) \
+                 DESTINATION KEY (dst) REFERENCES persons (id) LABEL Knows)",
+            )
+            .unwrap();
+
+        // 1-hop: Alice's direct knows connections
+        let result = router
+            .query_sync(
+                "SELECT * FROM GRAPH_TABLE (social \
+                 MATCH (p:Person WHERE p.name = 'Alice')-[:Knows]->(q:Person) \
+                 COLUMNS (q.name AS friend))",
+            )
+            .unwrap();
+
+        assert_eq!(result.columns.len(), 1);
+        assert_eq!(result.columns[0].name, "friend");
+        assert_eq!(result.rows.len(), 2); // Alice knows Bob and Carol
+
+        let names: Vec<String> = result
+            .rows
+            .iter()
+            .map(|r| match &r[0] {
+                Value::String(s) => s.clone(),
+                other => panic!("expected String, got {other:?}"),
+            })
+            .collect();
+        assert!(names.contains(&"Bob".to_string()));
+        assert!(names.contains(&"Carol".to_string()));
+    }
 }
