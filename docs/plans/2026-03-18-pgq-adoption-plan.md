@@ -231,7 +231,7 @@ git commit -m "test: verify PGQ algorithm functions work through QueryRouter"
 
 ---
 
-### Task 4: Fix col_type_name if needed
+### Task 4: Fix col_type_name if needed [x]
 
 **Files:**
 - Modify: `src/router.rs:154-166` (`col_type_name` function)
