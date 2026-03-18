@@ -227,13 +227,23 @@ pub fn init_chat_tables(api: &TeidelumApi, data_dir: Option<&Path>) -> Result<()
                         continue;
                     }
                     Err(e) => {
-                        tracing::warn!("failed to load persisted {name}, creating fresh: {e}");
+                        // Data exists on disk but failed to load — do NOT create a
+                        // fresh empty table, as that would overwrite persisted data
+                        // on the next persist_tables() call and cause data loss.
+                        tracing::error!(
+                            "failed to load persisted {name}: {e} — \
+                             refusing to create empty table over existing data. \
+                             Fix the splayed directory or delete it to start fresh."
+                        );
+                        anyhow::bail!(
+                            "chat table '{name}' exists on disk but failed to load: {e}"
+                        );
                     }
                 }
             }
         }
 
-        // Create fresh table
+        // Create fresh table (only reached if no persisted data exists)
         match router.query_sync(sql) {
             Ok(_) => {}
             Err(e) if e.to_string().contains("already exists") => {}
