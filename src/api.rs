@@ -98,6 +98,27 @@ fn extract_create_graph_name(sql: &str) -> Option<String> {
     Some(name.trim_end_matches(';').to_string())
 }
 
+/// Extract the table name from a DROP TABLE [IF EXISTS] statement.
+fn extract_drop_table_name(sql: &str) -> Option<String> {
+    let tokens: Vec<&str> = sql.split_whitespace().collect();
+    let upper_tokens: Vec<String> = tokens.iter().map(|t| t.to_uppercase()).collect();
+
+    // Expect: DROP TABLE [IF EXISTS] <name>
+    if upper_tokens.first().map(|s| s.as_str()) != Some("DROP")
+        || upper_tokens.get(1).map(|s| s.as_str()) != Some("TABLE")
+    {
+        return None;
+    }
+    let name_pos = if upper_tokens.get(2).map(|s| s.as_str()) == Some("IF") {
+        // IF EXISTS <name>
+        4
+    } else {
+        2
+    };
+    let name = tokens.get(name_pos)?;
+    Some(name.trim_end_matches(';').to_string())
+}
+
 /// Extract the graph name from a DROP PROPERTY GRAPH statement.
 /// Handles: DROP PROPERTY GRAPH <name>,
 ///          DROP PROPERTY GRAPH IF EXISTS <name>.
@@ -584,6 +605,64 @@ impl TeidelumApi {
                 if is_valid_identifier(&name) {
                     self.created_graphs.write().unwrap().remove(&name);
                     self.custom_graph_tables.write().unwrap().remove(&name);
+                }
+            }
+            return Ok(result);
+        }
+
+        // Intercept DROP TABLE to clean up property graphs that reference the
+        // dropped table, keeping `created_graphs` and `custom_graph_tables`
+        // consistent even when tables are dropped via raw SQL.
+        if upper.starts_with("DROP TABLE") {
+            let result = self.query_router.query_sync(sql)?;
+            if let Some(table_name) = extract_drop_table_name(trimmed) {
+                if is_valid_identifier(&table_name) {
+                    // Clean up auto-generated graphs from relationships
+                    let catalog = self.catalog.read().unwrap();
+                    let rel_graphs: Vec<String> = catalog
+                        .relationships()
+                        .iter()
+                        .filter(|r| r.from_table == table_name || r.to_table == table_name)
+                        .map(|r| {
+                            format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation)
+                        })
+                        .collect();
+                    drop(catalog);
+
+                    // Clean up custom graphs that reference this table
+                    let custom_to_drop: Vec<String> = {
+                        let cgt = self.custom_graph_tables.read().unwrap();
+                        cgt.iter()
+                            .filter(|(_, tables)| tables.contains(&table_name))
+                            .map(|(graph_name, _)| graph_name.clone())
+                            .collect()
+                    };
+
+                    let mut created = self.created_graphs.write().unwrap();
+                    for graph_name in &rel_graphs {
+                        let _ = self
+                            .query_router
+                            .query_sync(&format!("DROP PROPERTY GRAPH IF EXISTS {graph_name}"));
+                        created.remove(graph_name);
+                    }
+                    for graph_name in &custom_to_drop {
+                        let _ = self
+                            .query_router
+                            .query_sync(&format!("DROP PROPERTY GRAPH IF EXISTS {graph_name}"));
+                        created.remove(graph_name);
+                    }
+                    drop(created);
+
+                    if !custom_to_drop.is_empty() {
+                        let mut cgt = self.custom_graph_tables.write().unwrap();
+                        for graph_name in &custom_to_drop {
+                            cgt.remove(graph_name);
+                        }
+                    }
+
+                    // Remove from catalog so describe() stays consistent
+                    let mut catalog = self.catalog.write().unwrap();
+                    catalog.remove_table(&table_name);
                 }
             }
             return Ok(result);
