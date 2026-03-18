@@ -528,4 +528,70 @@ mod tests {
         assert!(names.contains(&"Bob".to_string()));
         assert!(names.contains(&"Carol".to_string()));
     }
+
+    #[test]
+    fn test_pgq_algorithms() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE persons (id BIGINT, name VARCHAR)")
+            .unwrap();
+        router
+            .query_sync(
+                "INSERT INTO persons (id, name) VALUES (0, 'Alice'), (1, 'Bob'), (2, 'Carol'), (3, 'Dave'), (4, 'Eve')",
+            )
+            .unwrap();
+        router
+            .query_sync("CREATE TABLE knows (src BIGINT, dst BIGINT)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO knows (src, dst) VALUES (0, 1), (0, 2), (1, 3), (2, 3), (3, 4)")
+            .unwrap();
+        router
+            .query_sync(
+                "CREATE PROPERTY GRAPH social \
+                 VERTEX TABLES (persons LABEL Person) \
+                 EDGE TABLES (knows SOURCE KEY (src) REFERENCES persons (id) \
+                 DESTINATION KEY (dst) REFERENCES persons (id) LABEL Knows)",
+            )
+            .unwrap();
+
+        // PageRank: all 5 nodes should get positive ranks
+        let result = router
+            .query_sync(
+                "SELECT COUNT(*) FROM GRAPH_TABLE (social \
+                 MATCH (p:Person) \
+                 COLUMNS (PAGERANK(social, p) AS rank)) WHERE rank > 0",
+            )
+            .unwrap();
+        match &result.rows[0][0] {
+            Value::Int(n) => assert_eq!(*n, 5, "all 5 nodes should have positive pagerank"),
+            other => panic!("expected Int, got {other:?}"),
+        }
+
+        // Connected components: single connected graph = 1 component
+        let result = router
+            .query_sync(
+                "SELECT COUNT(DISTINCT component) FROM GRAPH_TABLE (social \
+                 MATCH (p:Person) \
+                 COLUMNS (COMPONENT(social, p) AS component))",
+            )
+            .unwrap();
+        match &result.rows[0][0] {
+            Value::Int(n) => assert_eq!(*n, 1, "fully connected graph should have 1 component"),
+            other => panic!("expected Int, got {other:?}"),
+        }
+
+        // Louvain community detection: all nodes should get non-negative community IDs
+        let result = router
+            .query_sync(
+                "SELECT COUNT(*) FROM GRAPH_TABLE (social \
+                 MATCH (p:Person) \
+                 COLUMNS (COMMUNITY(social, p) AS community)) WHERE community >= 0",
+            )
+            .unwrap();
+        match &result.rows[0][0] {
+            Value::Int(n) => assert_eq!(*n, 5),
+            other => panic!("expected Int, got {other:?}"),
+        }
+    }
 }

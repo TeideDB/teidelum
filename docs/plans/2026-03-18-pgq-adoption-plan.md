@@ -139,7 +139,7 @@ git commit -m "test: verify GRAPH_TABLE MATCH queries work through QueryRouter"
 
 ---
 
-### Task 3: Test PGQ algorithm functions
+### Task 3: Test PGQ algorithm functions [x]
 
 **Files:**
 - Test: `src/router.rs` (add test in `mod tests`)
