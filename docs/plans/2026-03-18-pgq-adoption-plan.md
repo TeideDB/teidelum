@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Verify PGQ pass-through works
+### Task 1: Verify PGQ pass-through works [x]
 
 **Files:**
 - Test: `src/router.rs` (add tests in existing `mod tests`)

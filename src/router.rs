@@ -450,4 +450,33 @@ mod tests {
             other => panic!("expected String status, got {other:?}"),
         }
     }
+
+    #[test]
+    fn test_pgq_create_property_graph() {
+        let router = QueryRouter::new().unwrap();
+        router
+            .query_sync("CREATE TABLE persons (id BIGINT, name VARCHAR)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO persons (id, name) VALUES (0, 'Alice'), (1, 'Bob'), (2, 'Carol')")
+            .unwrap();
+        router
+            .query_sync("CREATE TABLE knows (src BIGINT, dst BIGINT)")
+            .unwrap();
+        router
+            .query_sync("INSERT INTO knows (src, dst) VALUES (0, 1), (1, 2), (0, 2)")
+            .unwrap();
+
+        let result = router.query_sync(
+            "CREATE PROPERTY GRAPH social \
+             VERTEX TABLES (persons LABEL Person) \
+             EDGE TABLES (knows SOURCE KEY (src) REFERENCES persons (id) \
+             DESTINATION KEY (dst) REFERENCES persons (id) LABEL Knows)",
+        );
+        assert!(result.is_ok(), "CREATE PROPERTY GRAPH failed: {result:?}");
+
+        // DDL should return a status message
+        let qr = result.unwrap();
+        assert_eq!(qr.columns[0].name, "status");
+    }
 }
