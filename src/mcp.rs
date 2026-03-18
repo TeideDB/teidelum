@@ -55,54 +55,6 @@ pub struct SyncParams {
     pub source: Option<String>,
 }
 
-fn default_operation() -> String {
-    "neighbors".to_string()
-}
-
-fn default_depth() -> usize {
-    2
-}
-
-fn default_direction() -> String {
-    "both".to_string()
-}
-
-fn default_key_col() -> String {
-    "name".to_string()
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct GraphParams {
-    /// Starting node table (e.g. "team_members", "project_tasks").
-    pub table: String,
-    /// Node identifier value (e.g. "Alice Chen", "Implement JWT token rotation").
-    pub key: String,
-    /// Key column name to identify the node (default: "name").
-    #[serde(default = "default_key_col")]
-    pub key_col: String,
-    /// Graph operation: "neighbors" or "path".
-    #[serde(default = "default_operation")]
-    pub operation: String,
-    /// Maximum traversal depth in hops (default: 2).
-    #[serde(default = "default_depth")]
-    pub depth: usize,
-    /// Traversal direction: "forward", "reverse", or "both" (default: "both").
-    #[serde(default = "default_direction")]
-    pub direction: String,
-    /// Filter to specific relationship types (e.g. ["assigned_to", "reported_by"]).
-    #[serde(default)]
-    pub rel_types: Option<Vec<String>>,
-    /// Target table for "path" operation.
-    #[serde(default)]
-    pub to_table: Option<String>,
-    /// Target key value for "path" operation.
-    #[serde(default)]
-    pub to_key: Option<String>,
-    /// Target key column for "path" operation (default: same as key_col).
-    #[serde(default)]
-    pub to_key_col: Option<String>,
-}
-
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct CreateTableParams {
     /// Table name (alphanumeric + underscores).
@@ -228,7 +180,7 @@ pub struct ChatSearchParams {
     pub limit: usize,
 }
 
-/// The Teidelum MCP server — exposes search, sql, describe, graph, and sync tools.
+/// The Teidelum MCP server — exposes search, sql, describe, and sync tools.
 #[derive(Clone)]
 pub struct Teidelum {
     api: Arc<TeidelumApi>,
@@ -439,67 +391,6 @@ impl Teidelum {
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&result).unwrap(),
         )]))
-    }
-
-    #[tool(description = "Traverse relationships between entities (neighbors, paths)")]
-    async fn graph(
-        &self,
-        Parameters(params): Parameters<GraphParams>,
-    ) -> Result<CallToolResult, McpError> {
-        let result = match params.operation.as_str() {
-            "neighbors" => self.api.neighbors(
-                &params.table,
-                &params.key_col,
-                &params.key,
-                params.depth,
-                &params.direction,
-                params.rel_types.as_deref(),
-            ),
-            "path" => {
-                let to_table = params.to_table.as_deref().ok_or_else(|| {
-                    McpError::invalid_params("'to_table' is required for path operation", None)
-                })?;
-                let to_key = params.to_key.as_deref().ok_or_else(|| {
-                    McpError::invalid_params("'to_key' is required for path operation", None)
-                })?;
-                let to_key_col = params.to_key_col.as_deref().unwrap_or(&params.key_col);
-                self.api.path(
-                    &params.table,
-                    &params.key_col,
-                    &params.key,
-                    to_table,
-                    to_key_col,
-                    to_key,
-                    params.depth,
-                    &params.direction,
-                    params.rel_types.as_deref(),
-                )
-            }
-            other => {
-                return Err(McpError::invalid_params(
-                    format!("unknown graph operation: '{other}'. Use 'neighbors' or 'path'"),
-                    None,
-                ));
-            }
-        };
-
-        let result = result.map_err(|e| {
-            let msg = e.to_string();
-            let is_user_error = msg.starts_with("invalid ")
-                || msg.starts_with("starting node not found")
-                || msg.starts_with("source node not found")
-                || msg.starts_with("target node not found");
-            if is_user_error {
-                McpError::invalid_params(msg, None)
-            } else {
-                McpError::internal_error(format!("graph operation failed: {msg}"), None)
-            }
-        })?;
-
-        let json = serde_json::to_string_pretty(&result)
-            .map_err(|e| McpError::internal_error(format!("serialization failed: {e}"), None))?;
-
-        Ok(CallToolResult::success(vec![Content::text(json)]))
     }
 
     #[tool(description = "Create a new table with schema and optional initial rows")]
@@ -1184,9 +1075,10 @@ impl ServerHandler for Teidelum {
             },
             instructions: Some(
                 "Teidelum indexes Notion, Zulip, and live data sources into a single \
-                 searchable index. Use 'describe' to see available tables, 'search' for \
-                 full-text queries, 'sql' for analytical queries, 'graph' to traverse \
-                 relationships between entities, and 'sync' to refresh data."
+                 searchable index. Use 'describe' to see available tables and property graphs, \
+                 'search' for full-text queries, 'sql' for analytical queries (including PGQ \
+                 graph pattern matching and algorithms like PAGERANK, COMMUNITY, COMPONENT), \
+                 and 'sync' to refresh data."
                     .into(),
             ),
         }

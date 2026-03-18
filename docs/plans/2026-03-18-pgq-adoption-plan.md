@@ -614,7 +614,7 @@ git commit -m "feat: include property_graphs in describe output"
 
 ---
 
-### Task 8: Remove graph tool from MCP
+### Task 8: Remove graph tool from MCP [x]
 
 **Files:**
 - Modify: `src/mcp.rs`
