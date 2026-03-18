@@ -136,9 +136,24 @@ impl Catalog {
             None => self.relationships.iter().collect(),
         };
 
+        let property_graphs: Vec<serde_json::Value> = rels
+            .iter()
+            .map(|r| {
+                serde_json::json!({
+                    "name": format!("pg_{}_{}_{}", r.from_table, r.to_table, r.relation),
+                    "vertex_tables": [r.from_table, r.to_table],
+                    "edge_table": r.from_table,
+                    "edge_label": r.relation,
+                    "source_key": r.from_col,
+                    "destination_key": r.to_col,
+                })
+            })
+            .collect();
+
         Ok(serde_json::json!({
             "tables": tables,
             "relationships": rels,
+            "property_graphs": property_graphs,
         }))
     }
 }
@@ -499,5 +514,52 @@ mod tests {
         assert_eq!(catalog.tables().len(), 2);
         assert_eq!(catalog.relationships().len(), 1);
         assert_eq!(catalog.relationships()[0].relation, "r3");
+    }
+
+    #[test]
+    fn test_describe_includes_property_graphs() {
+        let mut catalog = Catalog::new();
+        catalog.register_table(TableEntry {
+            name: "users".to_string(),
+            source: "test".to_string(),
+            storage: StorageType::Local,
+            columns: vec![ColumnInfo {
+                name: "id".to_string(),
+                dtype: "i64".to_string(),
+            }],
+            row_count: Some(10),
+        });
+        catalog.register_table(TableEntry {
+            name: "tasks".to_string(),
+            source: "test".to_string(),
+            storage: StorageType::Local,
+            columns: vec![
+                ColumnInfo {
+                    name: "id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+                ColumnInfo {
+                    name: "user_id".to_string(),
+                    dtype: "i64".to_string(),
+                },
+            ],
+            row_count: Some(5),
+        });
+        catalog
+            .register_relationship(Relationship {
+                from_table: "tasks".to_string(),
+                from_col: "user_id".to_string(),
+                to_table: "users".to_string(),
+                to_col: "id".to_string(),
+                relation: "assigned_to".to_string(),
+            })
+            .unwrap();
+
+        let desc = catalog.describe(None).unwrap();
+        let graphs = desc["property_graphs"].as_array().unwrap();
+        assert_eq!(graphs.len(), 1);
+        assert_eq!(graphs[0]["name"], "pg_tasks_users_assigned_to");
+        assert!(graphs[0]["vertex_tables"].as_array().unwrap().len() >= 2);
+        assert_eq!(graphs[0]["edge_label"], "assigned_to");
     }
 }

@@ -512,7 +512,7 @@ git commit -m "test: verify property graphs are recreated after relationship re-
 
 ---
 
-### Task 7: Add property graphs to describe output
+### Task 7: Add property graphs to describe output [x]
 
 **Files:**
 - Modify: `src/catalog.rs`
