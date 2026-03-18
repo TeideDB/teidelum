@@ -517,7 +517,9 @@ impl TeidelumApi {
                     let already_ours =
                         !is_custom && self.created_graphs.read().unwrap().contains(&graph_name);
                     if already_ours {
-                        tracing::debug!("property graph {graph_name} already exists (ours), skipping");
+                        tracing::debug!(
+                            "property graph {graph_name} already exists (ours), skipping"
+                        );
                     } else {
                         tracing::warn!(
                             "property graph {graph_name} already exists but was not created by \
@@ -546,32 +548,31 @@ impl TeidelumApi {
         {
             let result = self.query_router.query_sync(sql)?;
             if let Some(name) = extract_create_graph_name(trimmed) {
-                self.created_graphs
-                    .write()
-                    .unwrap()
-                    .insert(name.to_string());
-                // Track which catalog tables this custom graph references so
-                // delete_table() can clean it up if a referenced table is dropped.
-                // Only scan inside VERTEX TABLES / EDGE TABLES clauses to avoid
-                // false positives from graph names or label aliases.
-                let referenced_tables: HashSet<String> = {
-                    let catalog = self.catalog.read().unwrap();
-                    let tables_region = extract_tables_region(&upper);
-                    catalog
-                        .tables()
-                        .iter()
-                        .filter(|t| {
-                            let needle = t.name.to_uppercase();
-                            is_whole_word_in(&tables_region, &needle)
-                        })
-                        .map(|t| t.name.clone())
-                        .collect()
-                };
-                if !referenced_tables.is_empty() {
-                    self.custom_graph_tables
-                        .write()
-                        .unwrap()
-                        .insert(name.to_string(), referenced_tables);
+                if is_valid_identifier(&name) {
+                    self.created_graphs.write().unwrap().insert(name.clone());
+                    // Track which catalog tables this custom graph references so
+                    // delete_table() can clean it up if a referenced table is dropped.
+                    // Only scan inside VERTEX TABLES / EDGE TABLES clauses to avoid
+                    // false positives from graph names or label aliases.
+                    let referenced_tables: HashSet<String> = {
+                        let catalog = self.catalog.read().unwrap();
+                        let tables_region = extract_tables_region(&upper);
+                        catalog
+                            .tables()
+                            .iter()
+                            .filter(|t| {
+                                let needle = t.name.to_uppercase();
+                                is_whole_word_in(&tables_region, &needle)
+                            })
+                            .map(|t| t.name.clone())
+                            .collect()
+                    };
+                    if !referenced_tables.is_empty() {
+                        self.custom_graph_tables
+                            .write()
+                            .unwrap()
+                            .insert(name, referenced_tables);
+                    }
                 }
             }
             return Ok(result);
@@ -580,14 +581,10 @@ impl TeidelumApi {
         if upper.starts_with("DROP PROPERTY GRAPH") {
             let result = self.query_router.query_sync(sql)?;
             if let Some(name) = extract_drop_graph_name(trimmed) {
-                self.created_graphs
-                    .write()
-                    .unwrap()
-                    .remove(&name.to_string());
-                self.custom_graph_tables
-                    .write()
-                    .unwrap()
-                    .remove(&name.to_string());
+                if is_valid_identifier(&name) {
+                    self.created_graphs.write().unwrap().remove(&name);
+                    self.custom_graph_tables.write().unwrap().remove(&name);
+                }
             }
             return Ok(result);
         }
