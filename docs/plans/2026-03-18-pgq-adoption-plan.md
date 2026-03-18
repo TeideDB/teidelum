@@ -262,7 +262,7 @@ git commit -m "fix: add missing type tag mappings for PGQ result columns"
 
 ---
 
-### Task 5: Add auto-generated property graphs to TeidelumApi
+### Task 5: Add auto-generated property graphs to TeidelumApi [x]
 
 **Files:**
 - Modify: `src/api.rs`
