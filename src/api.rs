@@ -385,13 +385,11 @@ impl TeidelumApi {
             }
         }
 
-        // Drop the SQL table.
-        if let Err(e) = self.query_router.drop_table(name) {
-            tracing::warn!("failed to drop SQL table '{name}': {e}");
-        }
+        // Drop the SQL table. If this fails, bail out so the catalog stays
+        // consistent with the engine (graphs were already cleaned up above).
+        self.query_router.drop_table(name)?;
 
-        // Remove from catalog last — after DDL operations have succeeded or
-        // been warned about, so the catalog stays consistent with the engine.
+        // Remove from catalog last — after DDL succeeded.
         {
             let mut catalog = self.catalog.write().unwrap();
             catalog.remove_table(name);
@@ -614,10 +612,10 @@ impl TeidelumApi {
         // dropped table, keeping `created_graphs` and `custom_graph_tables`
         // consistent even when tables are dropped via raw SQL.
         if upper.starts_with("DROP TABLE") {
-            let result = self.query_router.query_sync(sql)?;
             if let Some(table_name) = extract_drop_table_name(trimmed) {
                 if is_valid_identifier(&table_name) {
-                    // Clean up auto-generated graphs from relationships
+                    // Drop property graphs BEFORE dropping the table, so graph
+                    // DDL referencing the table can still resolve cleanly.
                     let catalog = self.catalog.read().unwrap();
                     let rel_graphs: Vec<String> = catalog
                         .relationships()
@@ -659,8 +657,15 @@ impl TeidelumApi {
                             cgt.remove(graph_name);
                         }
                     }
+                }
+            }
 
-                    // Remove from catalog so describe() stays consistent
+            // Now drop the table itself.
+            let result = self.query_router.query_sync(sql)?;
+
+            // Remove from catalog so describe() stays consistent.
+            if let Some(table_name) = extract_drop_table_name(trimmed) {
+                if is_valid_identifier(&table_name) {
                     let mut catalog = self.catalog.write().unwrap();
                     catalog.remove_table(&table_name);
                 }
