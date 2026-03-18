@@ -249,7 +249,7 @@
 </script>
 
 <div class="border-t border-primary-dark/40 px-4 py-3">
-	<div class="relative flex items-end gap-2 rounded-lg bg-navy-light px-3 py-2">
+	<div class="relative flex items-center gap-2 rounded-lg bg-navy-light px-3 py-2">
 		<Autocomplete
 			bind:this={autocompleteRef}
 			items={autocompleteItems}
