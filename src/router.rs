@@ -135,13 +135,20 @@ impl QueryRouter {
         Ok(())
     }
 
-    /// Save the global symbol table to disk.
+    /// Save the global symbol table to disk atomically.
+    ///
+    /// Writes to a temporary file first, then renames over the target.
+    /// This prevents SIGKILL during the write from leaving a truncated
+    /// sym file that corrupts subsequent `read_splayed` calls.
     pub fn save_sym(&self, sym_path: &Path) -> Result<()> {
-        let c_path = CString::new(sym_path.to_str().unwrap())?;
-        let err = unsafe { teide::ffi::td_sym_save(c_path.as_ptr()) };
+        let tmp_path = sym_path.with_extension("sym.tmp");
+        let c_tmp = CString::new(tmp_path.to_str().unwrap())?;
+        let err = unsafe { teide::ffi::td_sym_save(c_tmp.as_ptr()) };
         if err != teide::ffi::td_err_t::TD_OK {
+            let _ = std::fs::remove_file(&tmp_path);
             anyhow::bail!("td_sym_save failed: {err:?}");
         }
+        std::fs::rename(&tmp_path, sym_path)?;
         Ok(())
     }
 
