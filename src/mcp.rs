@@ -294,7 +294,7 @@ impl Teidelum {
         Ok((user_id, username))
     }
 
-    /// Check if a user is a member of a channel.
+    /// Check if a channel is archived.
     fn is_archived(&self, channel_id: i64) -> bool {
         let sql = format!("SELECT archived_at FROM channels WHERE id = {}", channel_id);
         match self.api.query_router().query_sync(&sql) {

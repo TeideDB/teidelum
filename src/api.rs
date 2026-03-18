@@ -173,6 +173,10 @@ impl TeidelumApi {
         columns: &[ColumnSchema],
         rows: &[Vec<Value>],
     ) -> Result<()> {
+        validate_identifier(name)?;
+        for c in columns {
+            validate_identifier(&c.name)?;
+        }
         for chunk in rows.chunks(1000) {
             let values: Vec<String> = chunk.iter().map(|row| row_to_sql_values(row)).collect();
             let col_names: Vec<&str> = columns.iter().map(|c| c.name.as_str()).collect();
