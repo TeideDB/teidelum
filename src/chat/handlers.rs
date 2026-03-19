@@ -137,6 +137,8 @@ pub struct RegisterRequest {
     pub email: String,
     #[serde(default)]
     pub display_name: Option<String>,
+    #[serde(default)]
+    pub is_bot: bool,
 }
 
 pub async fn auth_register(
@@ -198,11 +200,12 @@ pub async fn auth_register(
 
     let insert_sql = format!(
         "INSERT INTO users (id, username, display_name, email, password_hash, avatar_url, status, status_text, status_emoji, is_bot, created_at) \
-         VALUES ({id}, '{username}', '{display}', '{email}', '{hash}', '', 'offline', '', '', false, '{now}')",
+         VALUES ({id}, '{username}', '{display}', '{email}', '{hash}', '', 'offline', '', '', {is_bot}, '{now}')",
         username = escape_sql(&req.username),
         display = escape_sql(&display_name),
         email = escape_sql(&req.email),
         hash = escape_sql(&password_hash),
+        is_bot = req.is_bot,
     );
 
     if let Err(e) = state.api.query_router().query_sync(&insert_sql) {
