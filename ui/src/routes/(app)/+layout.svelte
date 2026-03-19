@@ -63,7 +63,8 @@
 	}
 
 	onMount(() => {
-		Promise.all([loadChannels(), loadUsers()]).catch((e) => {
+		// Load users first so DM channel names can resolve display names
+		loadUsers().then(() => loadChannels()).catch((e) => {
 			console.error('Failed to load initial data:', e);
 		});
 		const cleanups = [
@@ -75,7 +76,7 @@
 
 		// Re-fetch all data after a reconnect so the UI is fresh
 		onReconnect(() => {
-			Promise.all([loadChannels(), loadUsers()]).catch((e) => {
+			loadUsers().then(() => loadChannels()).catch((e) => {
 				console.error('Failed to reload data after reconnect:', e);
 			});
 		});
