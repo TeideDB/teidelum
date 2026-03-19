@@ -70,7 +70,7 @@
 				<Avatar url={user?.avatar_url ?? ''} name={user?.display_name || user?.username || ''} size="lg" />
 				<!-- Presence dot -->
 				<span
-					class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-navy-light {userPresence === 'active' ? 'bg-green-500' : 'bg-gray-500'}"
+					class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full {userPresence === 'active' ? 'bg-green-500 border-2 border-navy-light' : 'border-2 border-gray-500'}"
 				></span>
 			</div>
 			<div class="min-w-0">
@@ -96,8 +96,8 @@
 		<!-- Info -->
 		<div class="border-t border-primary-dark/40 px-4 py-3 space-y-1">
 			<div class="flex items-center gap-2 text-xs text-primary-light/50">
-				<span class="h-1.5 w-1.5 rounded-full {userPresence === 'active' ? 'bg-green-500' : 'bg-gray-500'}"></span>
-				{userPresence === 'active' ? 'Active' : 'Away'}
+				<span class="h-1.5 w-1.5 rounded-full {userPresence === 'active' ? 'bg-green-500' : 'border border-gray-500'}"></span>
+				{userPresence === 'active' ? 'Active' : 'Offline'}
 			</div>
 			{#if user?.created_at}
 				<p class="text-xs text-primary-light/40">Member since {formatDate(user.created_at)}</p>

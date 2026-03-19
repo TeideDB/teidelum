@@ -399,7 +399,7 @@
 							<div class="relative flex-shrink-0">
 								<Avatar url={user.avatar_url} name={user.display_name || user.username} size="sm" />
 								<span
-									class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-navy-light {$presence.get(user.id) === 'active' ? 'bg-green-400' : 'bg-gray-500'}"
+									class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full {$presence.get(user.id) === 'active' ? 'bg-green-400 border-2 border-navy-light' : 'border-2 border-gray-500'}"
 								></span>
 							</div>
 							<span class="truncate">{user.display_name || user.username}</span>
