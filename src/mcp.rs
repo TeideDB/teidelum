@@ -181,10 +181,16 @@ pub struct ChatSearchParams {
 }
 
 /// The Teidelum MCP server — exposes search, sql, describe, and sync tools.
+///
+/// Each MCP session is authenticated as a specific user via `user_id`.
+/// When no user is specified, falls back to the first `is_bot=true` user
+/// for backward compatibility.
 #[derive(Clone)]
 pub struct Teidelum {
     api: Arc<TeidelumApi>,
     hub: Option<Arc<crate::chat::hub::Hub>>,
+    /// The user identity for this MCP session. Chat tools post as this user.
+    user_id: Option<(i64, String)>,
     reaction_lock: Arc<tokio::sync::Mutex<()>>,
     tool_router: ToolRouter<Self>,
 }
@@ -234,6 +240,7 @@ impl Teidelum {
         Self {
             api: Arc::new(api),
             hub: None,
+            user_id: None,
             reaction_lock: Arc::new(tokio::sync::Mutex::new(())),
             tool_router: Self::tool_router(),
         }
@@ -243,6 +250,7 @@ impl Teidelum {
         Self {
             api,
             hub: None,
+            user_id: None,
             reaction_lock: Arc::new(tokio::sync::Mutex::new(())),
             tool_router: Self::tool_router(),
         }
@@ -252,22 +260,41 @@ impl Teidelum {
         Self {
             api,
             hub: Some(hub),
+            user_id: None,
             reaction_lock: Arc::new(tokio::sync::Mutex::new(())),
             tool_router: Self::tool_router(),
         }
     }
 
-    /// Look up the first bot user. Returns (user_id, username) or error.
-    fn resolve_bot_user(&self) -> Result<(i64, String), McpError> {
+    /// Create an MCP server authenticated as a specific user.
+    pub fn new_as_user(api: Arc<TeidelumApi>, hub: Arc<crate::chat::hub::Hub>, user_id: i64, username: String) -> Self {
+        Self {
+            api,
+            hub: Some(hub),
+            user_id: Some((user_id, username)),
+            reaction_lock: Arc::new(tokio::sync::Mutex::new(())),
+            tool_router: Self::tool_router(),
+        }
+    }
+
+    /// Resolve the user identity for this MCP session.
+    /// Uses the explicit user_id if set, otherwise falls back to the first
+    /// is_bot=true user for backward compatibility.
+    fn resolve_user(&self) -> Result<(i64, String), McpError> {
+        if let Some((id, name)) = &self.user_id {
+            return Ok((*id, name.clone()));
+        }
+
+        // Fallback: find any bot user
         let sql = "SELECT id, username FROM users WHERE is_bot = true LIMIT 1";
         let result =
             self.api.query_router().query_sync(sql).map_err(|e| {
-                McpError::internal_error(format!("bot user lookup failed: {e}"), None)
+                McpError::internal_error(format!("user lookup failed: {e}"), None)
             })?;
 
         if result.rows.is_empty() {
             return Err(McpError::internal_error(
-                "no bot user found — create one with is_bot=true via auth.register".to_string(),
+                "no user configured for this MCP session — use TEIDELUM_USER env var or register a bot user".to_string(),
                 None,
             ));
         }
@@ -276,7 +303,7 @@ impl Teidelum {
             Value::Int(v) => *v,
             _ => {
                 return Err(McpError::internal_error(
-                    "invalid bot user id".to_string(),
+                    "invalid user id".to_string(),
                     None,
                 ))
             }
@@ -285,7 +312,7 @@ impl Teidelum {
             Value::String(s) => s.clone(),
             _ => {
                 return Err(McpError::internal_error(
-                    "invalid bot username".to_string(),
+                    "invalid username".to_string(),
                     None,
                 ))
             }
@@ -598,7 +625,7 @@ impl Teidelum {
         &self,
         Parameters(params): Parameters<ChatPostMessageParams>,
     ) -> Result<CallToolResult, McpError> {
-        let (bot_id, _) = self.resolve_bot_user()?;
+        let (bot_id, _) = self.resolve_user()?;
 
         if !self.is_member(params.channel, bot_id) {
             return Err(McpError::invalid_params(
@@ -678,7 +705,7 @@ impl Teidelum {
         &self,
         Parameters(params): Parameters<ChatHistoryParams>,
     ) -> Result<CallToolResult, McpError> {
-        let (bot_id, _) = self.resolve_bot_user()?;
+        let (bot_id, _) = self.resolve_user()?;
 
         if !self.is_member(params.channel, bot_id) {
             return Err(McpError::invalid_params(
@@ -732,7 +759,7 @@ impl Teidelum {
         &self,
         Parameters(params): Parameters<ChatReplyParams>,
     ) -> Result<CallToolResult, McpError> {
-        let (bot_id, _) = self.resolve_bot_user()?;
+        let (bot_id, _) = self.resolve_user()?;
 
         if !self.is_member(params.channel, bot_id) {
             return Err(McpError::invalid_params(
@@ -814,7 +841,7 @@ impl Teidelum {
         &self,
         Parameters(params): Parameters<ChatReactParams>,
     ) -> Result<CallToolResult, McpError> {
-        let (bot_id, _) = self.resolve_bot_user()?;
+        let (bot_id, _) = self.resolve_user()?;
 
         // Get channel from message
         let check_sql = format!(
@@ -903,7 +930,7 @@ impl Teidelum {
         &self,
         Parameters(_params): Parameters<ChatListChannelsParams>,
     ) -> Result<CallToolResult, McpError> {
-        let (bot_id, _) = self.resolve_bot_user()?;
+        let (bot_id, _) = self.resolve_user()?;
 
         // List channels the bot is a member of
         let sql = format!(
@@ -946,7 +973,7 @@ impl Teidelum {
         &self,
         Parameters(params): Parameters<ChatSearchParams>,
     ) -> Result<CallToolResult, McpError> {
-        let (bot_id, _) = self.resolve_bot_user()?;
+        let (bot_id, _) = self.resolve_user()?;
 
         // Get channel IDs the bot is a member of for filtering results
         let member_channel_ids: std::collections::HashSet<i64> = {

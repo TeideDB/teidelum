@@ -75,6 +75,32 @@ async fn main() -> Result<()> {
 
     let hub = Arc::new(teidelum::chat::hub::Hub::new());
 
+    // Resolve TEIDELUM_USER env var to authenticate MCP sessions as a specific user.
+    // Value can be a username — looked up from the users table.
+    let mcp_user: Option<(i64, String)> = if let Ok(username) = std::env::var("TEIDELUM_USER") {
+        let sql = format!(
+            "SELECT id, username FROM users WHERE username = '{}'",
+            username.replace('\'', "''")
+        );
+        match api.query_router().query_sync(&sql) {
+            Ok(r) if !r.rows.is_empty() => {
+                let uid = match &r.rows[0][0] {
+                    teidelum::connector::Value::Int(v) => *v,
+                    _ => anyhow::bail!("TEIDELUM_USER '{username}': invalid user id"),
+                };
+                let uname = match &r.rows[0][1] {
+                    teidelum::connector::Value::String(s) => s.clone(),
+                    _ => anyhow::bail!("TEIDELUM_USER '{username}': invalid username"),
+                };
+                tracing::info!("MCP session authenticated as user '{uname}' (id={uid})");
+                Some((uid, uname))
+            }
+            _ => anyhow::bail!("TEIDELUM_USER '{username}' not found in users table"),
+        }
+    } else {
+        None
+    };
+
     if let Some(port) = cli.port {
         // HTTP mode: run REST API (+ optional stdio MCP if stdin is a pipe)
         let api = Arc::new(api);
@@ -90,7 +116,10 @@ async fn main() -> Result<()> {
         // Only serve MCP over stdio if explicitly requested via --stdio flag
         let stdin_is_pipe = cli.stdio;
         if stdin_is_pipe {
-            let server = Teidelum::new_with_shared(api.clone());
+            let server = match &mcp_user {
+                Some((uid, uname)) => Teidelum::new_as_user(api.clone(), hub.clone(), *uid, uname.clone()),
+                None => Teidelum::new_with_hub(api.clone(), hub.clone()),
+            };
             tracing::info!(
                 "teidelum ready — serving MCP over stdio + HTTP on {}:{}",
                 cli.bind,
@@ -119,7 +148,11 @@ async fn main() -> Result<()> {
         }
     } else {
         tracing::info!("teidelum ready — serving MCP over stdio");
-        let server = Teidelum::new(api);
+        let api = Arc::new(api);
+        let server = match &mcp_user {
+            Some((uid, uname)) => Teidelum::new_as_user(api, hub, *uid, uname.clone()),
+            None => Teidelum::new_with_shared(api),
+        };
         let service = server.serve(stdio()).await.inspect_err(|e| {
             tracing::error!("serving error: {:?}", e);
         })?;
