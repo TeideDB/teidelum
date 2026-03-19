@@ -360,7 +360,7 @@
 				{:else}
 					<!-- Timestamp on hover (aligned with avatar) -->
 					<div class="flex w-9 flex-shrink-0 items-center justify-center">
-						<span class="hidden text-xs text-primary-light/40 group-hover:inline">{formatTime(msg.created_at)}</span>
+						<span class="text-xs text-primary-light/40 opacity-0 group-hover:opacity-100">{formatTime(msg.created_at)}</span>
 					</div>
 				{/if}
 
