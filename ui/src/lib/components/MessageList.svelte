@@ -148,7 +148,7 @@
 
 	function getUserName(userId: Id): string {
 		const user = $users.get(userId);
-		return user?.display_name || user?.username || userId;
+		return user?.display_name || user?.username || 'Unknown User';
 	}
 
 	function getUser(userId: Id) {
