@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web REPL — Teidelum</title>
+  <meta name="description" content="Browser-based SQL console for interactive data exploration with TeideDB.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="docs.css">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <!-- Top Bar -->
+  <div class="docs-topbar">
+    <div class="docs-topbar-left">
+      <button class="docs-sidebar-toggle" aria-label="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <a href="../" class="docs-brand">
+        <img src="../assets/teidelum-icon.svg" alt="Teidelum" width="22" height="22">
+        Teidelum
+      </a>
+      <a href="../">&larr; Back to home</a>
+    </div>
+    <a href="https://github.com/TeideDB/teidelum" class="nav-github" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
+
+  <div class="docs-layout">
+    <!-- Sidebar (identical on all doc pages) -->
+    <nav class="docs-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Getting Started</div>
+        <a href="quick-start.html" class="sidebar-link">Quick Start</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Reference</div>
+        <a href="mcp-tools.html" class="sidebar-link">MCP Tools</a>
+        <a href="api-reference.html" class="sidebar-link">API Reference</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Tools</div>
+        <a href="web-repl.html" class="sidebar-link">Web REPL</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Concepts</div>
+        <a href="architecture.html" class="sidebar-link">Architecture</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Examples</div>
+        <a href="examples.html" class="sidebar-link">Agent Workflows</a>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <main class="docs-content">
+      <h1>Web REPL</h1>
+      <p class="page-subtitle">Browser-based SQL console for interactive data exploration.</p>
+
+      <h2>Overview</h2>
+      <ul>
+        <li>Browser-based SQL console served locally</li>
+        <li>CodeMirror 6 editor with SQL syntax highlighting and autocomplete</li>
+        <li>Virtual-scrolling result tables for large datasets</li>
+        <li>Built-in JavaScript console</li>
+        <li>Dark theme matching the Teide color palette</li>
+      </ul>
+
+      <h2>Prerequisites</h2>
+      <ul>
+        <li>Node.js &gt;= 18</li>
+        <li>CMake &gt;= 3.15, C17/C++17 compiler</li>
+        <li>git</li>
+      </ul>
+
+      <h2>Installation</h2>
+      <pre><code>git clone https://github.com/TeideDB/teide-js.git
+cd teide-js
+npm install
+npm run build</code></pre>
+
+      <h2>Running</h2>
+      <pre><code>npm run repl               # Start server (manual browser open)
+node bin/teide.js          # Start server + auto-open browser</code></pre>
+      <p>Opens at <code>http://127.0.0.1:3141</code> (auto-increments if port busy).</p>
+
+      <h2>Interface Guide</h2>
+
+      <h3>Editor</h3>
+      <ul>
+        <li>SQL editor with syntax highlighting (one-dark theme)</li>
+        <li>Autocomplete triggers as you type (2+ characters), Tab to accept</li>
+        <li>Ctrl+Enter (Cmd+Enter on Mac) to execute</li>
+        <li>Green "Run query" button in bottom-right corner</li>
+        <li>SQL tabs &mdash; double-click to rename</li>
+      </ul>
+
+      <h3>Sidebar</h3>
+      <ul>
+        <li>Tables panel: expandable tree showing table names, row counts, and column types</li>
+        <li>Filter input to search tables</li>
+        <li>History panel: clickable list of past queries</li>
+        <li>Toggle between panels via icon rail</li>
+      </ul>
+
+      <h3>Bottom Pane</h3>
+      <p>Three tabs below the results:</p>
+      <ul>
+        <li><strong>Output</strong> &mdash; Query result table with virtual scrolling, column headers with type badges, numbers right-aligned, Download CSV/JSON/Copy</li>
+        <li><strong>Log</strong> &mdash; Scrollable history of all queries with timestamps and timing</li>
+        <li><strong>Console</strong> &mdash; JavaScript REPL (eval any JS, arrow keys for history)</li>
+      </ul>
+
+      <h2>Loading Data</h2>
+      <pre><code>.load /path/to/data.csv
+.load /path/to/data.csv as myTable</code></pre>
+      <p>Or via SQL:</p>
+      <pre><code>CREATE TABLE t AS SELECT * FROM read_csv('/path/to/data.csv');</code></pre>
+
+      <h2>Querying</h2>
+      <pre><code>SELECT * FROM sales;
+SELECT category, SUM(price) FROM sales GROUP BY category;
+SELECT * FROM sales WHERE price &gt; 100 ORDER BY price DESC;</code></pre>
+
+      <h2>Dot-Commands</h2>
+      <table>
+        <thead>
+          <tr><th>Command</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>.help</code></td><td>Show available commands</td></tr>
+          <tr><td><code>.tables</code></td><td>List registered tables</td></tr>
+          <tr><td><code>.schema &lt;table&gt;</code></td><td>Show column names and types</td></tr>
+          <tr><td><code>.load &lt;file&gt; [as &lt;name&gt;]</code></td><td>Load CSV file</td></tr>
+          <tr><td><code>.save &lt;table&gt; &lt;file&gt;</code></td><td>Export table to CSV</td></tr>
+          <tr><td><code>.timer on|off</code></td><td>Toggle query timing</td></tr>
+          <tr><td><code>.clear</code></td><td>Clear results</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Keyboard Shortcuts</h2>
+      <table>
+        <thead>
+          <tr><th>Shortcut</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Ctrl+Enter</code></td><td>Execute query</td></tr>
+          <tr><td><code>Tab</code></td><td>Accept autocomplete suggestion</td></tr>
+          <tr><td><code>Escape</code></td><td>Dismiss autocomplete</td></tr>
+          <tr><td><code>Up/Down</code> (in Console)</td><td>Navigate input history</td></tr>
+          <tr><td>Double-click tab</td><td>Rename SQL tab</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Architecture</h2>
+      <p>A Node.js HTTP server serves a single HTML page. WebSocket handles bidirectional communication for queries, autocomplete, and metadata. The native Teide engine executes queries via C++ NAPI bindings.</p>
+
+      <!-- Prev/Next -->
+      <div class="docs-nav-footer">
+        <a href="architecture.html" class="docs-nav-link">
+          <span class="docs-nav-label">&larr; Previous</span>
+          <span class="docs-nav-title">Architecture</span>
+        </a>
+        <a href="examples.html" class="docs-nav-link next">
+          <span class="docs-nav-label">Next &rarr;</span>
+          <span class="docs-nav-title">Agent Workflows</span>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <script src="docs.js"></script>
+</body>
+</html>
